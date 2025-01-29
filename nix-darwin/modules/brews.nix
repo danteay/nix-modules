@@ -2,7 +2,11 @@
 {
   homebrew = {
     enable = true;
-    brews = [  ];
+
+    brews = [
+      "gitleaks"
+    ];
+
     casks = [
       "ghostty"
       "docker"
