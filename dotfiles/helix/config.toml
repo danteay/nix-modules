@@ -1,0 +1,17 @@
+theme = "onedark"
+
+[editor]
+line-number = "absolute"
+mouse = true
+middle-click-paste = true
+shell = ["bash", "-c"]
+auto-completion = true
+
+[editor.cursor-shape]
+insert = "bar"
+normal = "block"
+select = "underline"
+
+[editor.file-picker]
+hidden = false
+git-ignore = true
