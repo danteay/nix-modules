@@ -7,6 +7,7 @@ if [ ! -f "./dotfiles/$username/ssh/github" ]; then
   ssh-keygen -t ed25519 -f "./dotfiles/$username/ssh/github"
   if [ $? -ne 0 ]; then
     echo "Error generating SSH key for GitHub"
+    exit 1
   fi
   echo "SSH key for GitHub created successfully!"
 fi
