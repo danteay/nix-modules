@@ -142,3 +142,7 @@ function install_nix_darwin() {
     echo "nix-darwin installed successfully!"
   fi
 }
+
+install_nix_core
+install_home_manager
+install_nix_darwin
