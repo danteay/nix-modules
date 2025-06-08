@@ -3,7 +3,7 @@
   home.packages = with pkgs; [
     go
     gotools
-    go-migrate
+#    go-migrate
     mage
     revive
     golangci-lint
