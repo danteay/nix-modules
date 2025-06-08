@@ -16,5 +16,6 @@
 
     ./modules/localstack.nix
     ./modules/aws-config.nix
+    ./modules/dev-tools.nix
   ];
 }
