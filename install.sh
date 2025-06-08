@@ -14,16 +14,18 @@ show_usage() {
   echo "If no SECTION is provided, all sections will be executed."
   echo ""
   echo "Examples:"
-  echo "  $0                # Install everything"
+  echo "  $0               # Install everything"
+  echo "  $0 ssh_key       # Create GitHub SSH key"
   echo "  $0 nix_core      # Install only Nix core"
   echo "  $0 home_manager  # Install only Home Manager"
   echo "  $0 nix_darwin    # Install only nix-darwin"
+  echo "  $0 -h            # Show this help message"
 }
 
 # Create github ssh key
-create_ssh_key() {
-  if [ ! -f "./dotfiles/$username/ssh/github" ]; then
-    ssh-keygen -t ed25519 -f "./dotfiles/$username/ssh/github"
+function create_ssh_key() {
+  if [ ! -f "$HOME/.ssh/github" ]; then
+    ssh-keygen -t ed25519 -f "$HOME/.ssh/github"
     if [ $? -ne 0 ]; then
       echo "Error generating SSH key for GitHub"
       exit 1
@@ -34,7 +36,7 @@ create_ssh_key() {
 
 function install_nix_core() {
   echo "Installing Nix Core..."
-  
+
   # Install Nix Core
   curl -L https://nixos.org/nix/install | sh
   if [ $? -ne 0 ]; then
@@ -71,13 +73,13 @@ function install_nix_core() {
       };
     };
   }" > ~/.config/nixpkgs/config.nix
-  
+
   echo "Nix Core installation completed successfully!"
 }
 
 function install_home_manager() {
   echo "Installing Home Manager..."
-  
+
   # Enable home manager channel
   nix-channel --add https://github.com/nix-community/home-manager/archive/master.tar.gz home-manager
   if [ $? -ne 0 ]; then
@@ -113,7 +115,7 @@ function install_home_manager() {
 
 function install_nix_darwin() {
   echo "Installing nix-darwin..."
-  
+
   # Install nix darwin
   if [ "$(uname -s)" != "Darwin" ]; then
     echo "This script is intended to be run on macOS (Darwin) systems only."
@@ -180,11 +182,14 @@ function install_nix_darwin() {
 # Main execution logic
 main() {
   local section="$1"
-  
+
   # Always create SSH key first
   create_ssh_key
-  
+
   case "$section" in
+    "ssh_key")
+      create_ssh_key
+      ;;
     "nix_core")
       install_nix_core
       ;;
@@ -197,6 +202,7 @@ main() {
     "")
       # No parameter provided - install everything
       echo "No section specified. Installing all components..."
+      create_ssh_key
       install_nix_core
       install_home_manager
       install_nix_darwin
