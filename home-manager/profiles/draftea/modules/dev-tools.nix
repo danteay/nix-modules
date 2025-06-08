@@ -6,6 +6,7 @@
     ejson
     goimports-reviser
     go-mockery
+    awscli2
 
     (import ../../../modules/langs/pkl.nix { inherit pkgs; })
   ];

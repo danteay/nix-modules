@@ -11,6 +11,7 @@
 
 # Keep specific files
 !install.sh
+!install_credentials.sh
 !LICENSE
 !README.md
 !.gitkeep

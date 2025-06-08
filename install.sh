@@ -3,7 +3,7 @@
 username=$(whoami)
 
 # Function to show usage
-show_usage() {
+function show_usage() {
   echo "Usage: $0 [SECTION]"
   echo ""
   echo "SECTION can be one of:"
@@ -15,23 +15,10 @@ show_usage() {
   echo ""
   echo "Examples:"
   echo "  $0               # Install everything"
-  echo "  $0 ssh_key       # Create GitHub SSH key"
   echo "  $0 nix_core      # Install only Nix core"
   echo "  $0 home_manager  # Install only Home Manager"
   echo "  $0 nix_darwin    # Install only nix-darwin"
   echo "  $0 -h            # Show this help message"
-}
-
-# Create github ssh key
-function create_ssh_key() {
-  if [ ! -f "$HOME/.ssh/github" ]; then
-    ssh-keygen -t ed25519 -f "$HOME/.ssh/github"
-    if [ $? -ne 0 ]; then
-      echo "Error generating SSH key for GitHub"
-      exit 1
-    fi
-    echo "SSH key for GitHub created successfully!"
-  fi
 }
 
 function install_nix_core() {
@@ -180,16 +167,13 @@ function install_nix_darwin() {
 }
 
 # Main execution logic
-main() {
+function main() {
   local section="$1"
 
   # Always create SSH key first
   create_ssh_key
 
   case "$section" in
-    "ssh_key")
-      create_ssh_key
-      ;;
     "nix_core")
       install_nix_core
       ;;
@@ -202,7 +186,6 @@ main() {
     "")
       # No parameter provided - install everything
       echo "No section specified. Installing all components..."
-      create_ssh_key
       install_nix_core
       install_home_manager
       install_nix_darwin
