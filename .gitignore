@@ -34,5 +34,9 @@ Thumbs.db
 # Ignore backup files
 *.bak
 *.backup
-
 *~
+
+# Ignore ssh keys
+*.pem
+dotfiles/danteay/ssh/github
+dotfiles/danteay/ssh/github.pub

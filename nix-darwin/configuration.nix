@@ -8,12 +8,12 @@
 
     (writeShellScriptBin "darwin-update" ''
       username=$(whoami)
-      cd ~/.config/nix-darwin && nix flake update && nix run nix-darwin -- switch --flake "$HOME/.config/nix-darwin#$username"
+      cd ~/.config/nix-darwin && nix flake update && nix run nix-darwin -- switch --flake "$HOME/.config/nix-modules/nix-darwin#$username"
     '')
 
     (writeShellScriptBin "darwin-switch" ''
       username=$(whoami)
-      nix run nix-darwin -- switch --flake "$HOME/.config/nix-darwin#$username"
+      nix run nix-darwin -- switch --flake "$HOME/.config/nix-modules/nix-darwin#$username"
     '')
 
     gnupg
