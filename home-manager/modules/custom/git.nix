@@ -15,7 +15,7 @@ let
     };
   };
 
-  mergedConfig = pkgs.ib.recursiveUpdate configGit (config.gitConfig or { });
+  mergedConfig = pkgs.lib.recursiveUpdate configGit (config.gitConfig or { });
 in
 {
   programs.git = mergedConfig;
