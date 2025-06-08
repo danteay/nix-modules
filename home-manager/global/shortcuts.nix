@@ -8,7 +8,26 @@
     # $ hms draftea
     #
     (writeShellScriptBin "hms" ''
-      home-manager switch -b backup --impure --flake ~/.config/home-manager#$1
+      profile="$1"
+
+      if [ -z "$profile" ]; then
+        profile=$(whoami)
+      fi
+
+      home-manager switch -b backup --impure --flake $HOME_MANAGER_HOME#$profile
+    '')
+
+    (writeShellScriptBin "hms-update" ''
+      profile="$HM_PROFILE"
+
+      if [ -z "$profile" ]; then
+        profile=draftea
+      fi
+
+      cd "$HOME_MANAGER_HOME"
+      nix flake update
+
+      hms "$profile"
     '')
 
     # Command alias to clean the nix store and free unneded files from the storage

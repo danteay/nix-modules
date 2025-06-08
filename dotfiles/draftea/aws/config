@@ -1,0 +1,11 @@
+[profile draftea-prod]
+region = us-east-2
+output = json
+
+[profile draftea-dev]
+region = us-east-2
+output = json
+
+[profile draftea-feature]
+region = us-east-2
+output = json

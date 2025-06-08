@@ -1,0 +1,38 @@
+# Ignore everything by default
+*
+
+# Keep specific directories
+!dotfiles/
+!dotfiles/**
+!home-manager/
+!home-manager/**
+!nix-darwin/
+!nix-darwin/**
+
+# Keep specific files
+!install.sh
+!LICENSE
+!README.md
+!.gitkeep
+!.gitignore
+
+# Always ignore common system files and directories
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Ignore IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Ignore backup files
+*.bak
+*.backup
+
+*~

@@ -5,37 +5,84 @@
     # Specify the source of Home Manager and Nixpkgs.
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
 
+    # Use the latest version of Home Manager
     home-manager.url = "github:nix-community/home-manager";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
+
+    # extra flakes
+    draft.url = "github:Drafteame/draft";
+    taskrun.url = "github:Drafteame/taskrun";
   };
 
-  outputs = { nixpkgs, home-manager, ... }:
+  outputs = {
+    nixpkgs
+    , home-manager
+
+    # extra flakes
+    , draft
+    , taskrun
+
+    , ...
+  }:
     let
       system = builtins.currentSystem;
       pkgs = nixpkgs.legacyPackages.${system};
 
       # listDirModules: string -> list of string
       # Receives a directory and returns a list of all the nix files in it
+      # Now with proper error handling for non-existent or unreadable directories
       listDirModules = path:
-        let
-          files = builtins.attrNames (builtins.readDir path);
-          nixFiles = builtins.filter (name:
-            builtins.match ".*\\.nix" name != null &&
-            !(builtins.match ".*\\.skip\\.nix" name != null)
-          ) files;
-        in
-        builtins.map (file: path + "/${file}") nixFiles;
+        if builtins.pathExists path then
+          let
+            # Use try-catch equivalent by checking if readDir succeeds
+            dirContents = builtins.tryEval (builtins.readDir path);
+          in
+          if dirContents.success then
+            let
+              files = builtins.attrNames dirContents.value;
+              nixFiles = builtins.filter (name:
+                builtins.match ".*\\.nix" name != null &&
+                !(builtins.match ".*\\.skip\\.nix" name != null)
+              ) files;
+            in
+            builtins.map (file: path + "/${file}") nixFiles
+          else
+            # Directory exists but is not readable, return empty list
+            []
+        else
+          # Directory doesn't exist, return empty list
+          [];
 
       # listProfiles: string -> list of string
       # Receives a directory and returns a list of all profile directories in it
+      # Now with proper error handling for non-existent or unreadable directories
       listProfiles = path:
-        let
-          items = builtins.attrNames (builtins.readDir path);
-        in
-        builtins.map (file: path + "/${file}") items;
+        if builtins.pathExists path then
+          let
+            # Use try-catch equivalent by checking if readDir succeeds
+            dirContents = builtins.tryEval (builtins.readDir path);
+          in
+          if dirContents.success then
+            let
+              items = builtins.attrNames dirContents.value;
+              # Filter only directories
+              directories = builtins.filter (name:
+                let
+                  itemPath = path + "/${name}";
+                  pathType = builtins.tryEval (builtins.readFileType itemPath);
+                in
+                pathType.success && pathType.value == "directory"
+              ) items;
+            in
+            builtins.map (file: path + "/${file}") directories
+          else
+            # Directory exists but is not readable, return empty list
+            []
+        else
+          # Directory doesn't exist, return empty list
+          [];
 
       # Load all Nix files from the global folder
-      # userGlobalModules = listDirModules ./profiles/eduardoay/global;
       generalGlobalModules = listDirModules ./global;
       commonModules = [ ./home.nix ] ++ generalGlobalModules;
 
@@ -61,15 +108,22 @@
         let
           profileName = builtins.baseNameOf profile;
 
-          userModules = (pkgs.callPackage (profile + "/default.nix") {}).modules;
+          # Safe module loading with error handling
+          userModulesResult = builtins.tryEval (pkgs.callPackage (profile + "/default.nix") {});
+          userModules = if userModulesResult.success && userModulesResult.value ? modules
+            then userModulesResult.value.modules
+            else [];
 
           userGitConfig = if builtins.pathExists (profile + "/custom/git.nix")
             then makeCustomModule { path = ./modules/custom/git.nix; config = (import (profile + "/custom/git.nix"));}
             else makeCustomModule { path = ./modules/custom/git.nix; config = {}; };
 
           importFlakes = if builtins.pathExists (profile + "/custom/import-flakes.nix")
-            then import (profile + "/custom/import-flakes.nix") { inherit system; }
-            else { ... }: {};
+            then import (profile + "/custom/import-flakes.nix") {
+              inherit system;
+              inherit draft;
+              inherit taskrun;
+            } else { ... }: {};
 
           zshConfig = if builtins.pathExists (profile + "/custom/zsh.nix")
             then makeCustomModule { path = ./modules/custom/zsh.nix; config = (import (profile + "/custom/zsh.nix") { inherit pkgs; }); }
