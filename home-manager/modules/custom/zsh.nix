@@ -60,9 +60,7 @@ let
         "docker"
       ];
 
-      theme = if config.theme == ""
-              then "robbyrussell"
-              else config.theme;
+      theme = "robbyrussell";
     };
   };
 
