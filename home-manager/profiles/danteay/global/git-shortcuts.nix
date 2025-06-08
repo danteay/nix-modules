@@ -8,7 +8,7 @@ in
       git branch | grep -v -E '^\*|main|master|dev|v0\.x$' | xargs git branch -D
     '')
 
-    (writeShellScriptBin "clone" cloneFile)
+    (writeShellScriptBin "clone" ''${cloneFile}'')
 
     (writeShellScriptBin "branch" ''
       git branch
