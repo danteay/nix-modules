@@ -1,6 +1,6 @@
 { pkgs, ... }:
 {
   home.packages = [
-    (import ../modules/langs/pkl.nix { inherit pkgs; })
+    (import ../../../modules/langs/pkl.nix { inherit pkgs; })
   ];
 }

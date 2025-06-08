@@ -1,6 +1,6 @@
 { pkgs, ... }:
 let
-  dotfilesPath = ../../../../dotfiles;
+  dotfilesPath = ../../../dotfiles;
 
   fileExists = path: builtins.pathExists path;
 
