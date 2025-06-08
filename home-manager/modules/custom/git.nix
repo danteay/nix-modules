@@ -9,7 +9,7 @@ let
 
       push.autoSetupRemote = true;
 
-      core.editor = "vi";
+      core.editor = "hx";
       core.fileMode = false;
       core.ignorecase = false;
     };

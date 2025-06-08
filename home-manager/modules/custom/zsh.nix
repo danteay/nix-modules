@@ -31,11 +31,17 @@ let
       nix-your-shell zsh | source /dev/stdin
     fi
 
+    if command -v zellij > /dev/null; then
+      zellij setup --generate-auto-start zsh
+    fi
+
     if [ -e '/opt/homebrew/bin/brew' ]; then
       export PATH="$PATH:/opt/homebrew/bin"
     fi
 
     ${p10kConfig}
+
+    clear
   '';
 
   defaultConfig = {
@@ -54,7 +60,9 @@ let
         "docker"
       ];
 
-      theme = "robbyrussell";
+      theme = if zshExtra.theme == ""
+              then "robbyrussell"
+              else zshExtra.theme;
     };
   };
 

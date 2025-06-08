@@ -1,14 +1,14 @@
 { lib, pkgs, ... }:
 {
   home.packages = with pkgs; [
-    jdk23
+    jdk24
     gradle
     maven
   ];
 
   home.file.".envs/java.sh" = {
     text = ''
-      export JAVA_HOME=${pkgs.jdk21}
+      export JAVA_HOME=${pkgs.jdk24}
     '';
   };
 }

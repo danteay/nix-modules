@@ -9,5 +9,6 @@
     ripgrep
     fzf
     thefuck
+    direnv
   ];
 }
