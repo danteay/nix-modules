@@ -4,7 +4,7 @@ username=$(whoami)
 
 # Create github ssh key
 if [ ! -f "./dotfiles/$username/ssh/github" ]; then
-  ssh-keygen github
+  ssh-keygen -t ed25519 -f "./dotfiles/$username/ssh/github"
   if [ $? -ne 0 ]; then
     echo "Error generating SSH key for GitHub"
   fi
