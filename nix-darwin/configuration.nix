@@ -1,5 +1,4 @@
 { config, pkgs, ... }:
-
 {
   # List packages installed in system profile. To search by name, run:
   # $ nix-env -qaP | grep wget
@@ -25,6 +24,7 @@
   # Used for backwards compatibility, please read the changelog before changing.
   # $ darwin-rebuild changelog
   system.stateVersion = 6;
+  system.primaryUser = "danteay";
 
   homebrew = {
     enable = true;
