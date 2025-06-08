@@ -2,17 +2,39 @@
 
 username=$(whoami)
 
+# Function to show usage
+show_usage() {
+  echo "Usage: $0 [SECTION]"
+  echo ""
+  echo "SECTION can be one of:"
+  echo "  nix_core      - Install Nix core system"
+  echo "  home_manager  - Install and configure Home Manager"
+  echo "  nix_darwin    - Install nix-darwin (macOS only)"
+  echo ""
+  echo "If no SECTION is provided, all sections will be executed."
+  echo ""
+  echo "Examples:"
+  echo "  $0                # Install everything"
+  echo "  $0 nix_core      # Install only Nix core"
+  echo "  $0 home_manager  # Install only Home Manager"
+  echo "  $0 nix_darwin    # Install only nix-darwin"
+}
+
 # Create github ssh key
-if [ ! -f "./dotfiles/$username/ssh/github" ]; then
-  ssh-keygen -t ed25519 -f "./dotfiles/$username/ssh/github"
-  if [ $? -ne 0 ]; then
-    echo "Error generating SSH key for GitHub"
-    exit 1
+create_ssh_key() {
+  if [ ! -f "./dotfiles/$username/ssh/github" ]; then
+    ssh-keygen -t ed25519 -f "./dotfiles/$username/ssh/github"
+    if [ $? -ne 0 ]; then
+      echo "Error generating SSH key for GitHub"
+      exit 1
+    fi
+    echo "SSH key for GitHub created successfully!"
   fi
-  echo "SSH key for GitHub created successfully!"
-fi
+}
 
 function install_nix_core() {
+  echo "Installing Nix Core..."
+  
   # Install Nix Core
   curl -L https://nixos.org/nix/install | sh
   if [ $? -ne 0 ]; then
@@ -29,7 +51,7 @@ function install_nix_core() {
   if [ "$(uname -s)" == "Linux" ]; then
     echo ~/.bashrc >> "$nix_daemon_cmd"
 
-    echo ~/.bashrc >> "if command -v "zsh" &> /dev/null; then
+    echo ~/.bashrc >> "if command -v \"zsh\" &> /dev/null; then
     zsh
   fi"
   fi
@@ -44,14 +66,18 @@ function install_nix_core() {
     allowUnfree = true;
 
     packageOverrides = pkgs: {
-      nur = import (builtins.fetchTarball "https://github.com/nix-community/NUR/archive/master.tar.gz") {
+      nur = import (builtins.fetchTarball \"https://github.com/nix-community/NUR/archive/master.tar.gz\") {
         inherit pkgs;
       };
     };
   }" > ~/.config/nixpkgs/config.nix
+  
+  echo "Nix Core installation completed successfully!"
 }
 
 function install_home_manager() {
+  echo "Installing Home Manager..."
+  
   # Enable home manager channel
   nix-channel --add https://github.com/nix-community/home-manager/archive/master.tar.gz home-manager
   if [ $? -ne 0 ]; then
@@ -80,10 +106,14 @@ function install_home_manager() {
     echo
     echo "  home-manager switch -b backup --impure --flake ~/.config/nix-modules/home-manager#$username"
     echo
+  else
+    echo "Home Manager installation completed successfully!"
   fi
 }
 
 function install_nix_darwin() {
+  echo "Installing nix-darwin..."
+  
   # Install nix darwin
   if [ "$(uname -s)" != "Darwin" ]; then
     echo "This script is intended to be run on macOS (Darwin) systems only."
@@ -92,7 +122,17 @@ function install_nix_darwin() {
   fi
 
   # copy configuration.nix file to the correct location
-  cp nix-darwin/configuration.nix /etc/nix-darwin/configuration.nix
+  if [ ! -d /etc/nix-darwin ]; then
+    sudo mkdir -p /etc/nix-darwin
+  fi
+
+   # Remove existing file/symlink if it exists
+   if [ -e /etc/nix-darwin/configuration.nix ]; then
+     sudo rm /etc/nix-darwin/configuration.nix
+   fi
+
+   # Create symlink to our configuration file
+   sudo ln -s "$PWD/nix-darwin/configuration.nix" /etc/nix-darwin/configuration.nix
 
   # Add nix-darwin channel
   sudo nix-channel --add https://github.com/nix-darwin/nix-darwin/archive/master.tar.gz darwin
@@ -114,23 +154,7 @@ function install_nix_darwin() {
     exit 1
   fi
 
-  # Move the darwin-rebuild binary to /usr/local/bin
-
-  # check if /usr/local/bin exists, if not create it
-  if [ ! -d /usr/local/bin ]; then
-    sudo mkdir -p /usr/local/bin
-  fi
-
-  cp ./result/bin/darwin-rebuild /usr/local/bin/darwin-rebuild
-  if [ $? -ne 0 ]; then
-    echo "Error moving darwin-rebuild binary to /usr/local/bin"
-    exit 1
-  fi
-
-  # remove the result directory
-  rm -rf ./result
-
-  sudo /usr/local/bin/darwin-rebuild switch -I darwin-config=~/.config/configuration.nix
+  sudo ./result/bin/darwin-rebuild switch -I darwin-config=/etc/nix-darwin/configuration.nix
 
   if [ $? -ne 0 ]; then
     echo "Error activating nix-darwin"
@@ -143,6 +167,42 @@ function install_nix_darwin() {
   fi
 }
 
-install_nix_core
-install_home_manager
-install_nix_darwin
+# Main execution logic
+main() {
+  local section="$1"
+  
+  # Always create SSH key first
+  create_ssh_key
+  
+  case "$section" in
+    "nix_core")
+      install_nix_core
+      ;;
+    "home_manager")
+      install_home_manager
+      ;;
+    "nix_darwin")
+      install_nix_darwin
+      ;;
+    "")
+      # No parameter provided - install everything
+      echo "No section specified. Installing all components..."
+      install_nix_core
+      install_home_manager
+      install_nix_darwin
+      ;;
+    "-h"|"--help"|"help")
+      show_usage
+      exit 0
+      ;;
+    *)
+      echo "Error: Unknown section '$section'"
+      echo ""
+      show_usage
+      exit 1
+      ;;
+  esac
+}
+
+# Run main function with all arguments
+main "$@"
