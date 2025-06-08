@@ -8,7 +8,6 @@
     bat     # better version of cat
     ripgrep
     fzf
-    thefuck
     direnv
   ];
 }
