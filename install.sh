@@ -121,18 +121,28 @@ function install_nix_darwin() {
     return
   fi
 
+  # install homebrew if not installed
+  if ! command -v brew &> /dev/null; then
+    echo "Homebrew not found. Installing Homebrew..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    if [ $? -ne 0 ]; then
+      echo "Error installing Homebrew"
+      exit 1
+    fi
+  fi
+
   # copy configuration.nix file to the correct location
   if [ ! -d /etc/nix-darwin ]; then
     sudo mkdir -p /etc/nix-darwin
   fi
 
-   # Remove existing file/symlink if it exists
-   if [ -e /etc/nix-darwin/configuration.nix ]; then
-     sudo rm /etc/nix-darwin/configuration.nix
-   fi
+  # Remove existing file/symlink if it exists
+  if [ -e /etc/nix-darwin/configuration.nix ]; then
+    sudo rm /etc/nix-darwin/configuration.nix
+  fi
 
-   # Create symlink to our configuration file
-   sudo ln -s "$PWD/nix-darwin/configuration.nix" /etc/nix-darwin/configuration.nix
+  # Create symlink to our configuration file
+  sudo ln -s "$PWD/nix-darwin/configuration.nix" /etc/nix-darwin/configuration.nix
 
   # Add nix-darwin channel
   sudo nix-channel --add https://github.com/nix-darwin/nix-darwin/archive/master.tar.gz darwin
