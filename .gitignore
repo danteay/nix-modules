@@ -40,3 +40,6 @@ Thumbs.db
 *.pem
 dotfiles/danteay/ssh/github
 dotfiles/danteay/ssh/github.pub
+
+# exclude flake.lock
+home-manager/flake.lock
