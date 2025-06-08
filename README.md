@@ -6,17 +6,21 @@ My personal configuration for nix, home manager and nix-darwin.
 
 1. Clone the repository:
 
-```bash
-git clone github.com/danteay/nix-modules.git ~/.config
+   ```bash
+   cd ~/.config
+   git clone https://github.com/danteay/nix-modules.git
+   ```
 
-## Nix darwin activation
+2. Enter to the nix-modules folder and execute main installation file
 
-```bash
-nix run nix-darwin -- switch --flake ~/.config/nix-darwin#danteay
-```
+   ```bash
+   cd nix-modules
+   sh install.sh
+   ```
+   
+3. After main instalation configure 1password with needed accounts
+4. Execute install credentials scripts to setup certificates and saved access from 1Password
 
-## Home manager activation
-
-```bash
-home-manager switch --flake --backup ~/.config/home-manager#danteay
-```
+   ```bash
+   sh install_credentials.sh
+   ```

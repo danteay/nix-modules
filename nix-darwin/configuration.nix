@@ -3,18 +3,6 @@
   # List packages installed in system profile. To search by name, run:
   # $ nix-env -qaP | grep wget
   environment.systemPackages = with pkgs; [
-    # vim
-
-    (writeShellScriptBin "darwin-update" ''
-      username=$(whoami)
-      cd ~/.config/nix-darwin && nix flake update && nix run nix-darwin -- switch --flake "$HOME/.config/nix-modules/nix-darwin#$username"
-    '')
-
-    (writeShellScriptBin "darwin-switch" ''
-      username=$(whoami)
-      nix run nix-darwin -- switch --flake "$HOME/.config/nix-modules/nix-darwin#$username"
-    '')
-
     gnupg
   ];
 
@@ -42,6 +30,7 @@
       "dbeaver-community"
       "linear-linear"
       "1password"
+      "1password-cli"
       "discord"
       "telegram"
       "slack"

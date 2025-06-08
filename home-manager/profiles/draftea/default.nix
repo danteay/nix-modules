@@ -15,7 +15,6 @@
 
     # User modules
 
-    ./modules/aws-config.nix
     ./modules/dev-tools.nix
     ./modules/draft-cli.nix
     ./modules/env-vars.nix
