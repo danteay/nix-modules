@@ -60,9 +60,9 @@ let
         "docker"
       ];
 
-      theme = if zshExtra.theme == ""
+      theme = if config.theme == ""
               then "robbyrussell"
-              else zshExtra.theme;
+              else config.theme;
     };
   };
 
