@@ -64,11 +64,11 @@ let
     };
   };
 
-  finalInitExtra = initExtra + (config.zshConfig.initExtra or "");
+  finalInitExtra = initExtra + (config.zshConfig.initContent or "");
 
   mergedConfig = pkgs.lib.recursiveUpdate defaultConfig (config.zshConfig or {});
 
-  finalConfig = mergedConfig // { initExtra = finalInitExtra; };
+  finalConfig = mergedConfig // { initContent = finalInitExtra; };
 in
 {
   programs.zsh = finalConfig;
