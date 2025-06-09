@@ -43,6 +43,7 @@
       "goland"
       "pycharm-ce"
       "zoom"
+      "logi-options+"
     ];
 
     onActivation = {
