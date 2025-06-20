@@ -25,6 +25,7 @@
     ];
 
     casks = [
+      "arc"
       "hyper"
       "docker"
       "dbeaver-community"
