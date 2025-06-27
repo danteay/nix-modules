@@ -20,8 +20,9 @@
     brews = [
       "gitleaks"
       "gh"
-      "golang-migrate"
+      # "golang-migrate"
       "localstack"
+      "graphviz"
     ];
 
     casks = [
