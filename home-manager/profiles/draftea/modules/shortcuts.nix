@@ -18,7 +18,20 @@
 
     (writeShellScriptBin "dev-deploy-func" ''
       npm install
-      env STAGE=dev AWS_ACCOUNT=776658659836 ./node_modules/.bin/sls deploy function -f $1 --stage dev --update-config --verbose --aws-profile draftea-dev
+
+      command="env STAGE=dev AWS_ACCOUNT=776658659836 ./node_modules/.bin/sls deploy function -f \"$1\" --stage dev --verbose --aws-profile draftea-dev"
+
+      if ! eval "$command"; then
+        echo "Error deploying code for lambda `$1`"
+        exit 1
+      fi
+
+      command_with_flag="$command --update-config"
+
+      if ! eval "$command_with_flag"; then
+        echo "Error deploying new configuration for lambda `$1`"
+        exit 1
+      fi
     '')
 
     (writeShellScriptBin "sls-print" ''
