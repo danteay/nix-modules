@@ -1,11 +1,11 @@
 { pkgs, ... }:
 {
-  programs.zellij = {
-    enable = true;
-    enableZshIntegration = true;
-  };
+  # programs.zellij = {
+  #   enable = true;
+  #   enableZshIntegration = true;
+  # };
 
-  home.file = {
-    ".config/zellij".source = ../../../../dotfiles/danteay/zellij;
-  };
+  # home.file = {
+  #   ".config/zellij".source = ../../../../dotfiles/danteay/zellij;
+  # };
 }
