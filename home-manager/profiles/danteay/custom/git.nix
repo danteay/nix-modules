@@ -6,8 +6,6 @@
     extraConfig = {
       github.user = "danteay";
       core.editor = "hx";
-
-      pull.rebase = "true";
     };
   };
 }

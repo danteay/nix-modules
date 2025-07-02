@@ -7,7 +7,13 @@
       github.user = "danteay";
       core.editor = "hx";
 
-      pull.rebase = "true";
+      pull.rebase = false;
+
+      branch."feat/*".rebase = true;
+      branch."epic/*".rebase = false;
+
+      branch.main.rebase = false;
+      branch.main.ff = "only";
 
       url."git@github.com:Drafteame".insteadOf = [ "https://github.com/Drafteame" ];
     };
