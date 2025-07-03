@@ -13,16 +13,6 @@
       git fetch origin $1 && git checkout $1
     '')
 
-    (writeShellScriptBin "rebase" ''
-      branch="$1"
-
-      if [ "$branch" == "" ]; then
-        branch="main"
-      fi
-
-      git pull --rebase origin $branch
-    '')
-
     (writeShellScriptBin "rebase-continue" ''
       git add --all
       git rebase --continue
@@ -51,6 +41,24 @@
 
     (writeShellScriptBin "pull" ''
       git pull origin $1
+    '')
+
+    (writeShellScriptBin "pull-r" ''
+      git pull --rebase origin $1
+    '')
+
+    (writeShellScriptBin "pull-nr" ''
+      git pull --no-rebase origin $1
+    '')
+
+    (writeShellScriptBin "rebase" ''
+      branch="$1"
+
+      if [ "$branch" == "" ]; then
+        branch="origin/main"
+      fi
+
+      git rebase -i "$branch"
     '')
 
     (writeShellScriptBin "commit" ''

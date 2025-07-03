@@ -35,6 +35,7 @@
       "1password-cli"
       "discord"
       "telegram"
+      "whatsapp"
       "slack"
       "postman"
       "spotify"
