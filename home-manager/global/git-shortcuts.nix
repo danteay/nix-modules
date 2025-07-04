@@ -52,7 +52,7 @@
     '')
 
     (writeShellScriptBin "pull-ff" ''
-      git pull --fast-forward origin $1
+      git pull --ff-only origin $1
     '')
 
     (writeShellScriptBin "rebase" ''
