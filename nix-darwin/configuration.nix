@@ -21,7 +21,7 @@
       "gitleaks"
       "gh"
       # "golang-migrate"
-      "localstack"
+#      "localstack"
       "graphviz"
     ];
 

@@ -13,7 +13,7 @@
       git fetch origin $1 && git checkout $1
     '')
 
-    (writeShellScriptBin "rebase-continue" ''
+    (writeShellScriptBin "rebase-c" ''
       git add --all
       git rebase --continue
     '')
@@ -49,6 +49,10 @@
 
     (writeShellScriptBin "pull-nr" ''
       git pull --no-rebase origin $1
+    '')
+
+    (writeShellScriptBin "pull-ff" ''
+      git pull --fast-forward origin $1
     '')
 
     (writeShellScriptBin "rebase" ''
