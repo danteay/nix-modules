@@ -20,15 +20,13 @@
     brews = [
       "gitleaks"
       "gh"
-      # "golang-migrate"
-#      "localstack"
       "graphviz"
     ];
 
     casks = [
       "arc"
       "hyper"
-      "docker"
+      "orbstack"
       "dbeaver-community"
       "linear-linear"
       "1password"
