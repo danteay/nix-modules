@@ -24,7 +24,6 @@
     ];
 
     casks = [
-      "arc"
       "hyper"
       "orbstack"
       "dbeaver-community"
