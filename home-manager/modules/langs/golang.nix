@@ -6,6 +6,7 @@
     mage
     revive
     golangci-lint
+    graphviz
   ];
 
   home.file.".envs/go.sh" = {

@@ -2,8 +2,9 @@
 {
   home.packages = [
     awscli2
+    ejson
+    pkl
 
-    (import ../../../modules/derivations/pkl.nix { inherit pkgs; })
     (import ../../../modules/derivations/go-migrate.nix { inherit pkgs; })
   ];
 }

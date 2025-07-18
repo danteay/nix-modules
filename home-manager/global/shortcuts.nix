@@ -30,7 +30,7 @@
       hms "$profile"
     '')
 
-    # Command alias to clean the nix store and free unneded files from the storage
+    # Command alias to clean the nix store and free unneeded files from the storage
     #
     # Example:
     #
