@@ -25,6 +25,8 @@
 
     casks = [
       "hyper"
+      "ghostty"
+      "raycast"
       "orbstack"
       "dbeaver-community"
       "linear-linear"
