@@ -1,0 +1,6 @@
+{
+  "format": "gggg/gggg-[W]ww",
+  "folder": "_Weekly",
+  "autorun": true,
+  "template": "_templates/weekly-note"
+}
