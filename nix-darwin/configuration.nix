@@ -24,6 +24,7 @@
     ];
 
     casks = [
+      "obsidian"
       "hyper"
       "ghostty"
       "raycast"
