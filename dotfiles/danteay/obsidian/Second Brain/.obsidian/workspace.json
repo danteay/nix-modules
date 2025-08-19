@@ -27,12 +27,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "0. Inbox/Wiki test.md",
+                "file": "0. Inbox/Medium.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Wiki test"
+              "title": "Medium"
             }
           }
         ],
@@ -184,7 +184,7 @@
   "active": "745db1179943d191",
   "lastOpenFiles": [
     "_Weekly/2025/2025-W32.md",
-    "0. Inbox/Wiki test.md",
+    "0. Inbox/Medium.md",
     "test",
     "_Weekly/2025",
     "2. Areas/Fitnes",
