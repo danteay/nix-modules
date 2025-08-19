@@ -94,6 +94,10 @@
       commit deps "$1"
     '')
 
+    (writeShellScriptBin "commit-empty" ''
+      git commit --allow-empty -m "chore: empty"
+    '')
+
     # Git town commands
 
     (writeShellScriptBin "mainb" ''
