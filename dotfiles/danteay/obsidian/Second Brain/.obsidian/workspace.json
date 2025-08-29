@@ -34,9 +34,37 @@
               "icon": "lucide-file",
               "title": "Medium"
             }
+          },
+          {
+            "id": "67feb7dbee0df4e9",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "_Weekly/2025/2025-W34.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "2025-W34"
+            }
+          },
+          {
+            "id": "b5150ff17c4ebc25",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "_Weekly/2025/2025-W35.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "2025-W35"
+            }
           }
         ],
-        "currentTab": 1
+        "currentTab": 3
       }
     ],
     "direction": "vertical"
@@ -172,6 +200,7 @@
   },
   "left-ribbon": {
     "hiddenItems": {
+      "bases:Create new base": false,
       "switcher:Open quick switcher": false,
       "graph:Open graph view": false,
       "canvas:Create new canvas": false,
@@ -181,8 +210,10 @@
       "templater-obsidian:Templater": false
     }
   },
-  "active": "745db1179943d191",
+  "active": "b5150ff17c4ebc25",
   "lastOpenFiles": [
+    "_Weekly/2025/2025-W35.md",
+    "_Weekly/2025/2025-W34.md",
     "_Weekly/2025/2025-W32.md",
     "0. Inbox/Medium.md",
     "test",
