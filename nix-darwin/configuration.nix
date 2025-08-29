@@ -25,7 +25,6 @@
 
     casks = [
       "obsidian"
-      "hyper"
       "ghostty"
       "raycast"
       "orbstack"
@@ -33,7 +32,6 @@
       "linear-linear"
       "1password"
       "1password-cli"
-      "discord"
       "telegram"
       "whatsapp"
       "slack"
