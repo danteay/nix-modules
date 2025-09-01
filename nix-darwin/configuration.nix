@@ -37,7 +37,7 @@
       "slack"
       "postman"
       "spotify"
-      "steam"
+      # "steam"
       "brave-browser"
       "visual-studio-code"
       "whatsapp"
