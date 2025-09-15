@@ -21,12 +21,13 @@
       "gitleaks"
       "gh"
       "graphviz"
+      "cpulimit"
     ];
 
     casks = [
-      "obsidian"
+      # "obsidian"
       "ghostty"
-      "raycast"
+      # "raycast"
       "orbstack"
       "dbeaver-community"
       "linear-linear"
@@ -42,8 +43,8 @@
       "visual-studio-code"
       "whatsapp"
       "goland"
-      "pycharm-ce"
-      "zoom"
+      # "pycharm-ce"
+      # "zoom"
       "logi-options+"
     ];
 

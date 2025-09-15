@@ -4,6 +4,7 @@
   inputs = {
     # Specify the source of Home Manager and Nixpkgs.
     nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05";
+    unstable-pkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
 
     # Use the latest version of Home Manager
     home-manager.url = "github:nix-community/home-manager";
@@ -16,6 +17,7 @@
 
   outputs = {
     nixpkgs
+    , unstable-pkgs
     , home-manager
 
     # extra flakes
@@ -26,7 +28,10 @@
   }:
     let
       system = builtins.currentSystem;
-      pkgs = nixpkgs.legacyPackages.${system};
+
+      pkgs = nixpkgs.legacyPackages.${system}.extend (final: prev: {
+        go = unstable-pkgs.legacyPackages.${system}.go;
+      });
 
       # listDirModules: string -> list of string
       # Receives a directory and returns a list of all the nix files in it
