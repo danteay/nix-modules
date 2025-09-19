@@ -12,7 +12,10 @@
 
     # extra flakes
     draft.url = "github:Drafteame/draft";
+    draft.inputs.nixpkgs.follows = "nixpkgs";
+
     taskrun.url = "github:Drafteame/taskrun";
+    taskrun.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs = {
@@ -31,6 +34,7 @@
 
       pkgs = nixpkgs.legacyPackages.${system}.extend (final: prev: {
         go = unstable-pkgs.legacyPackages.${system}.go;
+        go-mockery = unstable-pkgs.legacyPackages.${system}.go-mockery;
       });
 
       # listDirModules: string -> list of string
