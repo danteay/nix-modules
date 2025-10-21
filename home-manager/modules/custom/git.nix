@@ -11,11 +11,11 @@ let
     core.ignorecase = false;
   };
 
-  mergedConfig = pkgs.lib.recursiveUpdate configGit (config.gitConfig or { });
+  settings = pkgs.lib.recursiveUpdate configGit (config.gitConfig or { });
 in
 {
   programs.git = {
     enable = true;
-    settings = mergedConfig;
+    inherit settings;
   };
 }
