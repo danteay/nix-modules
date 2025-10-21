@@ -34,6 +34,24 @@
       fi
     '')
 
+    (writeShellScriptBin "prod-deploy-func" ''
+      npm install
+
+      command="env STAGE=prod AWS_ACCOUNT=632258128187 ./node_modules/.bin/sls deploy function -f \"$1\" --stage prod --verbose --aws-profile draftea-prod"
+
+      if ! eval "$command"; then
+        echo "Error deploying code for lambda `$1`"
+        exit 1
+      fi
+
+      command_with_flag="$command --update-config"
+
+      if ! eval "$command_with_flag"; then
+        echo "Error deploying new configuration for lambda `$1`"
+        exit 1
+      fi
+    '')
+
     (writeShellScriptBin "sls-print" ''
       npm install
       env AWS_ACCOUNT=776658659836 npm run print:dev

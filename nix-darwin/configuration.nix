@@ -43,7 +43,7 @@
       "visual-studio-code"
       "whatsapp"
       "goland"
-      # "pycharm-ce"
+      "pycharm"
       # "zoom"
       "logi-options+"
     ];
