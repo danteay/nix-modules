@@ -1,8 +1,6 @@
 { pkgs, config ? { }, ... }:
 let
   configGit = {
-    enable = true;
-
     pull.rebase = true;
     init.defaultBranch = "main";
 
@@ -16,5 +14,8 @@ let
   mergedConfig = pkgs.lib.recursiveUpdate configGit (config.gitConfig or { });
 in
 {
-  programs.git.settings = mergedConfig;
+  programs.git = {
+    enable = true;
+    settings = mergedConfig;
+  };
 }
