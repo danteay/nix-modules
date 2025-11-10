@@ -27,6 +27,7 @@
     casks = [
       # "obsidian"
       "ghostty"
+      "claude-code"
       # "raycast"
       "orbstack"
       "dbeaver-community"
@@ -39,7 +40,8 @@
       "postman"
       "spotify"
       # "steam"
-      "brave-browser"
+      # "brave-browser"
+      "firefox"
       "visual-studio-code"
       "whatsapp"
       "goland"

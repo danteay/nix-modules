@@ -2,3 +2,9 @@ Include ~/.orbstack/ssh/config
 
 Host github.com
   IdentityFile ~/.ssh/github
+
+Host ec2-18-223-167-16.us-east-2.compute.amazonaws.com
+  SetEnv TERM=xterm-256color
+
+Host ec2-3-140-150-23.us-east-2.compute.amazonaws.com
+  SetEnv TERM=xterm-256color
