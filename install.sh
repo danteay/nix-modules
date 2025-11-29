@@ -298,7 +298,7 @@ function configure_hm() {
 }
 
 function install_nix_darwin() {
-  echo "Installing nix-darwin..."
+  echo "Preparing nix-darwin setup..."
 
   # Check if running on macOS
   if [ "$(uname -s)" != "Darwin" ]; then
@@ -317,10 +317,10 @@ function install_nix_darwin() {
   # Backup system rc files before nix-darwin installation
   _backup_rc_files
 
-  # Check if darwin-rebuild already exists
+  # Check if darwin-rebuild already exists (from previous installation)
   if command -v darwin-rebuild &> /dev/null; then
     echo "nix-darwin is already installed at: $(command -v darwin-rebuild)"
-    echo "Skipping installation. Run 'configure_darwin' to apply configuration."
+    echo "Run 'configure_darwin' to apply configuration using flakes."
     return 0
   fi
 
@@ -336,31 +336,14 @@ function install_nix_darwin() {
     echo "Homebrew is already installed."
   fi
 
-  # Add nix-darwin channel
-  echo "Adding nix-darwin channel..."
-  nix-channel --add https://github.com/nix-darwin/nix-darwin/archive/master.tar.gz darwin
-  if [ $? -ne 0 ]; then
-    echo "Error adding nix-darwin channel"
+  # Check if flake exists
+  if [ ! -f "$SCRIPT_DIR/nix-darwin/flake.nix" ]; then
+    echo "Error: nix-darwin flake not found at $SCRIPT_DIR/nix-darwin/flake.nix"
     exit 1
   fi
 
-  echo "Updating channels..."
-  nix-channel --update
-  if [ $? -ne 0 ]; then
-    echo "Error updating channels for nix-darwin"
-    exit 1
-  fi
-
-  # Install nix-darwin
-  echo "Building nix-darwin..."
-  nix-build '<darwin>' -A darwin-rebuild
-  if [ $? -ne 0 ]; then
-    echo "Error building nix-darwin"
-    exit 1
-  fi
-
-  echo "nix-darwin installed successfully!"
-  echo "Run 'configure_darwin' to activate your configuration."
+  echo "nix-darwin setup preparation completed!"
+  echo "Run 'configure_darwin' to activate your configuration using flakes."
 }
 
 function configure_darwin() {
@@ -373,9 +356,10 @@ function configure_darwin() {
     return 0
   fi
 
-  # Check if darwin-rebuild exists
-  if ! command -v darwin-rebuild &> /dev/null; then
-    echo "Error: nix-darwin is not installed. Please run 'nix_darwin' first."
+  # Check if Nix is installed or can be activated
+  verify_nix_installed
+  if [ $? -ne 0 ]; then
+    echo "Error: Nix is not installed. Please run 'nix_core' first."
     exit 1
   fi
 
@@ -385,59 +369,26 @@ function configure_darwin() {
     exit 1
   fi
 
-  # Create /etc/nix-darwin directory if needed
-  if [ ! -d /etc/nix-darwin ]; then
-    echo "Creating /etc/nix-darwin directory..."
-    sudo mkdir -p /etc/nix-darwin
+  # Check if flake exists
+  if [ ! -f "$SCRIPT_DIR/nix-darwin/flake.nix" ]; then
+    echo "Error: nix-darwin flake not found at $SCRIPT_DIR/nix-darwin/flake.nix"
+    exit 1
   fi
 
-  local target_config="/etc/nix-darwin/configuration.nix"
-  local source_config="$SCRIPT_DIR/nix-darwin/configuration.nix"
+  # Activate nix-darwin using flakes
+  echo "Activating nix-darwin configuration using flakes..."
+  echo "This will use: $SCRIPT_DIR/nix-darwin/flake.nix"
 
-  # Check if configuration already exists
-  if [ -e "$target_config" ]; then
-    # Check if it's a symlink pointing to our config
-    if [ -L "$target_config" ]; then
-      local current_target=$(readlink "$target_config")
-      if [ "$current_target" = "$source_config" ]; then
-        echo "Configuration already linked correctly to $source_config"
-      else
-        echo "Warning: $target_config is a symlink to a different location:"
-        echo "  Current: $current_target"
-        echo "  Desired: $source_config"
-        echo "Creating backup at ${target_config}.backup"
-        sudo cp -L "$target_config" "${target_config}.backup"
-        echo "Updating symlink..."
-        sudo rm "$target_config"
-        sudo ln -s "$source_config" "$target_config"
-        echo "Symlink updated to $source_config"
-      fi
-    else
-      # It's a regular file, not a symlink
-      echo "Warning: $target_config exists as a regular file (not a symlink)."
-      echo "Creating backup at ${target_config}.backup"
-      sudo cp "$target_config" "${target_config}.backup"
-      echo "Replacing with symlink..."
-      sudo rm "$target_config"
-      sudo ln -s "$source_config" "$target_config"
-      echo "Replaced with symlink to $source_config"
-    fi
-  else
-    # Create symlink to our configuration file
-    echo "Creating symlink to $source_config..."
-    sudo ln -s "$source_config" "$target_config"
-  fi
-
-  # Activate nix-darwin
-  echo "Activating nix-darwin configuration..."
-  sudo darwin-rebuild switch -I darwin-config=/etc/nix-darwin/configuration.nix
+  cd "$SCRIPT_DIR/nix-darwin"
+  sudo nix --extra-experimental-features "nix-command flakes" run nix-darwin#darwin-rebuild -- switch --flake .#danteay
 
   if [ $? -ne 0 ]; then
     echo ""
     echo "Error activating nix-darwin configuration."
     echo "Please check your configuration and try again manually:"
     echo ""
-    echo "  sudo darwin-rebuild switch -I darwin-config=/etc/nix-darwin/configuration.nix"
+    echo "  cd $SCRIPT_DIR/nix-darwin"
+    echo "  sudo nix --extra-experimental-features \"nix-command flakes\" run nix-darwin#darwin-rebuild -- switch --flake .#danteay"
     echo ""
     exit 1
   fi

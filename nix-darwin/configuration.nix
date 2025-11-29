@@ -4,6 +4,10 @@
   # $ nix-env -qaP | grep wget
   environment.systemPackages = with pkgs; [
     gnupg
+
+    (writeShellScriptBin "nds" ''
+      sudo nix --extra-experimental-features "nix-command flakes" run nix-darwin#darwin-rebuild -- switch --flake $HOME/.config/nix-modules/nix-darwin#danteay
+    '')
   ];
 
   # Enable alternative shell support in nix-darwin.
@@ -13,6 +17,8 @@
   # $ darwin-rebuild changelog
   system.stateVersion = 6;
   system.primaryUser = "danteay";
+
+  nixpkgs.hostPlatform = "aarch64-darwin";
 
   homebrew = {
     enable = true;
@@ -25,27 +31,34 @@
     ];
 
     casks = [
-      # "obsidian"
       "ghostty"
       "claude-code"
+
+      # "obsidian"
       # "raycast"
-      "orbstack"
-      "dbeaver-community"
+
       "linear-linear"
       "1password"
       "1password-cli"
+
       "telegram"
       "whatsapp"
       "slack"
-      "postman"
+
       "spotify"
       # "steam"
+
       # "brave-browser"
       "firefox"
+      # "chatgpt-atlas"
+
       "visual-studio-code"
-      "whatsapp"
       "goland"
       "pycharm"
+      "orbstack"
+      "dbeaver-community"
+      "postman"
+
       # "zoom"
       "logi-options+"
     ];

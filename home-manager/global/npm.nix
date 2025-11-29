@@ -4,6 +4,6 @@ let
 in
 {
   home.packages = [
-    # npm."@anthropic-ai/claude-code"
+    npm."@egcli/lr"
   ];
 }
