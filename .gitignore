@@ -1,22 +1,3 @@
-# Ignore everything by default
-*
-
-# Keep specific directories
-!dotfiles/
-!dotfiles/**
-!home-manager/
-!home-manager/**
-!nix-darwin/
-!nix-darwin/**
-
-# Keep specific files
-!install.sh
-!install_credentials.sh
-!LICENSE
-!README.md
-!.gitkeep
-!.gitignore
-
 # Always ignore common system files and directories
 .DS_Store
 .DS_Store?
@@ -44,3 +25,5 @@ dotfiles/danteay/ssh/github.pub
 
 # exclude flake.lock
 home-manager/flake.lock
+nix-darwin/flake.lock
+result/
