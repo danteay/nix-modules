@@ -5,5 +5,6 @@ in
 {
   home.packages = [
     npm."@egcli/lr"
+    npm."serverless-3.39.0"
   ];
 }

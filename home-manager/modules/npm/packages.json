@@ -1,4 +1,5 @@
 [
-  "json-keys-diff",
-  "@egcli/lr"
+  {"json-keys-diff": "latest"},
+  {"serverless": "3.39.0"},
+  {"@egcli/lr": "latest"}
 ]
