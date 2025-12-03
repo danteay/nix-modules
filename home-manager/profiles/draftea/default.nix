@@ -18,7 +18,7 @@
     ./modules/dev-tools.nix
     ./modules/draft-cli.nix
     ./modules/env-vars.nix
-    ./modules/node-modules.nix
+    ./modules/npm.nix
     ./modules/pems.nix
     ./modules/shortcuts.nix
   ];
