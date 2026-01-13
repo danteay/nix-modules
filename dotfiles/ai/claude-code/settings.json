@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "args": [
+          "$FILE_PATH"
+        ],
+        "command": "nixpkgs-fmt",
+        "match": {
+          "glob": "**/*.nix"
+        },
+        "tool": "Edit"
+      },
+      {
+        "args": [
+          "-format",
+          "-rm-unused",
+          "-set-alias",
+          "$FILE_PATH"
+        ],
+        "command": "goimports-reviser",
+        "match": {
+          "glob": "**/*.go"
+        },
+        "tool": "Edit"
+      }
+    ]
+  },
+  "model": "claude-opus-4-5-20251101",
+  "permissions": {
+    "additionalDirectories": [
+      "/Users/danteay/.config/nix-modules",
+      "/Users/danteay/Projects",
+      "/Users/danteay/apps"
+    ],
+    "allow": {
+      "tools": [
+        "Read",
+        "Glob",
+        "Grep",
+        "WebSearch",
+        "WebFetch"
+      ]
+    },
+    "ask": {
+      "tools": [
+        "Edit",
+        "Write",
+        "Bash",
+        "Task"
+      ]
+    },
+    "defaultMode": "ask",
+    "deny": {
+      "bash": [
+        {
+          "pattern": "rm -rf /"
+        },
+        {
+          "pattern": "rm -rf ~"
+        },
+        {
+          "pattern": ":(){ :|:& };:"
+        }
+      ]
+    }
+  },
+  "statusLine": {
+    "args": [
+      "🤖 Claude Code Ready"
+    ],
+    "command": "echo"
+  },
+  "theme": "dark"
+}
