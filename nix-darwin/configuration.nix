@@ -44,9 +44,10 @@
       "telegram"
       "whatsapp"
       "slack"
+      "discord"
 
       "spotify"
-      # "steam"
+      "steam"
 
       # "brave-browser"
       "firefox"
