@@ -56,5 +56,67 @@
       npm install
       env AWS_ACCOUNT=776658659836 npm run print:dev
     '')
+
+    (writeShellScriptBin "deploy" ''
+      if [ $# -lt 2 ]; then
+        echo "Usage: deploy <stage> <aws-profile>"
+        echo "Example: deploy dev draftea-dev"
+        exit 1
+      fi
+
+      STAGE="$1"
+      AWS_PROFILE="$2"
+
+      echo "Getting AWS account ID for profile: $AWS_PROFILE"
+      AWS_ACCOUNT=$(aws sts get-caller-identity --profile "$AWS_PROFILE" --query Account --output text)
+
+      if [ -z "$AWS_ACCOUNT" ]; then
+        echo "Error: Failed to get AWS account ID for profile $AWS_PROFILE"
+        exit 1
+      fi
+
+      echo "Deploying to stage: $STAGE, AWS Account: $AWS_ACCOUNT"
+      npm install
+      env STAGE="$STAGE" AWS_ACCOUNT="$AWS_ACCOUNT" SLS_PARAMS="--aws-profile=$AWS_PROFILE" npm run deploy
+    '')
+
+    (writeShellScriptBin "deploy-func" ''
+      if [ $# -lt 3 ]; then
+        echo "Usage: deploy-func <function-name> <stage> <aws-profile>"
+        echo "Example: deploy-func myFunction dev draftea-dev"
+        exit 1
+      fi
+
+      FUNCTION_NAME="$1"
+      STAGE="$2"
+      AWS_PROFILE="$3"
+
+      echo "Getting AWS account ID for profile: $AWS_PROFILE"
+      AWS_ACCOUNT=$(aws sts get-caller-identity --profile "$AWS_PROFILE" --query Account --output text)
+
+      if [ -z "$AWS_ACCOUNT" ]; then
+        echo "Error: Failed to get AWS account ID for profile $AWS_PROFILE"
+        exit 1
+      fi
+
+      echo "Deploying function: $FUNCTION_NAME to stage: $STAGE, AWS Account: $AWS_ACCOUNT"
+      npm install
+
+      command="env STAGE=$STAGE AWS_ACCOUNT=$AWS_ACCOUNT ./node_modules/.bin/sls deploy function -f \"$FUNCTION_NAME\" --stage $STAGE --verbose --aws-profile $AWS_PROFILE"
+
+      if ! eval "$command"; then
+        echo "Error deploying code for lambda $FUNCTION_NAME"
+        exit 1
+      fi
+
+      command_with_flag="$command --update-config"
+
+      if ! eval "$command_with_flag"; then
+        echo "Error deploying new configuration for lambda $FUNCTION_NAME"
+        exit 1
+      fi
+
+      echo "Successfully deployed function: $FUNCTION_NAME"
+    '')
   ];
 }
