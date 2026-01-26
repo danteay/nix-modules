@@ -34,6 +34,7 @@
     casks = [
       "ghostty"
       "claude-code"
+      "copilot-cli"
 
       # "obsidian"
       # "raycast"
@@ -51,7 +52,7 @@
       "steam"
 
       # "brave-browser"
-      "firefox"
+      # "firefox"
       # "chatgpt-atlas"
 
       "visual-studio-code"
