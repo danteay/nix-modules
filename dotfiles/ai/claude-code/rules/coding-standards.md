@@ -31,3 +31,5 @@
 - Reference issue numbers in commit messages
 - Never commit sensitive data (secrets, keys, tokens)
 - Review your own changes before requesting review
+- To create Pull request use PR template from .github folder for description (enforce format) and generate pr using gh cli
+- for PR title use next format: `<sember-prefix>: <pr-title> [<issue-number>]`. If issue number is not provided, omit it.

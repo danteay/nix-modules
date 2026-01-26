@@ -28,6 +28,7 @@
       "gh"
       "graphviz"
       "cpulimit"
+      "gemini-cli"
     ];
 
     casks = [
@@ -56,6 +57,7 @@
       "visual-studio-code"
       "goland"
       "pycharm"
+      "jetbrains-toolbox"
       "orbstack"
       "dbeaver-community"
       "postman"

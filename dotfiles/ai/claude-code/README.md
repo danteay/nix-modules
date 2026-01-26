@@ -9,7 +9,7 @@ dotfiles/ai/claude-code/
 ├── agents/          # Specialized expert agents
 ├── rules/           # Coding standards and conventions
 ├── skills/          # Custom commands/skills
-├── CLAUDE.md        # Memory/context file
+├── CLAUDE.md        # Claude Code specific memory/context file
 └── README.md        # This file
 ```
 
@@ -42,7 +42,9 @@ Custom commands available as `/command-name`:
 
 ### Memory (`CLAUDE.md`)
 
-Persistent instructions and context that Claude Code reads for every session.
+Persistent instructions and context that Claude Code reads for every session. This is Claude Code-specific configuration that gets symlinked to `~/.claude/CLAUDE.md`.
+
+**Note**: The main project AI assistant documentation is located at `/Users/danteay/.config/nix-modules/AI.md` - this is a universal reference guide for all AI assistants (Claude, Gemini, Copilot, etc.).
 
 ## Usage
 
