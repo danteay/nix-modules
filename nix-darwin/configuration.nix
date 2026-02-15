@@ -51,7 +51,7 @@
       "spotify"
       "steam"
 
-      # "brave-browser"
+      "brave-browser"
       # "firefox"
       # "chatgpt-atlas"
 
