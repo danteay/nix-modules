@@ -3,11 +3,11 @@
 
   inputs = {
     # Specify the source of Home Manager and Nixpkgs.
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
     unstable-pkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
 
     # Use the latest version of Home Manager
-    home-manager.url = "github:nix-community/home-manager";
+    home-manager.url = "github:nix-community/home-manager/release-25.11";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
 
     # extra flakes
@@ -16,6 +16,9 @@
 
     taskrun.url = "github:Drafteame/taskrun";
     taskrun.inputs.nixpkgs.follows = "nixpkgs";
+
+    modcheck.url = "github:Drafteame/modcheck";
+    modcheck.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs = {
@@ -26,6 +29,7 @@
     # extra flakes
     , draft
     , taskrun
+    , modcheck
 
     , ...
   }:
@@ -35,6 +39,8 @@
       pkgs = nixpkgs.legacyPackages.${system}.extend (final: prev: {
         go = unstable-pkgs.legacyPackages.${system}.go;
         go-mockery = unstable-pkgs.legacyPackages.${system}.go-mockery;
+        # inetutils-2.7 fails to compile with clang-21 on macOS in nixos-25.11
+        inetutils = unstable-pkgs.legacyPackages.${system}.inetutils;
       });
 
       # listDirModules: string -> list of string
@@ -132,6 +138,7 @@
               inherit system;
               inherit draft;
               inherit taskrun;
+              inherit modcheck;
             } else { ... }: {};
 
           zshConfig = if builtins.pathExists (profile + "/custom/zsh.nix")

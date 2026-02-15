@@ -17,7 +17,7 @@ My personal configuration for nix, home manager and nix-darwin.
    cd nix-modules
    sh install.sh
    ```
-   
+
 3. After main instalation configure 1password with needed accounts
 4. Execute install credentials scripts to setup certificates and saved access from 1Password
 
