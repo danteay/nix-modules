@@ -63,7 +63,7 @@
       "dbeaver-community"
       "postman"
 
-      # "zoom"
+      "zoom"
       "logi-options+"
     ];
 

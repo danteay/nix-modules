@@ -20,6 +20,5 @@
     ./modules/env-vars.nix
     ./modules/npm.nix
     ./modules/pems.nix
-    ./modules/shortcuts.nix
   ];
 }
