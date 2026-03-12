@@ -108,5 +108,9 @@
       # pick passed commits
       git cherry-pick $@
     '')
+
+    (writeShellScriptBin "grh" ''
+      git reset --hard $@
+    '')
   ];
 }
