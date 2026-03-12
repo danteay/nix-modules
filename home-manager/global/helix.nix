@@ -5,6 +5,6 @@
   ];
 
   home.file = {
-    ".config/helix".source = ../../../../dotfiles/danteay/helix;
+    ".config/helix".source = ../../dotfiles/helix;
   };
 }

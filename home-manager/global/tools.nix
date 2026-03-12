@@ -9,5 +9,11 @@
     ripgrep
     fzf
     direnv
+    nix-direnv
   ];
+
+  programs.nix-your-shell = {
+    enable = true;
+    enableZshIntegration = true;
+  };
 }

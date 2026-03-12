@@ -50,5 +50,22 @@
       kill $(lsof -t -i:$1)
     '')
 
+    (writeShellScriptBin "sls-update-plugins" ''
+      npx npm-check-updates '/serverless-.*/' -u && npm install
+    '')
+
+    (writeShellScriptBin "go-docker" ''
+      docker run --rm -v "$(pwd):/workspace" -w /workspace --memory=2g --cpus=2 golang:1.25-alpine $@
+    '')
+
+    (writeShellScriptBin "docstop" ''
+      if [ -z "$1" ]; then
+        # No parameter provided, stop all containers
+        docker stop $(docker ps -a -q)
+      else
+        # Parameter provided, stop specific container
+        docker stop "$1"
+      fi
+    '')
   ];
 }

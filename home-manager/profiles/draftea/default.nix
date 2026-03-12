@@ -4,21 +4,9 @@
   modules = [
     # Common modules
 
-    ../../modules/dev-tools/containers.nix
-    ../../modules/dev-tools/general.nix
-    ../../modules/dev-tools/libyaml.nix
-
-    ../../modules/langs/golang.nix
-    ../../modules/langs/nodejs.nix
-    ../../modules/langs/python.nix
-
-
     # User modules
 
-    ./modules/dev-tools.nix
     ./modules/draft-cli.nix
-    ./modules/env-vars.nix
-    ./modules/npm.nix
-    ./modules/pems.nix
+    ./modules/bastions.nix
   ];
 }

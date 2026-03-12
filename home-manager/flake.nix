@@ -10,15 +10,15 @@
     home-manager.url = "github:nix-community/home-manager/release-25.11";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
 
-    # extra flakes
-    draft.url = "github:Drafteame/draft";
-    draft.inputs.nixpkgs.follows = "nixpkgs";
+    # # extra flakes
+    # draft.url = "github:Drafteame/draft";
+    # draft.inputs.nixpkgs.follows = "nixpkgs";
 
-    taskrun.url = "github:Drafteame/taskrun";
-    taskrun.inputs.nixpkgs.follows = "nixpkgs";
+    # taskrun.url = "github:Drafteame/taskrun";
+    # taskrun.inputs.nixpkgs.follows = "nixpkgs";
 
-    modcheck.url = "github:Drafteame/modcheck";
-    modcheck.inputs.nixpkgs.follows = "nixpkgs";
+    # modcheck.url = "github:Drafteame/modcheck";
+    # modcheck.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs = {
@@ -27,9 +27,9 @@
     , home-manager
 
     # extra flakes
-    , draft
-    , taskrun
-    , modcheck
+    # , draft
+    # , taskrun
+    # , modcheck
 
     , ...
   }:
@@ -37,8 +37,8 @@
       system = builtins.currentSystem;
 
       pkgs = nixpkgs.legacyPackages.${system}.extend (final: prev: {
-        go = unstable-pkgs.legacyPackages.${system}.go;
-        go-mockery = unstable-pkgs.legacyPackages.${system}.go-mockery;
+        # go = unstable-pkgs.legacyPackages.${system}.go;
+        # go-mockery = unstable-pkgs.legacyPackages.${system}.go-mockery;
         # inetutils-2.7 fails to compile with clang-21 on macOS in nixos-25.11
         inetutils = unstable-pkgs.legacyPackages.${system}.inetutils;
       });
@@ -136,9 +136,9 @@
           importFlakes = if builtins.pathExists (profile + "/custom/import-flakes.nix")
             then import (profile + "/custom/import-flakes.nix") {
               inherit system;
-              inherit draft;
-              inherit taskrun;
-              inherit modcheck;
+              # inherit draft;
+              # inherit taskrun;
+              # inherit modcheck;
             } else { ... }: {};
 
           zshConfig = if builtins.pathExists (profile + "/custom/zsh.nix")
