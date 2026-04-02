@@ -1,14 +1,22 @@
 {
-  "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "theme": "dark",
-  "mcpServers": {
-    "spotify": {
-      "command": "node",
-      "args": ["/Users/danteay/apps/danteay/mcp-claude-spotify/build/index.js"],
-      "env": {
-        "SPOTIFY_CLIENT_ID": "829ff1c2a77a445e96d3217b4269d806",
-        "SPOTIFY_CLIENT_SECRET": "4570f8d1510743de9507c7e064316992"
-      }
-    }
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:nix-community.github.io)",
+      "WebSearch",
+      "WebFetch(domain:mynixos.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(tree:*)",
+      "Bash(nix flake update:*)",
+      "Bash(hms draftea:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git -C /Users/danteay/.config/nix-modules add:*)",
+      "Bash(chmod:*)",
+      "Bash(find:*)",
+      "Bash(git:*)",
+      "Bash(echo $PATH:*)",
+      "Bash(nix:*)"
+    ]
   }
 }
