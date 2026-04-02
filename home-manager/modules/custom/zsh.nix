@@ -41,6 +41,9 @@ let
 
     ${p10kConfig}
 
+    fpath=(/Users/danteay/.zsh/completions $fpath)
+    autoload -U compinit && compinit
+
     clear
   '';
 

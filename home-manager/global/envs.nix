@@ -12,6 +12,8 @@
       export CGO_ENABLED=0
 
       export PATH=$PATH:$GOBIN
+
+      source "$HOME/.cargo/env"
     '';
   };
 }
