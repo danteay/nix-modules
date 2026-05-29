@@ -16,7 +16,24 @@
       "Bash(find:*)",
       "Bash(git:*)",
       "Bash(echo $PATH:*)",
-      "Bash(nix:*)"
+      "Bash(nix:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh api -X POST repos/*)"
     ]
+  },
+  "mcpServers": {
+    "figma": {
+      "transport": "http",
+      "url": "https://mcp.figma.com/mcp"
+    },
+    "lucid": {
+      "transport": "http",
+      "url": "https://mcp.lucid.app/mcp"
+    },
+    "datadog": {
+      "type": "http",
+      "url": "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp"
+    }
   }
 }

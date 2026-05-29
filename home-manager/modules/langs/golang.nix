@@ -1,18 +1,21 @@
 { lib, pkgs, ... }:
+let
+  go = import ./custom/go.nix { inherit pkgs lib; };
+in
 {
-  home.packages = with pkgs; [
+  home.packages = [
     go
-    gotools
-    mage
-    revive
-    golangci-lint
-    graphviz
+    pkgs.gotools
+    pkgs.mage
+    pkgs.revive
+    pkgs.golangci-lint
+    pkgs.graphviz
   ];
 
   home.file.".envs/go.sh" = {
     text = ''
       if [ -z "$GOROOT" ]; then
-        export GOROOT=${pkgs.go}/share/go
+        export GOROOT=${go}/share/go
       fi
 
       export GOPATH=$HOME/go

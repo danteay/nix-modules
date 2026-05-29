@@ -5,5 +5,5 @@ export LOCALSTACK_AUTH_TOKEN=""
 export ACTIVATE_PRO=0
 
 ## Add Formae
-export PATH="/opt/pel/formae/bin:$PATH"
+export PATH="/opt/pel/bin:$PATH"
 fpath=(~/.zsh/completions $fpath) && autoload -U compinit && compinit

@@ -14,6 +14,8 @@
       export PATH=$PATH:$GOBIN
 
       source "$HOME/.cargo/env"
+
+      export DK_MOD_TIDY=1
     '';
   };
 }

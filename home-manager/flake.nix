@@ -41,6 +41,8 @@
         # go-mockery = unstable-pkgs.legacyPackages.${system}.go-mockery;
         # inetutils-2.7 fails to compile with clang-21 on macOS in nixos-25.11
         inetutils = unstable-pkgs.legacyPackages.${system}.inetutils;
+        # direnv-2.37.1 fish tests get killed during build on macOS (nixos-25.11)
+        direnv = prev.direnv.overrideAttrs (_: { doCheck = false; });
       });
 
       # listDirModules: string -> list of string
