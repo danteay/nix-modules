@@ -31,3 +31,7 @@ This is your personalized configuration for Claude Code.
 - Run formatters and linters before committing
 - Keep dependencies minimal and up-to-date
 - Prioritize security in all code changes
+
+### MCP configuration
+
+- All mcp's should be configured on ~/.claude.json file

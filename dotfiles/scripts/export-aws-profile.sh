@@ -56,6 +56,7 @@ fi
 
 if [ -n "$ACCOUNT_ID" ]; then
   export AWS_ACCOUNT="$ACCOUNT_ID"
+  export AWS_ACCOUNT_ID="$ACCOUNT_ID"
 fi
 
 export AWS_PROFILE="$PROFILE"

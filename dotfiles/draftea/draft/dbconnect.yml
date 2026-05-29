@@ -1,0 +1,126 @@
+defaults:
+  postgres:
+    remote_port: 5432
+  redis:
+    remote_port: 6379
+  mongo:
+    remote_port: 27017
+
+environments:
+  dev:
+    bastion:
+      target: i-0b82a7a6418fbbf10
+      profile: draftea-dev
+      region: us-east-2
+    clusters:
+      rds:   cji4bqokzgjn.us-east-2.rds.amazonaws.com
+      cache: 6erhpv.0001.use2.cache.amazonaws.com
+      docdb: cji4bqokzgjn.us-east-2.docdb.amazonaws.com
+
+  prod:
+    bastion:
+      target: i-03a6fae1cef1ae877
+      profile: draftea-prod
+      region: us-east-2
+    clusters:
+      rds:   cqllvkuevmlb.us-east-2.rds.amazonaws.com
+      cache: kct7ey.0001.use2.cache.amazonaws.com
+      docdb: cqllvkuevmlb.us-east-2.docdb.amazonaws.com
+
+connections:
+  postgres:
+    instances:
+      - name: turbo
+        local_ports:
+          dev: 56000
+          prod: 56011
+      - name: audiences
+        local_ports:
+          dev: 56001
+          prod: 56012
+      - name: coupons
+        local_ports:
+          dev: 56002
+          prod: 56013
+      - name: games-core
+        local_ports:
+          dev: 56003
+          prod: 56014
+      - name: general
+        local_ports:
+          dev: 56004
+          prod: 56015
+      - name: igaming
+        local_ports:
+          dev: 56005
+          prod: 56016
+      - name: kyc
+        local_ports:
+          dev: 56006
+          prod: 56017
+      - name: notification-engine
+        local_ports:
+          dev: 56007
+          prod: 56018
+      - name: scores
+        local_ports:
+          dev: 56008
+          prod: 56019
+      - name: stats
+        local_ports:
+          dev: 56009
+          prod: 56020
+      - name: users
+        local_ports:
+          dev: 56010
+          prod: 56021
+
+  redis:
+    instances:
+      - name: app-sync
+        local_ports:
+          dev: 56100
+          prod: 56110
+      - name: audiences
+        local_ports:
+          dev: 56101
+          prod: 56111
+      - name: betradar
+        local_ports:
+          dev: 56102
+          prod: 56112
+      - name: fraud
+        local_ports:
+          dev: 56103
+          prod: 56113
+      - name: game-engine
+        local_ports:
+          dev: 56104
+          prod: 56114
+      - name: general-cache
+        local_ports:
+          dev: 56105
+          prod: 56115
+      - name: igaming-cache
+        local_ports:
+          dev: 56106
+          prod: 56116
+      - name: mts-locker
+        local_ports:
+          dev: 56107
+          prod: 56117
+      - name: notification-engine
+        local_ports:
+          dev: 56108
+          prod: 56118
+      - name: turbo
+        local_ports:
+          dev: 56109
+          prod: 56119
+
+  mongo:
+    instances:
+      - name: main
+        local_ports:
+          dev: 56200
+          prod: 56201

@@ -8,8 +8,6 @@
     bat     # better version of cat
     ripgrep
     fzf
-    direnv
-    nix-direnv
   ];
 
   programs.direnv = {

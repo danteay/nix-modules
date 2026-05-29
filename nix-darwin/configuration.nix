@@ -39,7 +39,7 @@
       # "obsidian"
       # "raycast"
 
-      "linear-linear"
+      "linear"
       "1password"
       "1password-cli"
 
@@ -56,11 +56,12 @@
       # "chatgpt-atlas"
 
       "visual-studio-code"
+      "zed"
       "goland"
-      "pycharm"
+      # "pycharm"
       "jetbrains-toolbox"
       "orbstack"
-      "dbeaver-community"
+      # "dbeaver-community"
       "postman"
 
       "zoom"
