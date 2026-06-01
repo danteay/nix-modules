@@ -25,12 +25,22 @@ Conduct a multi-agent code review over a pull request and consolidate findings i
 ## Step 3: Check out the PR locally (read-only review context)
 
 - Determine the language(s) of the changed files (look at file extensions). This informs the **tester** agent which test patterns to apply.
+- Detect infrastructure-related changes in the PR. The **devops** agent should be dispatched in Step 4 if ANY of the following appear in the changed files list:
+  - Pkl resources or modules (`*.pkl`)
+  - Serverless framework config (`serverless.yml`, `serverless.yaml`, `serverless.ts`, `serverless.js`)
+  - Generic YAML/YML files at the repo root or under infra/deploy/config directories (`*.yml`, `*.yaml`)
+  - Docker configuration (`Dockerfile*`, `docker-compose*.yml`, `.dockerignore`)
+  - CI pipelines or GitHub Actions (`.github/workflows/*`, `.gitlab-ci.yml`, `.circleci/*`, `azure-pipelines*.yml`, `Jenkinsfile`, `buildkite/*`)
+  - Infrastructure-as-Code (`*.tf`, `*.tfvars`, `*.hcl`, CloudFormation templates, CDK files, Pulumi files, Helm charts, Kustomize overlays)
+  - Kubernetes manifests (`k8s/*`, `kubernetes/*`, `*.k8s.yaml`)
+  - Deployment scripts, Makefiles, or environment configuration touching infra concerns
+- Record whether infrastructure changes were detected — this gates the devops agent dispatch in Step 4.
 - Do NOT modify any files — this is a review-only flow.
 - If needed for deeper inspection, fetch the PR ref: `gh pr checkout <number> --repo <owner>/<repo>` — but only if the agents request it. Default to reviewing the diff and reading files on the base branch + diff hunks.
 
 ## Step 4: Dispatch review agents in parallel
 
-Spawn the following four agents **in a single message** so they run concurrently. Each agent gets:
+Spawn the agents below **in a single message** so they run concurrently. Always dispatch agents 1–4. Additionally dispatch agent 5 (**devops**) ONLY if infrastructure changes were detected in Step 3. Each agent gets:
 - The PR URL, title, description, and full diff
 - The list of changed files
 - Any Linear task context (architect only)
@@ -68,9 +78,20 @@ Prompt focus:
 - For non-Go code, validate against repo-documented patterns; if none exist, note this and skip rather than improvising.
 - Check coverage of: happy path, edge cases, error paths, table-driven tests where appropriate, proper use of `t.Helper()`, `t.Cleanup()`, race detector compatibility, and no flaky time/network dependencies.
 
+### Agent 5 — `devops` (conditional: only when infra changes were detected in Step 3)
+
+Prompt focus:
+- Review infrastructure-as-code and deployment changes for correctness, safety, and reversibility (e.g. resource deletions, identity/permission changes, network exposure, secrets handling).
+- Validate Pkl resources and serverless configuration: function/event wiring, IAM roles, timeouts, memory, environment variables, VPC settings, dead-letter queues, alarms, and log retention.
+- Review Docker configuration: base image hygiene, multi-stage builds, layer caching, non-root users, image size, secret leakage via build args, healthchecks.
+- Review CI pipelines and GitHub Actions: pinned action versions (SHA over tag for third-party), least-privilege `permissions:` blocks, secret usage, cache poisoning risks, concurrency/cancel-in-progress, branch protections, runner choice.
+- Review YAML/HCL/Terraform/Helm/Kubernetes manifests: drift risk, default values, resource limits/requests, liveness/readiness probes, rollout strategy, blast radius of changes.
+- Flag missing observability (metrics, logs, traces, alarms) for new infrastructure, and missing rollback paths.
+- Confirm changes follow AWS serverless and DDD-aligned infra conventions where applicable, and call out cost or scaling regressions.
+
 ## Step 5: Consolidate findings
 
-Once all four agents return:
+Once all dispatched agents return (4 by default, or 5 when devops was included):
 
 1. Merge their findings into a single list. Deduplicate overlapping comments (same file:line, similar recommendation) — keep the most actionable wording and credit which agents raised it.
 2. Classify each finding by severity:
