@@ -35,3 +35,5 @@ This is your personalized configuration for Claude Code.
 ### MCP configuration
 
 - All mcp's should be configured on ~/.claude.json file
+
+@RTK.md

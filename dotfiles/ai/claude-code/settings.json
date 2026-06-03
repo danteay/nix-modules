@@ -19,8 +19,23 @@
       "Bash(nix:*)",
       "Bash(gh pr diff:*)",
       "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)",
       "Bash(gh api -X POST repos/*)"
     ]
+  },
+  "model": "opus[1m]",
+  "enabledPlugins": {
+    "claude-code-setup@claude-plugins-official": true,
+    "gopls-lsp@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "claude-plugins-official": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-plugins-official"
+      }
+    }
   },
   "mcpServers": {
     "figma": {
@@ -35,5 +50,18 @@
       "type": "http",
       "url": "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp"
     }
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "rtk hook claude"
+          }
+        ]
+      }
+    ]
   }
 }
