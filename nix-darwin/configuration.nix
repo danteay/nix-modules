@@ -29,6 +29,7 @@
       "graphviz"
       "cpulimit"
       "gemini-cli"
+      "rtk"
     ];
 
     casks = [
@@ -72,6 +73,7 @@
       autoUpdate = true;
       cleanup = "uninstall";
       upgrade = true;
+      extraFlags = [ "--force" ];
     };
   };
 }
