@@ -8,5 +8,6 @@
 
     ./modules/draft-cli.nix
     ./modules/bastions.nix
+    ./modules/envs.nix
   ];
 }
