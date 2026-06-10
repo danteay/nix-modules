@@ -3,11 +3,11 @@
 
   inputs = {
     # Specify the source of Home Manager and Nixpkgs.
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
     unstable-pkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
 
     # Use the latest version of Home Manager
-    home-manager.url = "github:nix-community/home-manager/release-25.11";
+    home-manager.url = "github:nix-community/home-manager/release-26.05";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
 
     # # extra flakes
@@ -39,9 +39,9 @@
       pkgs = nixpkgs.legacyPackages.${system}.extend (final: prev: {
         # go = unstable-pkgs.legacyPackages.${system}.go;
         # go-mockery = unstable-pkgs.legacyPackages.${system}.go-mockery;
-        # inetutils-2.7 fails to compile with clang-21 on macOS in nixos-25.11
+        # inetutils-2.7 fails to compile with clang-21 on macOS in nixos-25.11 (revalidate on 26.05)
         inetutils = unstable-pkgs.legacyPackages.${system}.inetutils;
-        # direnv-2.37.1 fish tests get killed during build on macOS (nixos-25.11)
+        # direnv-2.37.1 fish tests get killed during build on macOS (nixos-25.11, revalidate on 26.05)
         direnv = prev.direnv.overrideAttrs (_: { doCheck = false; });
       });
 

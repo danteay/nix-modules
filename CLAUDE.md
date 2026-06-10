@@ -39,60 +39,82 @@ sh install.sh nix_darwin         # Install only nix-darwin
 sh install_credentials.sh        # Sync secrets from 1Password (SSH keys, AWS creds, PEMs)
 ```
 
+### Inspecting evaluation
+
+```bash
+# Evaluate without building — useful when refactoring the flake
+nix --extra-experimental-features "nix-command flakes" eval --impure \
+  ~/.config/nix-modules/home-manager#homeConfigurations.danteay.config.home.username --raw
+```
+
 ## Architecture
 
-### Flake Structure
+### Flake structure
 
-There are two separate flakes:
+There are two independent flakes:
 
-- **`home-manager/flake.nix`** — User environment (packages, dotfiles, shell). Uses nixos-25.11 stable with an unstable overlay for select tools. This is the primary flake you'll work with.
-- **`nix-darwin/flake.nix`** — macOS system config (Homebrew casks/brews, system packages). Uses nixpkgs-unstable.
+- **`home-manager/flake.nix`** — user environment (packages, dotfiles, shell). Uses `nixos-26.05` stable with an `unstable` overlay for select tools (`inetutils`, `direnv` build override). This is the primary flake you'll work with.
+- **`nix-darwin/flake.nix`** — macOS system config (Homebrew casks/brews, system packages). Uses `nixpkgs-unstable`.
 
-### Module Loading Order (home-manager)
+### Composition pipeline (home-manager)
 
-For each profile, modules are applied in this order:
-1. `home-manager/home.nix` — Base config for all users
-2. `home-manager/global/*.nix` — Applied to every profile
-3. `home-manager/profiles/<profile>/global/*.nix` — Profile-level globals
-4. `home-manager/modules/**` — Shared reusable modules
-5. `home-manager/profiles/<profile>/modules/*.nix` — Profile-specific modules
-6. `home-manager/profiles/<profile>/custom/*.nix` — Parameterized custom modules
+`home-manager/flake.nix` is intentionally thin. It delegates discovery and composition to `home-manager/helpers/`:
 
-The flake uses `listDirModules` to auto-discover `.nix` files recursively. Files named `*.skip.nix` are excluded.
+- **`helpers/filesystem.nix`** — `listDirModules` (auto-discovers `*.nix` files in a dir, excluding `*.skip.nix`) and `listProfiles` (lists subdirectories).
+- **`helpers/modules.nix`** — `makeCustomModule { path, config }` wraps a parameterized template file into a home-manager module.
+- **`helpers/profiles.nix`** — the composer:
+  - `collectGlobalModules profiles` — concatenates each profile's `global/*.nix`.
+  - `loadUserModules profile` — reads `<profile>/default.nix` via `pkgs.callPackage`, expects `{ modules = [...]; }`.
+  - `loadCustomTemplate { template, name, importArgs ? null }` — instantiates a template using config from `<profile>/custom/<name>.nix`. `importArgs = null` treats the profile file as a plain attrset; an attrset calls it as a function.
+  - `loadProfileModule { name, importArgs ? {} }` — imports `<profile>/custom/<name>.nix` directly as a complete home-manager module.
+  - `buildConfigurations { profiles, commonModules, profileGlobals, moduleSources }` — runs each `moduleSources` loader once per profile and produces the `homeConfigurations` attrset.
 
-### Profile Customization
+Per-profile module list resolves to:
+1. `commonModules` — `home-manager/home.nix` ++ `home-manager/global/*.nix`
+2. `profileGlobals` — `home-manager/profiles/<profile>/global/*.nix`
+3. Output of every entry in `moduleSources` (`loadUserModules`, then the `loadCustomTemplate`/`loadProfileModule` entries listed in `flake.nix`)
 
-Each profile has a `custom/` subdirectory for parameterized modules:
-- `custom/git.nix` — Git user name and email
-- `custom/zsh.nix` — Shell init extras, theme config
-- `custom/import-flakes.nix` (draftea only) — Organization-specific flake imports
+`home-manager/modules/` is **not** auto-discovered. It contains parameterized templates (currently `custom/git.nix` and `custom/zsh.nix`) referenced explicitly by `loadCustomTemplate` calls in `flake.nix`.
 
-Profile-specific modules go in `profiles/<profile>/modules/`. Shared reusable modules go in `home-manager/modules/`.
+### Profile customization
 
-### Key Directories
+Each profile has a `custom/` subdirectory whose files feed the loaders in `moduleSources`:
+
+- `custom/git.nix` — plain attrset; passed as config to `modules/custom/git.nix`.
+- `custom/zsh.nix` — function `{ pkgs, ... }: { zshConfig = {...}; }`; passed as config to `modules/custom/zsh.nix`.
+- `custom/import-flakes.nix` — function `{ system, ... }: <home-manager module>`; loaded directly via `loadProfileModule`.
+
+#### Zsh template injection
+
+`home-manager/modules/custom/zsh.nix` exposes one private API key — `zshConfig.initExtra`. Anything a profile sets there is **concatenated** between the template's shared shell init and the trailing `clear` statement. All other `zshConfig` keys (`shellAliases`, `oh-my-zsh.*`, etc.) follow `pkgs.lib.recursiveUpdate` override semantics.
+
+The template strips `initExtra` from the merged config before assigning to `programs.zsh` — home-manager treats `programs.zsh.initExtra` as a deprecated alias that auto-appends to `initContent`, which would duplicate the profile content after `clear`.
+
+Theme setup is owned by the profile: each profile's `custom/zsh.nix` injects its own theme source (p10k, etc.) via `initExtra`.
+
+### Adding a new module
+
+- **Global module (every profile gets it):** drop a `.nix` file in `home-manager/global/`. Auto-discovered.
+- **Profile-scoped module:** drop a `.nix` file in `home-manager/profiles/<profile>/global/`. Auto-discovered for that profile only.
+- **Reusable template referenced explicitly:** drop the template in `home-manager/modules/<category>/` and reference its path from the profile's `default.nix` `modules` list.
+- **New per-profile custom slot (git/zsh-style):** add the template under `home-manager/modules/custom/<name>.nix`, then append one loader to `moduleSources` in `flake.nix`:
+  ```nix
+  (loadCustomTemplate { template = ./modules/custom/<name>.nix; name = "<name>"; importArgs = { inherit pkgs; }; })
+  ```
+  No changes to helpers required.
+
+### Key directories
 
 | Path | Purpose |
 |------|---------|
-| `home-manager/global/` | Modules applied to all profiles (tools, shortcuts, git aliases, etc.) |
-| `home-manager/modules/langs/` | Language environments: golang, nodejs, python, java |
-| `home-manager/modules/npm/` | node2nix-generated reproducible NPM packages |
+| `home-manager/global/` | Auto-discovered modules applied to every profile |
+| `home-manager/helpers/` | Composition helpers consumed by `flake.nix` |
+| `home-manager/modules/custom/` | Parameterized templates instantiated per profile |
 | `home-manager/profiles/danteay/` | Personal dev environment |
-| `home-manager/profiles/draftea/` | Drafteame org environment (GOPRIVATE set) |
+| `home-manager/profiles/draftea/` | Drafteame org environment (sets `GOPRIVATE`) |
 | `dotfiles/` | Source files linked by home-manager |
 | `nix-darwin/configuration.nix` | Homebrew casks/brews + system packages |
 
-### Adding a New Module
-
-1. Create a `.nix` file in the appropriate directory (global, profile modules, or shared modules)
-2. It will be auto-discovered by `listDirModules` — no manual import needed
-3. For parameterized/shared modules, place in `home-manager/modules/` and import explicitly from profiles that need it
-
-### Updating NPM Packages
-
-The `home-manager/modules/npm/` directory uses node2nix for reproducible packages. To add/update:
-1. Edit `packages.json`
-2. Regenerate: `node2nix -i packages.json`
-
-## Commit Style
+## Commit style
 
 Use conventional commits: `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`. Commitizen is installed globally.

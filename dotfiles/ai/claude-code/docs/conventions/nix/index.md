@@ -7,7 +7,7 @@
 - **Flakes** for all new configurations (no `nix-env`, no channels)
 - **flake-parts** for composable flake modules (preferred over monolithic `flake.nix`)
 - **home-manager** for user-environment configuration
-- Latest stable nixpkgs (`nixos-25.11`) with unstable overlay for bleeding-edge tools
+- Latest stable nixpkgs (`nixos-26.05`) with unstable overlay for bleeding-edge tools
 - **nixfmt** for formatting, **statix** for linting
 
 ---
@@ -20,7 +20,7 @@ Every project includes a Nix dev shell. Use `flake-parts` to keep it modular:
 # flake.nix
 {
   inputs = {
-    nixpkgs.url    = "github:nixos/nixpkgs/nixos-25.11";
+    nixpkgs.url    = "github:nixos/nixpkgs/nixos-26.05";
     flake-parts.url = "github:hercules-ci/flake-parts";
   };
 
