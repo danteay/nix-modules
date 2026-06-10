@@ -8,6 +8,7 @@ in
   zshConfig = {
     shellAliases = {
       myip = "ifconfig en0 | grep inet | grep -v inet6 | awk '{print $2}'";
+      nds = "sudo nix --extra-experimental-features \"nix-command flakes\" run nix-darwin#darwin-rebuild -- switch --flake $HOME/.config/nix-modules/nix-darwin#danteay";
     };
 
     initContent = extraZsh;
