@@ -1,14 +1,9 @@
 { pkgs, config ? {}, ... }:
 let
-  p10kConfig = if config.enableP10K then ''
-    source ${pkgs.zsh-powerlevel10k}/share/zsh-powerlevel10k/powerlevel10k.zsh-theme
-    POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true
-
-    # load p10k configuration if exists
-    [[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh
-  '' else "";
-
-  initExtra = ''
+  # Shared shell init that should run on every profile, BEFORE the
+  # profile-specific init content. The trailing `clear` is appended after
+  # the profile content so the terminal always ends up clean.
+  templateInit = ''
     # Nix
     if [ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]; then
       . '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
@@ -27,22 +22,20 @@ let
         done
     fi
 
-    if command -v nix-your-shell > /dev/null; then
-      nix-your-shell zsh | source /dev/stdin
-    fi
-
-    if command -v zellij > /dev/null; then
-      zellij setup --generate-auto-start zsh
-    fi
-
     if [ -e '/opt/homebrew/bin/brew' ]; then
       export PATH="$PATH:/opt/homebrew/bin"
     fi
 
-    ${p10kConfig}
-
     fpath=(/Users/danteay/.zsh/completions $fpath)
     autoload -U compinit && compinit
+  '';
+
+  profileInit = config.zshConfig.initExtra or "";
+
+  # Order: shared base -> profile injection -> clear.
+  # Concatenation (not override) keeps the template's plumbing intact while
+  # letting each profile add theme setup and other per-tenant lines.
+  finalInitContent = templateInit + profileInit + ''
 
     clear
   '';
@@ -67,11 +60,17 @@ let
     };
   };
 
-  finalInitExtra = initExtra + (config.zshConfig.initContent or "");
+  # Every zshConfig key other than `initExtra` follows recursiveUpdate
+  # override semantics. `initExtra` is consumed by this template as the
+  # profile injection point and must NOT leak into `programs.zsh` — home-
+  # manager treats `programs.zsh.initExtra` as a deprecated alias that
+  # auto-appends to `initContent`, which would duplicate the profile
+  # content after `clear`. Strip it from the user config before merging
+  # and set the final `initContent` explicitly.
+  userConfig = builtins.removeAttrs (config.zshConfig or {}) [ "initExtra" ];
+  mergedConfig = pkgs.lib.recursiveUpdate defaultConfig userConfig;
 
-  mergedConfig = pkgs.lib.recursiveUpdate defaultConfig (config.zshConfig or {});
-
-  finalConfig = mergedConfig // { initContent = finalInitExtra; };
+  finalConfig = mergedConfig // { initContent = finalInitContent; };
 in
 {
   programs.zsh = finalConfig;
