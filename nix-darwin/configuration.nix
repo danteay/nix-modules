@@ -4,10 +4,6 @@
   # $ nix-env -qaP | grep wget
   environment.systemPackages = with pkgs; [
     gnupg
-
-    (writeShellScriptBin "nds" ''
-      sudo nix --extra-experimental-features "nix-command flakes" run nix-darwin#darwin-rebuild -- switch --flake $HOME/.config/nix-modules/nix-darwin#danteay
-    '')
   ];
 
   # Enable alternative shell support in nix-darwin.
@@ -28,17 +24,12 @@
       "gh"
       "graphviz"
       "cpulimit"
-      "gemini-cli"
       "rtk"
     ];
 
     casks = [
       "ghostty"
       "claude-code"
-      "copilot-cli"
-
-      # "obsidian"
-      # "raycast"
 
       "linear"
       "1password"
@@ -53,20 +44,14 @@
       "steam"
 
       "brave-browser"
-      # "firefox"
-      # "chatgpt-atlas"
 
-      "visual-studio-code"
       "zed"
       "goland"
-      # "pycharm"
       "jetbrains-toolbox"
       "orbstack"
-      # "dbeaver-community"
       "postman"
 
       "zoom"
-      "logi-options+"
     ];
 
     onActivation = {
