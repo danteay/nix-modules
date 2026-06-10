@@ -8,6 +8,7 @@
     bat     # better version of cat
     ripgrep
     fzf
+    node2nix
   ];
 
   programs.direnv = {
