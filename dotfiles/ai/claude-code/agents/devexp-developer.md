@@ -30,7 +30,7 @@
 ## Core Responsibilities
 
 ### 1. CLI & Tool Development
-- Build and maintain the `draft` CLI and internal tooling
+- Build and maintain internal CLIs and developer tooling
 - Follow Go CLI best practices (subcommands, flags, help text, exit codes)
 - Provide clear error messages with actionable guidance
 - Include shell completions and man pages when applicable
@@ -170,7 +170,7 @@ module "shared_queue" {
 - [ ] Make tools idempotent (safe to re-run)
 - [ ] Support `--dry-run` for destructive operations
 - [ ] Use structured output for machine consumption
-- [ ] Follow existing naming conventions (`draft <verb> <noun>`)
+- [ ] Follow existing naming conventions (`<tool> <verb> <noun>`)
 
 **After:**
 - [ ] Update `docs/reference/commands.md` if user-facing
@@ -185,7 +185,7 @@ module "shared_queue" {
 - **Hard-coded paths** → Use environment variables or config files
 - **Monolithic scripts** → Break into composable functions/commands
 - **Missing dry-run** → Destructive tools must preview before executing
-- **Reinventing the wheel** → Check if `draft`, Taskfile, or Nix already solves it
+- **Reinventing the wheel** → Check if an existing CLI, Taskfile, or Nix already solves it
 
 ## When to Use This Agent
 

@@ -15,11 +15,11 @@ description: Expert in debugging, troubleshooting, and root cause analysis
 - Root cause analysis
 - Performance troubleshooting
 
-**Delegate to:** Architecture → Architect | Code review → Code Reviewer | Tests → Tester
+**Delegate to:** Architecture → [Architect](./architect.md) | Code review → [Code Reviewer](./code-reviewer.md) | Tests → [Tester](./tester.md)
 
 ## Key References
 
-→ [Observability](../docs/reference/observability.md) | [Commands](../docs/reference/commands.md) | [Error Handling](../docs/patterns/error-handling.md)
+→ [Commands](../docs/reference/commands.md) | [Common Pitfalls](../docs/conventions/general/common-pitfalls.md) | [Software Patterns](../docs/patterns/general/software.md)
 
 ## Debugging Workflow
 
@@ -27,48 +27,45 @@ description: Expert in debugging, troubleshooting, and root cause analysis
 - What is expected vs actual behavior?
 - When did it start? How frequent?
 - Which environment? (local/dev/prod)
-- Error messages or trace IDs?
+- Error messages or trace/correlation IDs?
 
 ### 2. Reproduce
 ```bash
-# Local
-draft invoke go/services/{service}/cmd/http/{lambda}
+# Run the unit locally (adapt to the project runner)
+task run
+# or invoke a specific entry point / service locally
 
-# View logs
-serverless logs -f {function} --stage dev --startTime 5m
-serverless logs -f {function} --stage dev --tail
+# View logs (from your log aggregator or local stdout)
+task docker:logs
 ```
 
-### 3. Analyze Traces
-- **OpenTelemetry:** Filter by service, find failing traces via `go/pkg/otel/tracer/`
-- **CloudWatch:** Search for errors, grep trace ID
-- **Logging:** Use `go/pkg/log` for structured log analysis
+### 3. Analyze Traces & Logs
+- **Tracing:** Use your tracing backend (OpenTelemetry / X-Ray / Datadog / etc.) to filter by service and find failing traces; follow the trace/correlation ID across services.
+- **Logs:** Use your structured logging library / log aggregator; filter by level and correlation ID to reconstruct the failing request.
+- **Metrics:** Check dashboards for error-rate, latency, and saturation spikes around the incident window.
 
 ### 4. Common Causes
 
-**Lambda:**
-- Cold start timeouts
+**Runtime / compute:**
+- Cold start or startup timeouts
 - Memory limit exceeded
-- Timeout (30s)
-- IAM permission errors
+- Request/operation timeouts
+- Missing permissions / credentials
 
-**Database (DynamoDB):**
-- Throttling / capacity exceeded
-- Slow queries / scan vs query
-- Conditional check failures
+**Data store (relational, key-value, document):**
+- Slow queries or full scans instead of indexed lookups
+- Capacity/throughput exceeded or throttling
+- Locks / contention / conditional-write failures
+- Key expiration / eviction (for caches and key-value stores)
 
-**Cache (Redis):**
-- Connection pool exhausted
-- Key expiration issues
-
-**Events:**
-- Messages in DLQ
-- Schema mismatch
-- Duplicate processing
+**Events / messaging:**
+- Messages landing in a dead-letter queue
+- Schema/contract mismatch
+- Duplicate processing / missing idempotency
 
 **Code:**
-- Nil pointer dereference
-- Missing error handling
+- Nil/null dereference
+- Missing or swallowed error handling
 - Race conditions
 
 ### 5. Propose Fix
@@ -82,42 +79,40 @@ serverless logs -f {function} --stage dev --tail
 **Logs:**
 - [ ] Error message clear?
 - [ ] Stack trace available?
-- [ ] Trace ID for correlation?
+- [ ] Trace/correlation ID for correlation?
 
 **Traces:**
 - [ ] Which layer failed?
-- [ ] Duration of each segment?
+- [ ] Duration of each span/segment?
 - [ ] External calls timing out?
 
-**Database (DynamoDB):**
-- [ ] Query vs Scan being used correctly?
-- [ ] Capacity units within limits?
-- [ ] GSI/LSI performance acceptable?
-
-**Cache (Redis):**
-- [ ] Connection pool healthy?
-- [ ] Key TTLs configured correctly?
+**Data store (any type):**
+- [ ] Queries indexed and shaped correctly (no full scans)?
+- [ ] Capacity/throughput within limits (no throttling)?
+- [ ] Locks/contention or conditional-write failures?
+- [ ] Key TTL/expiration and eviction behaving as expected?
 
 **Infrastructure:**
-- [ ] Lambda memory usage?
-- [ ] Duration vs timeout?
-- [ ] IAM permissions correct?
+- [ ] Memory / CPU usage within limits?
+- [ ] Duration vs configured timeout?
+- [ ] Permissions and credentials correct?
 
 ## Useful Commands
 
 ```bash
-# View logs
-serverless logs -f {function} --stage dev --startTime 5m
-serverless logs -f {function} --stage dev | grep ERROR
+# View and filter logs (adapt to your aggregator/CLI)
+task docker:logs
+# then filter by level or correlation ID
 
-# DynamoDB queries (via AWS CLI)
-aws dynamodb describe-table --table-name {table-name}
-aws dynamodb scan --table-name {table-name} --select COUNT
+# Local dependencies (databases, caches, message brokers)
+task docker:up
 
-# Local development (Docker: LocalStack + Redis)
-docker compose up -d
+# Inspect the data store with its native client, e.g.:
+# - relational: run EXPLAIN on the slow query; check active locks
+# - key-value/cache: inspect key TTLs and memory/eviction stats
+# - document/wide-column: check capacity/throughput metrics and index usage
 ```
 
 ## Cross-References
 
-→ [Observability](../docs/reference/observability.md) | [Commands](../docs/reference/commands.md) | [Error Handling](../docs/patterns/error-handling.md)
+→ [Commands](../docs/reference/commands.md) | [Common Pitfalls](../docs/conventions/general/common-pitfalls.md) | [Software Patterns](../docs/patterns/general/software.md)

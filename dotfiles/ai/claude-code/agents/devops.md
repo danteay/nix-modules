@@ -41,9 +41,9 @@ description: Expert in infrastructure as code, deployment automation, and AWS se
 - Environment variables for non-sensitive config
 
 ### 4. Deploy & Monitor
-- Deploy: `dev-deploy` / `prod-deploy`
-- CloudWatch alarms for errors/throttles
-- OpenTelemetry tracing enabled (`go/pkg/otel/tracer/`)
+- Deploy: `task deploy:dev` / `task deploy:prod`
+- Alarms/dashboards for errors/throttles (CloudWatch, Datadog, etc.)
+- Distributed tracing enabled (OpenTelemetry / X-Ray)
 
 ## Quick Reference
 
@@ -95,12 +95,12 @@ Resource: "*"
 ## Deployment Commands
 
 ```bash
-# Nix shortcuts (recommended)
-dev-deploy              # Deploy to dev
-prod-deploy             # Deploy to prod
-dev-deploy-func <func>  # Single function to dev
+# Taskfile targets (recommended)
+task deploy:dev              # Deploy to dev
+task deploy:prod             # Deploy to prod
+task deploy:func -- <func>   # Single function to dev
 
-# Serverless CLI
+# Serverless CLI (underlying)
 serverless deploy --stage dev --region us-east-2
 serverless deploy function -f <func> --stage dev
 ```

@@ -100,7 +100,29 @@ Flow: "User registers and places first order"
   Step 5 → GET /orders/{id}      → assert response matches created order contract
 ```
 
-### 6. Contract Tests
+### 6. E2E in a Deployed Environment
+
+Beyond in-process or containerized integration tests, exercise the system where it actually runs. Deploy the change to — or point the test suite at — a real `dev` or `staging` environment, then drive the system through its real ingress and assert the observable outcomes.
+
+**Trigger through real ingress** (whatever the system exposes):
+- HTTP endpoint → send a real request to the deployed URL
+- Queue / topic → publish a real message and let the deployed consumer process it
+- Scheduled trigger → invoke or wait for the scheduled job to fire
+
+**Assert the full observable outcome**, not just the response:
+- Response (status + body matches the contract)
+- Downstream datastore state (records created/updated/deleted as expected)
+- Emitted events (published to the queue/topic with the correct schema)
+- Logs and traces (expected spans/log lines present; no unexpected errors)
+
+**Feature-flag-gated testing.** When behavior is guarded by a flag, verify both paths:
+1. Toggle the flag OFF in the flag service → trigger the system → assert the legacy/off behavior
+2. Toggle the flag ON → trigger again → assert the new/on behavior
+3. Restore the flag to its original state during cleanup
+
+**Capture evidence for the PR.** Record the exact commands run and their results (request payloads, responses, datastore query output, event dumps, relevant log/trace excerpts) so reviewers can see the deployed run actually passed. Run these flows against `dev`/`staging` via `task test:e2e` with the environment selected by configuration — never hardcode credentials or environment URLs.
+
+### 7. Contract Tests
 
 For each API endpoint or event schema:
 - Validate against OpenAPI / AsyncAPI spec if available
