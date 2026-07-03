@@ -14,6 +14,10 @@
 | [refactorer](./refactorer.md) | Refactoring | Improving code structure |
 | [devops](./devops.md) | Infrastructure | AWS, Serverless, PKL, secrets |
 | [devexp-developer](./devexp-developer.md) | Developer tooling | CLIs, Taskfile, pipelines, Nix |
+| [qa-developer](./qa-developer.md) | QA / blackbox testing | Integration, E2E, smoke, contract tests |
+| [orchestrator-dev](./orchestrator-dev.md) | Workflow orchestration | End-to-end dev workflow, structured PR review |
+| [feature-lead](./feature-lead.md) | Feature lifecycle | Idea/RFC → discovery, planning, tickets, stacked PRs, delegation |
+| [product-manager](./product-manager.md) | Task scoping | Acceptance criteria, edge cases, issue management, business logic |
 
 ## How to Use
 
@@ -43,6 +47,7 @@ The `examples/` directory contains detailed content loaded only when needed:
 - [implementation-scenarios.md](./examples/implementation-scenarios.md) - Developer examples
 - [devops-infrastructure.md](./examples/devops-infrastructure.md) - Infrastructure examples
 - [output-templates.md](./examples/output-templates.md) - Output formats
+- [feature-lead-templates.md](./examples/feature-lead-templates.md) - RFC, flow, ticket, and stacked-PR templates
 
 ## Relationship to docs/
 

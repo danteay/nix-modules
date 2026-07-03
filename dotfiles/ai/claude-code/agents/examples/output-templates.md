@@ -26,7 +26,7 @@
 - [ ] All tests pass (`task test`)
 - [ ] Linters pass (`task lint`)
 - [ ] Format code (`task format`)
-- [ ] Mocks generated (`draft mockery --staged`)
+- [ ] Mocks generated (`mockery` / `go generate ./...`)
 ```
 
 ## Architect Design Output
@@ -183,7 +183,7 @@
 
 ### Deployment
 \`\`\`bash
-dev-deploy
-dev-deploy-func
+task deploy:dev
+task deploy:func -- <func>
 \`\`\`
 ```

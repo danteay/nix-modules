@@ -16,6 +16,8 @@
 | Manage infrastructure | [DevOps](./devops.md) |
 | Build developer tooling | [DevExp Developer](./devexp-developer.md) |
 | Orchestrate dev workflow / PR review | [Orchestrator Dev](./orchestrator-dev.md) |
+| Lead a feature end-to-end (RFC → shipped) | [Feature Lead](./feature-lead.md) |
+| Scope tasks / acceptance criteria / issues | [Product Manager](./product-manager.md) |
 
 ## Agents
 
@@ -49,6 +51,12 @@ Developer experience and tooling. Use for: CLIs, Taskfile targets, plugins, pipe
 ### [Orchestrator Dev](./orchestrator-dev.md)
 High-level workflow orchestrator for development and PR review. Use for: end-to-end feature development (requirement → branch → implementation → PR), structured PR reviews with interactive discussion.
 
+### [Feature Lead](./feature-lead.md)
+End-to-end feature lifecycle orchestrator. Use for: driving a feature from idea/RFC through discovery, flow design, contracts, infra and code planning, conflict-free ticket creation with a stacked-PR strategy, and delegating implementation to specialized agents.
+
+### [Product Manager](./product-manager.md)
+Technical product manager. Use for: scoping engineering tasks, defining acceptance criteria, surfacing edge cases in code flows, managing issues in the tracker, and analyzing business-logic implications.
+
 ## Examples (On-Demand)
 
 Load these only when needed:
@@ -56,6 +64,7 @@ Load these only when needed:
 - [Implementation Scenarios](./examples/implementation-scenarios.md) - Developer scenarios and anti-patterns
 - [DevOps Infrastructure](./examples/devops-infrastructure.md) - Complete Serverless configs, PKL, IAM
 - [Output Templates](./examples/output-templates.md) - Standard output formats for all agents
+- [Feature Lead Templates](./examples/feature-lead-templates.md) - RFC, flow-design, ticket, and stacked-PR templates
 
 ## Decision Tree
 
@@ -72,6 +81,9 @@ Need to build developer tooling?  → DevExp Developer
 Need to update task automation?   → DevExp Developer
 Need to run a full dev workflow?  → Orchestrator Dev
 Need to review a PR end-to-end?   → Orchestrator Dev
+Need to lead a feature RFC→ship?  → Feature Lead
+Need to scope a task / issue?     → Product Manager
+Need acceptance criteria / edge cases? → Product Manager
 ```
 
 ## Cross-References

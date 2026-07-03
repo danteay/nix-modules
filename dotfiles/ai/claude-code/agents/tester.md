@@ -90,7 +90,7 @@ func TestWorker_Process_Success(t *testing.T) {
 - [ ] Using `t.Context()` for test context
 
 **Mocking:**
-- [ ] Mocks generated with `draft mockery --staged`
+- [ ] Mocks generated with `mockery` (or `go generate ./...`)
 - [ ] Expectations set BEFORE execution
 - [ ] Using `tmock.AnyContext()` for context
 - [ ] Calling `AssertExpectations(t)` after
@@ -109,11 +109,10 @@ func TestWorker_Process_Success(t *testing.T) {
 ## Mock Generation
 
 ```bash
-draft mockery --staged      # Staged files (recommended)
-draft mockery --committed   # Committed changes vs main
-draft mockery --staged --dry # Dry run
+mockery              # Generate all mocks from .mockery.yaml
+go generate ./...    # If using //go:generate directives
 ```
 
 ## Cross-References
 
-→ [Testing Patterns](../docs/patterns/testing.md) | [Mock Generation](../docs/guides/mock-generation.md) | [Pitfalls](../docs/conventions/common-pitfalls.md)
+→ [Testing Patterns](../docs/patterns/testing.md) | [Testing Guide](../docs/testing/go/guide.md) | [Pitfalls](../docs/conventions/general/common-pitfalls.md)
