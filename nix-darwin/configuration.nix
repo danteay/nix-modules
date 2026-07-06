@@ -16,6 +16,8 @@
 
   nixpkgs.hostPlatform = "aarch64-darwin";
 
+  nix.settings.trusted-users = [ "root" "danteay" ];
+
   homebrew = {
     enable = true;
 
