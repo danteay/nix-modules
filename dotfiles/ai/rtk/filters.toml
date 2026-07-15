@@ -1,12 +1,160 @@
 # User-global RTK filters — apply to all your projects.
 # Project-local .rtk/filters.toml takes precedence over these.
 # Docs: https://github.com/rtk-ai/rtk#custom-filters
+#
+# These filters target this setup's highest-frequency UNHANDLED commands
+# (from `rtk discover -a`): nix, home-manager, devenv, and uv. RTK ships
+# handlers for make/nx/jq/gradle/etc. but none for the Nix ecosystem, so
+# their verbose store-path / progress output previously reached the model
+# raw. Each filter strips known noise lines and keeps errors/warnings.
+# Run `rtk verify` after editing to exercise the inline tests below.
 schema_version = 1
 
-# Example: suppress noise from a tool you use everywhere
-# [filters.my-global-tool]
-# description = "Compact my-global-tool output"
-# match_command = "^my-global-tool\\b"
-# strip_ansi = true
-# strip_lines_matching = ["^\\s*$"]
-# max_lines = 40
+# --- Nix: build / develop / flake / eval / run / nix-darwin --------------
+# Covers `nix ...` and `sudo nix ...` (darwin-rebuild is invoked as
+# `sudo nix run nix-darwin#darwin-rebuild -- switch`).
+[filters.nix]
+description = "Compact nix output — drop store-path lists, build/copy progress, dirty-tree warnings"
+match_command = "^(sudo\\s+)?nix\\b"
+strip_ansi = true
+filter_stderr = true
+strip_lines_matching = [
+  "^\\s*$",
+  "^copying path ",
+  "^copied \\d+ paths",
+  "^copying \\d+ paths",
+  "^these \\d+ derivations will be built:",
+  "^these \\d+ paths will be fetched",
+  "^\\s+/nix/store/\\S+$",
+  "^building '/nix/store/",
+  "^built '/nix/store/",
+  "^unpacking '?/nix/store",
+  "^\\s*\\[\\d+/\\d+ (built|copied)",
+  "^\\s*downloading '",
+  "^\\s*fetching .* from ",
+  "^querying info about ",
+  "^warning: Git tree '.*' is dirty",
+  "^warning: creating lock file",
+  "^warning: updating lock file",
+]
+truncate_lines_at = 150
+max_lines = 60
+on_empty = "nix: ok"
+
+[[tests.nix]]
+name = "strips store paths and dirty warning, keeps result"
+input = """
+warning: Git tree '/Users/x/.config/nix-modules' is dirty
+these 2 derivations will be built:
+  /nix/store/aaa-foo.drv
+  /nix/store/bbb-bar.drv
+copying path '/nix/store/ccc-baz' from 'https://cache.nixos.org'
+building '/nix/store/aaa-foo.drv'
+done
+"""
+expected = "done"
+
+[[tests.nix]]
+name = "all-noise short-circuits to ok"
+input = """
+warning: Git tree '/Users/x/repo' is dirty
+copying path '/nix/store/ccc-baz' from 'https://cache.nixos.org'
+"""
+expected = "nix: ok"
+
+# --- home-manager switch (hms) -------------------------------------------
+[filters.home-manager]
+description = "Compact home-manager activation — drop Activating/copy/build noise, keep result and errors"
+match_command = "^(sudo\\s+)?home-manager\\b"
+strip_ansi = true
+filter_stderr = true
+strip_lines_matching = [
+  "^\\s*$",
+  "^Starting home-manager activation",
+  "^Activating ",
+  "^Creating profile generation ",
+  "^No change so reusing latest profile generation",
+  "^copying path ",
+  "^copied \\d+ paths",
+  "^these \\d+ derivations will be built:",
+  "^\\s+/nix/store/\\S+$",
+  "^building '/nix/store/",
+  "^\\s*\\[\\d+/\\d+ (built|copied)",
+  "^warning: Git tree '.*' is dirty",
+]
+truncate_lines_at = 150
+max_lines = 50
+on_empty = "home-manager: ok"
+
+[[tests.home-manager]]
+name = "strips activation steps, keeps warnings/output"
+input = """
+Starting home-manager activation
+Activating checkLinkTargets
+Activating installPackages
+copying path '/nix/store/zzz-pkg' from 'https://cache.nixos.org'
+Activating linkGeneration
+"""
+expected = "home-manager: ok"
+
+# --- devenv shell / up ---------------------------------------------------
+[filters.devenv]
+description = "Compact devenv output — drop shell-build and Cachix progress bullets"
+match_command = "^(sudo\\s+)?devenv\\b"
+strip_ansi = true
+filter_stderr = true
+strip_lines_matching = [
+  "^\\s*$",
+  "^• Building shell",
+  "^• Using Cachix",
+  "^• Entering shell",
+  "^Building shell",
+  "^copying path ",
+  "^\\s+/nix/store/\\S+$",
+  "^\\s*\\[\\d+/\\d+ (built|copied)",
+]
+truncate_lines_at = 150
+max_lines = 50
+on_empty = "devenv: ok"
+
+[[tests.devenv]]
+name = "strips shell-build bullets, keeps command output"
+input = """
+• Building shell ...
+• Using Cachix: devenv
+copying path '/nix/store/yyy' from 'https://cache.nixos.org'
+PYTHONPATH set
+"""
+expected = "PYTHONPATH set"
+
+# --- uv run / sync / pip / lock ------------------------------------------
+# Strips only the resolver preamble; the wrapped command's output is kept.
+[filters.uv]
+description = "Compact uv output — drop resolver/install preamble, keep the wrapped command output"
+match_command = "^uv\\s+(run|sync|pip|lock|add|remove)\\b"
+strip_ansi = true
+filter_stderr = true
+strip_lines_matching = [
+  "^\\s*$",
+  "^Resolved \\d+ package",
+  "^Prepared \\d+ package",
+  "^Installed \\d+ package",
+  "^Audited \\d+ package",
+  "^Uninstalled \\d+ package",
+  "^\\s*[-+] \\S+==",
+  "^Using CPython",
+  "^Creating virtual environment",
+]
+truncate_lines_at = 150
+max_lines = 80
+on_empty = "uv: ok"
+
+[[tests.uv]]
+name = "strips resolver preamble, keeps program output"
+input = """
+Resolved 42 packages in 12ms
+Installed 3 packages in 40ms
+ + click==8.1.7
+Building the docs
+"""
+expected = "Building the docs"
