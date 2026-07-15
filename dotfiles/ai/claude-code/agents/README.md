@@ -12,6 +12,7 @@
 | [tester](./tester.md) | Testing | Writing tests, coverage analysis |
 | [debugger](./debugger.md) | Debugging | Investigating bugs, root cause analysis |
 | [refactorer](./refactorer.md) | Refactoring | Improving code structure |
+| [documentor](./documentor.md) | Documentation | Semantics, readability, diagrams, examples, cross-references |
 | [devops](./devops.md) | Infrastructure | AWS, Serverless, PKL, secrets |
 | [devexp-developer](./devexp-developer.md) | Developer tooling | CLIs, Taskfile, pipelines, Nix |
 | [qa-developer](./qa-developer.md) | QA / blackbox testing | Integration, E2E, smoke, contract tests |
