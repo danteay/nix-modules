@@ -17,6 +17,8 @@
 
       # load p10k configuration if exists
       [[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh
+
+      export LINEAR_API_KEY="$(jq -r '.workspaces.Work.apiKey' ~/.config/lr/config.json)"
     '';
   };
 }
