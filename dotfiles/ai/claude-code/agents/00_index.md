@@ -13,6 +13,7 @@
 | Integration / E2E / smoke / contract tests | [QA Developer](./qa-developer.md) |
 | Debug issue | [Debugger](./debugger.md) |
 | Refactor code | [Refactorer](./refactorer.md) |
+| Write / clarify documentation | [Documentor](./documentor.md) |
 | Manage infrastructure | [DevOps](./devops.md) |
 | Build developer tooling | [DevExp Developer](./devexp-developer.md) |
 | Orchestrate dev workflow / PR review | [Orchestrator Dev](./orchestrator-dev.md) |
@@ -41,6 +42,9 @@ Debugging and troubleshooting. Use for: Bug investigation, log/trace analysis, r
 
 ### [Refactorer](./refactorer.md)
 Code refactoring specialist. Use for: Improving structure, removing duplication, cleanup, updating patterns.
+
+### [Documentor](./documentor.md)
+Senior technical writer. Use for: optimizing semantics and readability, flow diagrams, runnable examples, and accurate cross-references — pulls in specialist agents to deep-dive components or review docs for gaps.
 
 ### [DevOps](./devops.md)
 Infrastructure and deployment. Use for: AWS infrastructure (Lambda, DynamoDB, S3, SNS, SQS, CloudFormation, SecretsManager), Serverless configs, PKL, secrets, CI/CD, monitoring.
@@ -76,6 +80,7 @@ Need to write tests?              → Tester
 Need integration/E2E/smoke tests? → QA Developer
 Need to debug an issue?           → Debugger
 Need to refactor code?            → Refactorer
+Need to write / clarify docs?     → Documentor
 Need to manage infrastructure?    → DevOps
 Need to build developer tooling?  → DevExp Developer
 Need to update task automation?   → DevExp Developer

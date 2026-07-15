@@ -22,10 +22,16 @@ Conduct a multi-agent code review over a pull request and consolidate findings i
   - Save the response as additional context to pass to the **architect** agent.
 - If no task ID is found OR `LINEAR_API_KEY` is not set, note this and continue without Linear context.
 
-## Step 3: Check out the PR locally (read-only review context)
+## Step 3: Classify the PR content (this drives which agents run)
 
-- Determine the language(s) of the changed files (look at file extensions). This informs the **tester** agent which test patterns to apply.
-- Detect infrastructure-related changes in the PR. The **devops** agent should be dispatched in Step 4 if ANY of the following appear in the changed files list:
+Determine the language(s) of the changed files (look at file extensions). This informs the **tester** agent which test patterns to apply.
+
+Classify every changed file into one or more content buckets. Record which buckets are present — Step 4 uses this matrix to decide which agents to dispatch and which to skip.
+
+- **Source code** — application/library source that is not a test, doc, or infra file (e.g. `*.go`, `*.ts`, `*.js`, `*.py`, `*.rs`, `*.ex`, `*.nix` logic). Excludes generated files, lockfiles, and vendored code.
+- **Tests** — files matching test conventions (`*_test.go`, `*.test.ts`, `*.spec.*`, `test_*.py`, files under `test/`, `tests/`, `__tests__/`, `spec/`).
+- **Documentation** — Markdown and prose docs (`*.md`, `*.mdx`, `*.rst`, `*.adoc`), files under `docs/`, and `README`/`CONTRIBUTING`/`CHANGELOG`/`TESTING` files. Also flag source diffs that add or change **doc comments / docstrings / public API signatures** — these carry documentation surface even in code files.
+- **Infrastructure** — the **devops** agent should be dispatched if ANY of the following appear in the changed files list:
   - Pkl resources or modules (`*.pkl`)
   - Serverless framework config (`serverless.yml`, `serverless.yaml`, `serverless.ts`, `serverless.js`)
   - Generic YAML/YML files at the repo root or under infra/deploy/config directories (`*.yml`, `*.yaml`)
@@ -34,19 +40,41 @@ Conduct a multi-agent code review over a pull request and consolidate findings i
   - Infrastructure-as-Code (`*.tf`, `*.tfvars`, `*.hcl`, CloudFormation templates, CDK files, Pulumi files, Helm charts, Kustomize overlays)
   - Kubernetes manifests (`k8s/*`, `kubernetes/*`, `*.k8s.yaml`)
   - Deployment scripts, Makefiles, or environment configuration touching infra concerns
-- Record whether infrastructure changes were detected — this gates the devops agent dispatch in Step 4.
+- **Trivial/no-op** — changes with no reviewable logic: lockfiles, generated code, vendored dependencies, binary assets, pure formatting/whitespace, and mechanical renames. Note these so agents are not dispatched for buckets that contain only these.
+
+Also record two cross-cutting signals used for gating in Step 4:
+- **Structural change** — new/removed/renamed files or packages, changed public interfaces/exported signatures, new/removed dependencies, or cross-module/cross-domain wiring.
+- **Public/behavioral surface** — changes to public APIs, CLI flags, config keys, error contracts, or user-facing behavior (these may require docs to be updated, created, deleted, or cross-referenced).
+
+Record this classification matrix explicitly (which buckets present + the two signals) — it gates every agent dispatch in Step 4.
+
 - Do NOT modify any files — this is a review-only flow.
 - If needed for deeper inspection, fetch the PR ref: `gh pr checkout <number> --repo <owner>/<repo>` — but only if the agents request it. Default to reviewing the diff and reading files on the base branch + diff hunks.
 
 ## Step 4: Dispatch review agents in parallel
 
-Spawn the agents below **in a single message** so they run concurrently. Always dispatch agents 1–4. Additionally dispatch agent 5 (**devops**) ONLY if infrastructure changes were detected in Step 3. Each agent gets:
+Spawn the applicable agents **in a single message** so they run concurrently. Do NOT dispatch every agent unconditionally — use the classification matrix from Step 3 to include only the agents whose content is present. Dispatching an agent for a bucket it has nothing to review wastes effort and produces noise findings.
+
+### Dispatch gating matrix
+
+| Agent | Dispatch WHEN | Skip WHEN |
+|-------|---------------|-----------|
+| `code-reviewer` | Any **source code** or **tests** changed | PR is **documentation-only** or **trivial/no-op** only |
+| `architect` | **Structural change** signal is set, **or** Linear task context exists and needs intent-vs-implementation validation | No structural change AND change is a localized bug fix, docs-only, config-value tweak, or trivial/no-op |
+| `refactorer` | Any **source code** changed | Docs-only, infra-only, tests-only, or trivial/no-op only |
+| `tester` | **Source code** with testable logic changed, **or** **tests** changed | Docs-only, infra-only, config-only, comment-only, or trivial/no-op only |
+| `devops` | **Infrastructure** bucket present | No infrastructure files changed |
+| `documentor` | **Documentation** bucket present, **or** **Public/behavioral surface** signal is set, **or** source code adds/changes doc-worthy complexity (public APIs, non-obvious logic) | Change is only tests, infra config values, or trivial/no-op with no doc surface and no public/behavioral change |
+
+Record which agents were selected and why (one line each). Report the skipped agents and the reason in the final output so the gating is transparent — never silently drop an agent.
+
+Each dispatched agent gets:
 - The PR URL, title, description, and full diff
 - The list of changed files
 - Any Linear task context (architect only)
 - An instruction to return findings as a structured JSON list of `{ file, line, severity, category, summary, recommendation }` entries plus a short overall verdict (`approve` | `request_changes` | `comment`)
 
-### Agent 1 — `code-reviewer`
+### Agent 1 — `code-reviewer` (conditional: see gating matrix)
 
 Prompt focus:
 - Validate adherence to general code quality guidelines (naming, error handling, boundary checks, security, OWASP-style issues).
@@ -54,7 +82,7 @@ Prompt focus:
 - Hunt for potential memory leaks (unclosed resources, leaked goroutines, growing maps/caches without eviction, retained references).
 - Report only real issues with file:line references and a clear recommendation.
 
-### Agent 2 — `architect`
+### Agent 2 — `architect` (conditional: see gating matrix)
 
 Prompt focus:
 - Review architectural fit: layering, boundaries, coupling, cohesion, pattern smells.
@@ -63,14 +91,14 @@ Prompt focus:
 - Use the PR description and (when available) Linear task context to judge whether the implementation actually satisfies the stated intent and constraints.
 - Flag scope creep or missing pieces relative to the task.
 
-### Agent 3 — `refactorer`
+### Agent 3 — `refactorer` (conditional: see gating matrix)
 
 Prompt focus:
 - Look for code that is not elegant, not reusable, violates single-responsibility, hard to maintain, or rigid to extend.
-- Check documentation quality: comments should clarify non-obvious **why** decisions, not narrate the **what**. Flag both missing clarifications AND noisy over-commenting.
 - Suggest concrete refactors only when they materially improve the code — do not bikeshed.
+- Documentation/comment quality: only when **documentor** is NOT dispatched, also check that comments clarify non-obvious **why** decisions rather than narrate the **what**, flagging both missing clarifications and noisy over-commenting. When **documentor** IS dispatched, defer all doc-comment and clarity findings to it to avoid duplicate comments.
 
-### Agent 4 — `tester`
+### Agent 4 — `tester` (conditional: see gating matrix)
 
 Prompt focus:
 - For Go code: verify the project's documented test patterns are followed. Look for project test documentation in `docs/`, `CONTRIBUTING.md`, `TESTING.md`, or top-level `README.md` in the repo first.
@@ -78,7 +106,7 @@ Prompt focus:
 - For non-Go code, validate against repo-documented patterns; if none exist, note this and skip rather than improvising.
 - Check coverage of: happy path, edge cases, error paths, table-driven tests where appropriate, proper use of `t.Helper()`, `t.Cleanup()`, race detector compatibility, and no flaky time/network dependencies.
 
-### Agent 5 — `devops` (conditional: only when infra changes were detected in Step 3)
+### Agent 5 — `devops` (conditional: see gating matrix — only when infrastructure changes are present)
 
 Prompt focus:
 - Review infrastructure-as-code and deployment changes for correctness, safety, and reversibility (e.g. resource deletions, identity/permission changes, network exposure, secrets handling).
@@ -89,15 +117,28 @@ Prompt focus:
 - Flag missing observability (metrics, logs, traces, alarms) for new infrastructure, and missing rollback paths.
 - Confirm changes follow AWS serverless and DDD-aligned infra conventions where applicable, and call out cost or scaling regressions.
 
+### Agent 6 — `documentor` (conditional: see gating matrix)
+
+Prompt focus:
+- **Documentation impact** — identify docs that must be **updated, created, deleted, or cross-referenced** as a result of this PR:
+  - Updated: existing docs (`README`, `docs/`, guides, API references, changelogs, ADRs) whose content is now stale or contradicted by the change.
+  - Created: new behavior, public APIs, config keys, CLI flags, or flows that have no documentation yet.
+  - Deleted: docs describing removed code/behavior that are now dead or misleading.
+  - Referenced: missing cross-references/links between related docs, or from code to the doc that explains it, so no topic is a dead end.
+- **In-code documentation practices** — evaluate doc comments/docstrings on public/exported symbols: present where expected, accurate to the code, explaining the non-obvious **why** rather than narrating the **what**. Flag both missing docs on public surfaces AND noisy/redundant comments.
+- **Clarity & maintainability** — assess naming, terminology consistency (same concept = same term), and whether complex flows would benefit from an example or a diagram. Recommend a diagram (Mermaid) where a flow/state/interaction is hard to follow from prose alone.
+- **Accuracy over polish** — do not invent documentation for behavior you cannot verify from the diff; when a component's real behavior is unclear, note that the relevant specialist agent (architect/developer/devops) should confirm before the doc is written.
+- Report each item with a file:line (or target doc path) and a concrete recommendation. Keep scope to documentation and readability — defer bugs, architecture, and test coverage to the other agents.
+
 ## Step 5: Consolidate findings
 
-Once all dispatched agents return (4 by default, or 5 when devops was included):
+Once all dispatched agents return (only the agents selected by the Step 4 gating matrix — anywhere from 1 to 6):
 
-1. Merge their findings into a single list. Deduplicate overlapping comments (same file:line, similar recommendation) — keep the most actionable wording and credit which agents raised it.
+1. Merge their findings into a single list. Deduplicate overlapping comments (same file:line, similar recommendation) — keep the most actionable wording and credit which agents raised it. Note the expected overlaps: `refactorer` ↔ `documentor` on comment/clarity, and `architect` ↔ `code-reviewer` on structural concerns — collapse these into one finding.
 2. Classify each finding by severity:
    - **critical** — bug, security issue, race condition, memory leak, production-readiness blocker
-   - **major** — architectural smell, missing test coverage of a non-trivial path, scalability concern
-   - **minor** — refactor suggestion, naming, documentation, nit
+   - **major** — architectural smell, missing test coverage of a non-trivial path, scalability concern, documentation that now contradicts current behavior or missing docs for a new public/behavioral surface
+   - **minor** — refactor suggestion, naming, doc-comment polish, cross-reference nit
 3. Group findings by file and sort by line.
 4. Compute the overall verdict:
    - If ANY finding is **critical**, or 3+ **major** findings exist → `request_changes`
@@ -125,6 +166,7 @@ Use `gh pr review` to submit a single consolidated review with inline comments w
 
 Print:
 - The verdict (`approve` | `request_changes` | `comment`)
+- The dispatch summary: which agents ran and which were skipped, each with the one-line gating reason from Step 4
 - A summary table of all findings: `| # | File:Line | Severity | Category | Agent(s) | Summary |`
 - The PR URL and the URL of the submitted review
 
