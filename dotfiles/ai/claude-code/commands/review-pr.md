@@ -26,7 +26,7 @@ Conduct a multi-agent code review over a pull request and consolidate findings i
 
 Determine the language(s) of the changed files (look at file extensions). This informs the **tester** agent which test patterns to apply.
 
-Classify every changed file into one or more content buckets. Record which buckets are present — Step 4 uses this matrix to decide which agents to dispatch and which to skip.
+Classify every changed file into one or more content buckets. Record which buckets are present — Step 5 uses this matrix to decide which agents to dispatch and which to skip.
 
 - **Source code** — application/library source that is not a test, doc, or infra file (e.g. `*.go`, `*.ts`, `*.js`, `*.py`, `*.rs`, `*.ex`, `*.nix` logic). Excludes generated files, lockfiles, and vendored code.
 - **Tests** — files matching test conventions (`*_test.go`, `*.test.ts`, `*.spec.*`, `test_*.py`, files under `test/`, `tests/`, `__tests__/`, `spec/`).
@@ -42,16 +42,47 @@ Classify every changed file into one or more content buckets. Record which bucke
   - Deployment scripts, Makefiles, or environment configuration touching infra concerns
 - **Trivial/no-op** — changes with no reviewable logic: lockfiles, generated code, vendored dependencies, binary assets, pure formatting/whitespace, and mechanical renames. Note these so agents are not dispatched for buckets that contain only these.
 
-Also record two cross-cutting signals used for gating in Step 4:
+Also record two cross-cutting signals used for gating in Step 5:
 - **Structural change** — new/removed/renamed files or packages, changed public interfaces/exported signatures, new/removed dependencies, or cross-module/cross-domain wiring.
 - **Public/behavioral surface** — changes to public APIs, CLI flags, config keys, error contracts, or user-facing behavior (these may require docs to be updated, created, deleted, or cross-referenced).
 
-Record this classification matrix explicitly (which buckets present + the two signals) — it gates every agent dispatch in Step 4.
+Record this classification matrix explicitly (which buckets present + the two signals) — it gates every agent dispatch in Step 5.
 
 - Do NOT modify any files — this is a review-only flow.
 - If needed for deeper inspection, fetch the PR ref: `gh pr checkout <number> --repo <owner>/<repo>` — but only if the agents request it. Default to reviewing the diff and reading files on the base branch + diff hunks.
 
-## Step 4: Dispatch review agents in parallel
+## Step 4: Fetch and triage prior review comments (avoid duplicate findings)
+
+Before running the review, gather every comment already left on this PR and determine its current status. This prevents the review from re-raising issues that were already fixed, already answered, or already decided.
+
+Fetch all existing comments from three surfaces:
+
+- **Inline review comments** (file/line threads):
+  ```bash
+  gh api --paginate repos/<owner>/<repo>/pulls/<number>/comments \
+    -q '.[] | {id, path, line, original_line, body, user: .user.login, in_reply_to_id, created_at, commit_id}'
+  ```
+- **Review summaries** (per-review bodies and their verdicts):
+  ```bash
+  gh api --paginate repos/<owner>/<repo>/pulls/<number>/reviews \
+    -q '.[] | {id, state, body, user: .user.login, submitted_at}'
+  ```
+- **Issue-level (general) comments**:
+  ```bash
+  gh api --paginate repos/<owner>/<repo>/issues/<number>/comments \
+    -q '.[] | {id, body, user: .user.login, created_at}'
+  ```
+
+Reconstruct threads via `in_reply_to_id` so each root comment is paired with its replies. For every root comment, classify its status:
+
+- **RESOLVED-FIXED** — the concern was addressed in the code. Verify by checking the current file/line against the comment's `original_line`/`commit_id`: the flagged code no longer exists or now does what the comment asked. Prefer objective evidence in the diff over trusting a "done" reply.
+- **RESPONDED-JUSTIFIED** — the author (or a reviewer) replied with a decision/justification explaining why it will not change (e.g. intentional trade-off, out of scope, follow-up ticket). Treat the decision as settled.
+- **OUTDATED** — the comment targets a line that no longer exists because the surrounding code was rewritten/removed, with no direct fix. The concern may or may not still apply.
+- **OPEN-UNADDRESSED** — no fix in the code and no justifying reply. Still live.
+
+Record this triage as a table (`comment → author → status → evidence`). This map is consumed in Steps 6 and 7 to suppress duplicates. Pass a condensed form (open/unaddressed and responded-justified items) to the dispatched agents in Step 5 as context so they do not re-derive already-answered concerns.
+
+## Step 5: Dispatch review agents in parallel
 
 Spawn the applicable agents **in a single message** so they run concurrently. Do NOT dispatch every agent unconditionally — use the classification matrix from Step 3 to include only the agents whose content is present. Dispatching an agent for a bucket it has nothing to review wastes effort and produces noise findings.
 
@@ -130,26 +161,32 @@ Prompt focus:
 - **Accuracy over polish** — do not invent documentation for behavior you cannot verify from the diff; when a component's real behavior is unclear, note that the relevant specialist agent (architect/developer/devops) should confirm before the doc is written.
 - Report each item with a file:line (or target doc path) and a concrete recommendation. Keep scope to documentation and readability — defer bugs, architecture, and test coverage to the other agents.
 
-## Step 5: Consolidate findings
+## Step 6: Consolidate findings
 
-Once all dispatched agents return (only the agents selected by the Step 4 gating matrix — anywhere from 1 to 6):
+Once all dispatched agents return (only the agents selected by the Step 5 gating matrix — anywhere from 1 to 6):
 
 1. Merge their findings into a single list. Deduplicate overlapping comments (same file:line, similar recommendation) — keep the most actionable wording and credit which agents raised it. Note the expected overlaps: `refactorer` ↔ `documentor` on comment/clarity, and `architect` ↔ `code-reviewer` on structural concerns — collapse these into one finding.
-2. Classify each finding by severity:
+2. Cross-check every finding against the prior-comment triage from Step 4. For each finding that matches an existing comment (same file/line and same underlying concern, even if worded differently):
+   - Prior status **RESOLVED-FIXED** → **drop** the finding. Do not repost; the code already addresses it.
+   - Prior status **RESPONDED-JUSTIFIED** → **drop** the finding, unless the new evidence materially contradicts the justification. If you keep it, reference the prior decision and explain why it still stands — do not silently re-litigate a settled decision.
+   - Prior status **OUTDATED** → keep only if the concern still applies to the current code; re-anchor it to the current line.
+   - Prior status **OPEN-UNADDRESSED** → keep, but mark it as a **repeat** of the existing thread and do NOT open a new inline comment on the same line (reply-in-place or fold into the summary instead).
+   Record which findings were suppressed and why, so the dedup is auditable in Step 8.
+3. Classify each finding by severity:
    - **critical** — bug, security issue, race condition, memory leak, production-readiness blocker
    - **major** — architectural smell, missing test coverage of a non-trivial path, scalability concern, documentation that now contradicts current behavior or missing docs for a new public/behavioral surface
    - **minor** — refactor suggestion, naming, doc-comment polish, cross-reference nit
-3. Group findings by file and sort by line.
-4. Compute the overall verdict:
+4. Group findings by file and sort by line.
+5. Compute the overall verdict:
    - If ANY finding is **critical**, or 3+ **major** findings exist → `request_changes`
    - If only **minor** findings exist or none → `approve`
    - If findings are informational only and no action is strictly required → `comment`
 
 Present the consolidated table to the user before posting. Wait for confirmation.
 
-## Step 6: Post the review on GitHub
+## Step 7: Post the review on GitHub
 
-Use `gh pr review` to submit a single consolidated review with inline comments where possible.
+Use `gh pr review` to submit a single consolidated review with inline comments where possible. Post ONLY the findings that survived the Step 6 dedup — never open a new inline comment on a line that already has an equivalent thread from Step 4.
 
 - For inline comments per file/line, use `gh api repos/<owner>/<repo>/pulls/<number>/reviews` with the `comments` array:
   ```bash
@@ -158,16 +195,18 @@ Use `gh pr review` to submit a single consolidated review with inline comments w
     -f body="<overall summary>" \
     -F comments='[{"path":"<file>","line":<n>,"body":"<comment>"}, ...]'
   ```
-- The `event` field maps from the verdict in Step 5: `request_changes` → `REQUEST_CHANGES`, `approve` → `APPROVE`, `comment` → `COMMENT`.
+- The `event` field maps from the verdict in Step 6: `request_changes` → `REQUEST_CHANGES`, `approve` → `APPROVE`, `comment` → `COMMENT`.
+- For findings marked **repeat** of an OPEN-UNADDRESSED thread, reply on the existing thread instead of creating a new one: `gh api -X POST repos/<owner>/<repo>/pulls/<number>/comments/<comment_id>/replies -f body="<comment>"`.
 - The overall `body` should be a concise summary listing the top issues and which agents flagged them. Do not dump raw agent output.
 - For findings without a specific line (architecture-wide concerns), include them in the overall body rather than as inline comments.
 
-## Step 7: Output
+## Step 8: Output
 
 Print:
 - The verdict (`approve` | `request_changes` | `comment`)
-- The dispatch summary: which agents ran and which were skipped, each with the one-line gating reason from Step 4
+- The dispatch summary: which agents ran and which were skipped, each with the one-line gating reason from Step 5
 - A summary table of all findings: `| # | File:Line | Severity | Category | Agent(s) | Summary |`
+- The prior-comment triage summary: how many existing comments were found and how many findings were suppressed as already-fixed or already-justified (from Step 6)
 - The PR URL and the URL of the submitted review
 
 ## Argument: $ARGUMENTS
