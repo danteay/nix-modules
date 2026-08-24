@@ -27,6 +27,7 @@
       "graphviz"
       "cpulimit"
       "rtk"
+      "jj"
     ];
 
     casks = [
