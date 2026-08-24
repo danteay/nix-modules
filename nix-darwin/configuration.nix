@@ -38,7 +38,7 @@
       "1password-cli"
 
       "telegram"
-      "whatsapp"
+      # "whatsapp"
       "slack"
       "discord"
 
