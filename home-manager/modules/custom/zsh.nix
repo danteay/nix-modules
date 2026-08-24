@@ -4,6 +4,13 @@ let
   # profile-specific init content. The trailing `clear` is appended after
   # the profile content so the terminal always ends up clean.
   templateInit = ''
+    # Raise the fd soft limit: launchd hands GUI-spawned processes 256, which
+    # libgit2 blows past on nix's tarball cache since it holds one mmap'd fd
+    # per packfile index (hundreds accumulate over time). The symptom is a
+    # misleading nix eval failure whose real cause is the trailing
+    # "Too many open files (libgit2 error code = 2)".
+    ulimit -n 65536
+
     # Nix
     if [ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]; then
       . '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
