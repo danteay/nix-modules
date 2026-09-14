@@ -49,7 +49,7 @@
       "brave-browser"
 
       "zed"
-      "goland"
+      # "goland"
       "jetbrains-toolbox"
       "orbstack"
       "postman"
