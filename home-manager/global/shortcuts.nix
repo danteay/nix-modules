@@ -17,6 +17,10 @@
       home-manager switch -b backup --impure --flake $HOME_MANAGER_HOME#$profile
     '')
 
+    (writeShellScriptBin "hnews" ''
+      home-manager -f "$HOME_MANAGER_HOME/home.nix" news
+    '')
+
     (writeShellScriptBin "hms-update" ''
       profile="$HM_PROFILE"
 

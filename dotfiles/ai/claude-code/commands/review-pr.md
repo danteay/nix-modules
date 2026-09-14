@@ -1,4 +1,4 @@
-Conduct a multi-agent code review over a pull request and consolidate findings into a single review on GitHub. Follow every step in order — do NOT skip any.
+Conduct a multi-agent code review over a pull request, write the full findings to a local `.review-<pr-number>.md` file for manual review, then post a single consolidated review on GitHub. Follow every step in order — do NOT skip any.
 
 ## Step 1: Resolve the pull request
 
@@ -80,7 +80,7 @@ Reconstruct threads via `in_reply_to_id` so each root comment is paired with its
 - **OUTDATED** — the comment targets a line that no longer exists because the surrounding code was rewritten/removed, with no direct fix. The concern may or may not still apply.
 - **OPEN-UNADDRESSED** — no fix in the code and no justifying reply. Still live.
 
-Record this triage as a table (`comment → author → status → evidence`). This map is consumed in Steps 6 and 7 to suppress duplicates. Pass a condensed form (open/unaddressed and responded-justified items) to the dispatched agents in Step 5 as context so they do not re-derive already-answered concerns.
+Record this triage as a table (`comment → author → status → evidence`). This map is consumed in Steps 6, 7, and 8 to suppress duplicates. Pass a condensed form (open/unaddressed and responded-justified items) to the dispatched agents in Step 5 as context so they do not re-derive already-answered concerns.
 
 ## Step 5: Dispatch review agents in parallel
 
@@ -171,7 +171,7 @@ Once all dispatched agents return (only the agents selected by the Step 5 gating
    - Prior status **RESPONDED-JUSTIFIED** → **drop** the finding, unless the new evidence materially contradicts the justification. If you keep it, reference the prior decision and explain why it still stands — do not silently re-litigate a settled decision.
    - Prior status **OUTDATED** → keep only if the concern still applies to the current code; re-anchor it to the current line.
    - Prior status **OPEN-UNADDRESSED** → keep, but mark it as a **repeat** of the existing thread and do NOT open a new inline comment on the same line (reply-in-place or fold into the summary instead).
-   Record which findings were suppressed and why, so the dedup is auditable in Step 8.
+   Record which findings were suppressed and why, so the dedup is auditable in Step 9.
 3. Classify each finding by severity:
    - **critical** — bug, security issue, race condition, memory leak, production-readiness blocker
    - **major** — architectural smell, missing test coverage of a non-trivial path, scalability concern, documentation that now contradicts current behavior or missing docs for a new public/behavioral surface
@@ -182,11 +182,88 @@ Once all dispatched agents return (only the agents selected by the Step 5 gating
    - If only **minor** findings exist or none → `approve`
    - If findings are informational only and no action is strictly required → `comment`
 
-Present the consolidated table to the user before posting. Wait for confirmation.
+## Step 7: Write the consolidated findings to a local review file
 
-## Step 7: Post the review on GitHub
+Before posting anything to GitHub, write **every** surviving finding to `.review-<pr-number>.md` in the repository root (e.g. `.review-1234.md`) so the user can review each one manually. This file is a local scratch artifact — do not commit it, and do not add it to the PR.
+
+This file is the long-form, unabridged record. Verbosity here is fine — the brevity rules in Step 8 apply only to what gets posted on GitHub.
+
+### Writing rules for the file
+
+- **Write for humans, not for machines.** Plain prose over jargon shorthand. No unexplained abbreviations, no bare tool/agent output, no severity codes without their meaning.
+- **Zero ambiguity.** Every finding must answer, explicitly: what the code does today, why that is a problem, what should happen instead, and what breaks if it is not changed. Never leave the reader to infer the failure mode.
+- **State assumptions out loud.** Whenever a finding depends on something not provable from the diff (runtime behavior, call-site frequency, deployment topology, intended product behavior, data volume), write it under an explicit `Assumptions:` line with the authority behind it — "assumed because the Linear task says X", "assumed because `foo.go:42` is the only caller", "unverified — needs author confirmation". If a finding is invalid under a different assumption, say so.
+- **Show the code.** For every finding where a code location applies, include a fenced block quoting the referenced code as it exists in the PR (with its `file:line` header), followed by a second fenced block with the concrete suggested change. If a change is structural and cannot be shown as a snippet, describe the target shape step by step instead and say why a snippet is not given.
+- **Never point at a line without quoting it.** A `file:line` reference alone is not sufficient.
+
+### File structure
+
+````markdown
+# Review — <owner>/<repo> PR #<number>: <title>
+
+- **PR:** <url>
+- **Verdict:** <approve | request_changes | comment>
+- **Linear task:** <id + title, or "none found">
+- **Agents run:** <list> — **skipped:** <list + reason>
+- **Prior comments:** <n> found, <n> findings suppressed as already fixed/justified
+
+## Summary
+
+<A few sentences: what this PR does, and the overall health of the change.>
+
+## Findings
+
+### [CRITICAL-1] <short title> — `path/to/file.go:120`
+
+**What the code does today**
+<plain-language description>
+
+**Why it is a problem**
+<concrete failure mode: inputs/state → wrong result, crash, leak, or cost>
+
+**Assumptions**
+- <assumption + basis>
+
+**Current code** (`path/to/file.go:118-124`)
+```go
+<quoted code from the PR>
+```
+
+**Suggested change**
+```go
+<the replacement code>
+```
+
+**Raised by:** <agent(s)>
+
+### [MAJOR-1] ...
+### [MINOR-1] ...
+
+## Suppressed findings (already fixed or already decided)
+
+| Finding | File:Line | Prior status | Evidence |
+|---------|-----------|--------------|----------|
+````
+
+Number findings per severity (`CRITICAL-1`, `MAJOR-1`, `MINOR-1`, …) and keep those IDs stable — Step 8 references them when posting, and the user references them when replying.
+
+Then present the consolidated table to the user along with the path to the written file. **Wait for confirmation before posting to GitHub.**
+
+## Step 8: Post the review on GitHub
 
 Use `gh pr review` to submit a single consolidated review with inline comments where possible. Post ONLY the findings that survived the Step 6 dedup — never open a new inline comment on a line that already has an equivalent thread from Step 4.
+
+### Brevity rules for posted comments
+
+The posted review must be readable in one pass. It is a pointer to the decisions, not a copy of the Step 7 file.
+
+- **Fold minor findings together.** If more than 3 **minor** findings survive, they must NOT be posted as individual inline comments. Consolidate them into a **single unified comment** (a checklist in the review body, or one inline comment on the most relevant line), one short line or bullet per item with its `file:line` and the fix in a sentence.
+- **Exception — and prefer not to use it.** Break a minor finding out into its own inline comment only when explaining it genuinely requires a multi-line code example or diff that would drown the unified comment. Even then, default to keeping it in the unified list with a one-line fix description; isolate it only if that is truly impossible. Three or fewer minor findings may be posted inline normally.
+- **No isolating for convenience.** Do not split minors apart just because they touch different files — different files still belong in the same unified comment, grouped under `file:line` headings.
+- **No redundant text.** Never repeat an explanation already written elsewhere in the same review. When two findings share a concept, root cause, or recommended pattern, explain it **once** in the first occurrence and have every later mention point back to it — "same root cause as CRITICAL-1", "apply the pattern described in MAJOR-2 here as well". This applies to the review body vs. inline comments too: if the body explains a concern, the inline comment references it instead of restating it.
+- **No duplication of the local file.** Do not paste the full Step 7 findings into GitHub. Posted comments carry the claim, the location, and the fix; the long-form reasoning, assumptions, and code examples stay in `.review-<pr-number>.md`.
+
+### Posting mechanics
 
 - For inline comments per file/line, use `gh api repos/<owner>/<repo>/pulls/<number>/reviews` with the `comments` array:
   ```bash
@@ -199,13 +276,16 @@ Use `gh pr review` to submit a single consolidated review with inline comments w
 - For findings marked **repeat** of an OPEN-UNADDRESSED thread, reply on the existing thread instead of creating a new one: `gh api -X POST repos/<owner>/<repo>/pulls/<number>/comments/<comment_id>/replies -f body="<comment>"`.
 - The overall `body` should be a concise summary listing the top issues and which agents flagged them. Do not dump raw agent output.
 - For findings without a specific line (architecture-wide concerns), include them in the overall body rather than as inline comments.
+- The unified minor-findings comment (when the >3 rule applies) goes in the review `body` under a `### Minor findings` heading, unless a specific line is clearly the best anchor for the whole group.
 
-## Step 8: Output
+## Step 9: Output
 
 Print:
 - The verdict (`approve` | `request_changes` | `comment`)
 - The dispatch summary: which agents ran and which were skipped, each with the one-line gating reason from Step 5
-- A summary table of all findings: `| # | File:Line | Severity | Category | Agent(s) | Summary |`
+- A summary table of all findings: `| ID | File:Line | Severity | Category | Agent(s) | Summary |` using the Step 7 finding IDs
+- The path to the written `.review-<pr-number>.md` file
+- How the minor findings were posted: unified into one comment, or which ones were isolated and why (from Step 8)
 - The prior-comment triage summary: how many existing comments were found and how many findings were suppressed as already-fixed or already-justified (from Step 6)
 - The PR URL and the URL of the submitted review
 
