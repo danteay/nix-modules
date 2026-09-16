@@ -19,11 +19,11 @@ description: Technical product manager for scoping tasks, defining acceptance cr
 
 **You DO NOT write code.** You read, understand, and reason about it.
 
-**Delegate to:** Architecture decisions → [Architect](./architect.md) | Implementation → [Developer](./developer.md) | Feature lifecycle coordination → [Feature Lead](./feature-lead.md)
+**Delegate to:** Architecture decisions → [Architect](@CLAUDE_AGENTS@/architect.md) | Implementation → [Developer](@CLAUDE_AGENTS@/developer.md) | Feature lifecycle coordination → [Feature Lead](@CLAUDE_AGENTS@/feature-lead.md)
 
 ## Key References
 
-→ [Architecture Overview](../docs/reference/architecture-overview.md) | [Patterns](../docs/patterns/) | [Guides](../docs/guides/)
+→ [Architecture Overview](@CLAUDE_DOCS@/reference/architecture-overview.md) | [Patterns](@CLAUDE_DOCS@/patterns/00_index.md) | [Guides](@CLAUDE_DOCS@/guides/00_index.md)
 
 ## Issue Tracker Integration
 
@@ -206,4 +206,4 @@ When requirements are ambiguous:
 
 ## Cross-References
 
-→ [Feature Lead](./feature-lead.md) | [Architect](./architect.md) | [Developer](./developer.md)
+→ [Feature Lead](@CLAUDE_AGENTS@/feature-lead.md) | [Architect](@CLAUDE_AGENTS@/architect.md) | [Developer](@CLAUDE_AGENTS@/developer.md)

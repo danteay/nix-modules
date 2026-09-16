@@ -28,11 +28,13 @@
       "cpulimit"
       "rtk"
       "jj"
+      "anomalyco/tap/opencode"
     ];
 
     casks = [
       "ghostty"
       "claude-code"
+      "codex"
 
       "linear"
       "1password"

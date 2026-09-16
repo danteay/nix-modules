@@ -174,4 +174,4 @@ For each API endpoint or event schema:
 
 ## Cross-References
 
-→ [Tester](./tester.md) | [DevOps](./devops.md) | [Architect](./architect.md) | [Debugger](./debugger.md)
+→ [Tester](@CLAUDE_AGENTS@/tester.md) | [DevOps](@CLAUDE_AGENTS@/devops.md) | [Architect](@CLAUDE_AGENTS@/architect.md) | [Debugger](@CLAUDE_AGENTS@/debugger.md)

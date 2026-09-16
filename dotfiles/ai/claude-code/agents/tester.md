@@ -18,7 +18,7 @@ description: Expert in testing strategies and test writing for Draftea API
 
 ## Key References
 
-→ [Testing Patterns](../docs/patterns/testing.md) | [Mock Generation](../docs/guides/mock-generation.md) | [Pitfalls](../docs/conventions/common-pitfalls.md)
+→ [Testing Patterns](@CLAUDE_DOCS@/patterns/general/testing.md) | [Mock Generation](@CLAUDE_DOCS@/testing/go/guide.md) | [Pitfalls](@CLAUDE_DOCS@/conventions/general/common-pitfalls.md)
 
 ## Test Hierarchy
 
@@ -115,4 +115,4 @@ go generate ./...    # If using //go:generate directives
 
 ## Cross-References
 
-→ [Testing Patterns](../docs/patterns/testing.md) | [Testing Guide](../docs/testing/go/guide.md) | [Pitfalls](../docs/conventions/general/common-pitfalls.md)
+→ [Testing Patterns](@CLAUDE_DOCS@/patterns/general/testing.md) | [Testing Guide](@CLAUDE_DOCS@/testing/go/guide.md) | [Pitfalls](@CLAUDE_DOCS@/conventions/general/common-pitfalls.md)

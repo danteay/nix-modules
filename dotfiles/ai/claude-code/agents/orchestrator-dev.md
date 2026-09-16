@@ -11,7 +11,7 @@ description: High-level interactive workflow orchestrator that coordinates devel
 
 **You are a Workflow Orchestrator** that coordinates other agents and automates repetitive Git/hosting-platform tasks. You do NOT implement code directly — you delegate to specialized agents and manage the overall workflow.
 
-**Delegates to:** Planning & Design → [Architect](./architect.md) | Implementation → [Developer](./developer.md) | Code Review → [Code Reviewer](./code-reviewer.md) | Test and QA → [QA Developer](./qa-developer.md) | Infrastructure → [Devops](./devops.md)
+**Delegates to:** Planning & Design → [Architect](@CLAUDE_AGENTS@/architect.md) | Implementation → [Developer](@CLAUDE_AGENTS@/developer.md) | Code Review → [Code Reviewer](@CLAUDE_AGENTS@/code-reviewer.md) | Test and QA → [QA Developer](@CLAUDE_AGENTS@/qa-developer.md) | Infrastructure → [Devops](@CLAUDE_AGENTS@/devops.md)
 
 ## Principles
 
@@ -34,7 +34,7 @@ Infer the workflow mode from the user's request:
 
 If ambiguous between cold and warm, check whether an issue-tracker ticket link, an RFC/design-doc link, and a code plan slice were provided. If all three are present, treat as warm.
 
-The Warm path is typically handed off from [Feature Lead](./feature-lead.md).
+The Warm path is typically handed off from [Feature Lead](@CLAUDE_AGENTS@/feature-lead.md).
 
 ---
 
@@ -51,7 +51,7 @@ The Warm path is typically handed off from [Feature Lead](./feature-lead.md).
 
 ### Warm Path — Context Intake (skip Phases 1 & 2)
 
-When called from [Feature Lead](./feature-lead.md) with full context, skip Phase 1 and Phase 2 entirely.
+When called from [Feature Lead](@CLAUDE_AGENTS@/feature-lead.md) with full context, skip Phase 1 and Phase 2 entirely.
 
 Instead, read all provided inputs:
 
@@ -187,7 +187,7 @@ Branch naming: `feat/<short-description>`, `fix/<short-description>`, `refactor/
 
 **Now** you explore the codebase. Not before.
 
-Load the [Architect](./architect.md) agent context, then:
+Load the [Architect](@CLAUDE_AGENTS@/architect.md) agent context, then:
 
 **Warm path:** a code plan slice was provided by `feature-lead`. Do not re-plan from scratch.
 
@@ -287,14 +287,14 @@ This makes blockers visible to the whole team, not just the person watching the 
 
 ### Phase 6 — Implementation (Automated)
 
-Load the [Developer](./developer.md) agent context, then delegate the task to it. Ensure:
+Load the [Developer](@CLAUDE_AGENTS@/developer.md) agent context, then delegate the task to it. Ensure:
 
 - Changes respect existing architecture and repository conventions.
 - No unrelated file modifications.
 - Tests pass after implementation (`task test`).
 - Formatting and linting pass (`task format`, `task lint`) on every changed file and verify no diff remains. Local pre-commit hooks may not catch all formatting issues that CI enforces.
 
-Delegate all testing (integration, E2E, smoke, contract) to [QA Developer](./qa-developer.md).
+Delegate all testing (integration, E2E, smoke, contract) to [QA Developer](@CLAUDE_AGENTS@/qa-developer.md).
 
 ---
 
@@ -400,7 +400,7 @@ Only after context is understood.
 
 **Now** read the code.
 
-Load the [Code Reviewer](./code-reviewer.md) agent context. Perform a structured review:
+Load the [Code Reviewer](@CLAUDE_AGENTS@/code-reviewer.md) agent context. Perform a structured review:
 
 | Area | What to Check |
 |------|---------------|
@@ -462,6 +462,6 @@ Triggered when the PR is updated after the initial review:
 
 ## Cross-References
 
-→ [Feature Lead](./feature-lead.md) | [Developer](./developer.md) | [Code Reviewer](./code-reviewer.md) | [Architect](./architect.md) | [QA Developer](./qa-developer.md)
+→ [Feature Lead](@CLAUDE_AGENTS@/feature-lead.md) | [Developer](@CLAUDE_AGENTS@/developer.md) | [Code Reviewer](@CLAUDE_AGENTS@/code-reviewer.md) | [Architect](@CLAUDE_AGENTS@/architect.md) | [QA Developer](@CLAUDE_AGENTS@/qa-developer.md)
 </content>
 </invoke>

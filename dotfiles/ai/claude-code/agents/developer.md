@@ -18,7 +18,7 @@ description: Expert in feature implementation across languages following clean a
 
 **Supported languages:** Go, Nix, PKL, JavaScript/TypeScript, Python, Rust, Elixir, Node.js
 
-**Delegate to other agents:** Architecture decisions → [Architect](./architect.md) | Code review → [Code Reviewer](./code-reviewer.md) | Debugging → [Debugger](./debugger.md) | Refactoring → [Refactorer](./refactorer.md)
+**Delegate to other agents:** Architecture decisions → [Architect](@CLAUDE_AGENTS@/architect.md) | Code review → [Code Reviewer](@CLAUDE_AGENTS@/code-reviewer.md) | Debugging → [Debugger](@CLAUDE_AGENTS@/debugger.md) | Refactoring → [Refactorer](@CLAUDE_AGENTS@/refactorer.md)
 
 ## Key References
 
@@ -26,15 +26,15 @@ Before implementing, determine the language(s) involved and read the matching co
 
 | Language | Conventions | Patterns / Testing |
 |----------|-------------|--------------------|
-| Go | [Go Conventions](../docs/conventions/go/00_index.md) | [Go Patterns](../docs/patterns/go/00_index.md), [Go Testing](../docs/testing/go/00_index.md) |
-| Nix | [Nix Conventions](../docs/conventions/nix/00_index.md) | [Nix Patterns](../docs/patterns/nix/00_index.md) |
-| PKL | [PKL Conventions](../docs/conventions/pkl/00_index.md) | [PKL Reference](../docs/reference/pkl-configuration.md) |
-| JS/TS | [TS Conventions](../docs/conventions/typescript/00_index.md), [Node.js](../docs/conventions/nodejs/00_index.md) | [TS Testing](../docs/testing/typescript/00_index.md) |
-| Python | [Python Conventions](../docs/conventions/python/00_index.md) | [Python Testing](../docs/testing/python/00_index.md) |
-| Rust | [Rust Conventions](../docs/conventions/rust/00_index.md) | [Rust Testing](../docs/testing/rust/00_index.md) |
-| Elixir | [Elixir Conventions](../docs/conventions/elixir/00_index.md) | [Elixir Testing](../docs/testing/elixir/00_index.md) |
+| Go | [Go Conventions](@CLAUDE_DOCS@/conventions/go/00_index.md) | [Go Patterns](@CLAUDE_DOCS@/patterns/go/00_index.md), [Go Testing](@CLAUDE_DOCS@/testing/go/00_index.md) |
+| Nix | [Nix Conventions](@CLAUDE_DOCS@/conventions/nix/00_index.md) | [Nix Patterns](@CLAUDE_DOCS@/patterns/nix/00_index.md) |
+| PKL | [PKL Conventions](@CLAUDE_DOCS@/conventions/pkl/00_index.md) | [PKL Reference](@CLAUDE_DOCS@/reference/pkl-configuration.md) |
+| JS/TS | [TS Conventions](@CLAUDE_DOCS@/conventions/typescript/00_index.md), [Node.js](@CLAUDE_DOCS@/conventions/nodejs/00_index.md) | [TS Testing](@CLAUDE_DOCS@/testing/typescript/00_index.md) |
+| Python | [Python Conventions](@CLAUDE_DOCS@/conventions/python/00_index.md) | [Python Testing](@CLAUDE_DOCS@/testing/python/00_index.md) |
+| Rust | [Rust Conventions](@CLAUDE_DOCS@/conventions/rust/00_index.md) | [Rust Testing](@CLAUDE_DOCS@/testing/rust/00_index.md) |
+| Elixir | [Elixir Conventions](@CLAUDE_DOCS@/conventions/elixir/00_index.md) | [Elixir Testing](@CLAUDE_DOCS@/testing/elixir/00_index.md) |
 
-General guidance: [Software Patterns](../docs/patterns/general/software.md) | [Common Pitfalls](../docs/conventions/general/common-pitfalls.md)
+General guidance: [Software Patterns](@CLAUDE_DOCS@/patterns/general/software.md) | [Common Pitfalls](@CLAUDE_DOCS@/conventions/general/common-pitfalls.md)
 
 ## Development Workflow
 
@@ -99,7 +99,7 @@ Regardless of language:
 - Entry-point/integration tests use real domain services and mock only infrastructure/externals.
 - Cover failure paths, not just the happy path; keep tests deterministic.
 
-See [Testing Strategies](../docs/testing/general/strategies.md).
+See [Testing Strategies](@CLAUDE_DOCS@/testing/general/strategies.md).
 
 ## Checklist
 
@@ -129,8 +129,8 @@ See [Testing Strategies](../docs/testing/general/strategies.md).
 
 **Use for:** Feature implementation in any supported language — HTTP/event/CLI entry points, repository methods, service logic, use cases, event consumers, Nix derivations, PKL configs, libraries, tests.
 
-**Examples in:** [Implementation Scenarios](./examples/implementation-scenarios.md)
+**Examples in:** [Implementation Scenarios](@CLAUDE_AGENTS@/examples/implementation-scenarios.md)
 
 ## Cross-References
 
-→ [Software Patterns](../docs/patterns/general/software.md) | [Architecture](../docs/patterns/general/architecture.md) | [Testing](../docs/patterns/general/testing.md) | [Common Pitfalls](../docs/conventions/general/common-pitfalls.md) | [Commands](../docs/reference/commands.md)
+→ [Software Patterns](@CLAUDE_DOCS@/patterns/general/software.md) | [Architecture](@CLAUDE_DOCS@/patterns/general/architecture.md) | [Testing](@CLAUDE_DOCS@/patterns/general/testing.md) | [Common Pitfalls](@CLAUDE_DOCS@/conventions/general/common-pitfalls.md) | [Commands](@CLAUDE_DOCS@/reference/commands.md)

@@ -20,7 +20,7 @@ description: Expert in infrastructure as code, deployment automation, and AWS se
 
 ## Key References
 
-→ [Deployment Guide](../docs/guides/deployment.md) | [Commands](../docs/reference/commands.md) | [Configuration](../docs/reference/configuration.md)
+→ [Deployment Guide](@CLAUDE_DOCS@/guides/deployment.md) | [Commands](@CLAUDE_DOCS@/reference/commands.md) | [Configuration](@CLAUDE_DOCS@/reference/configuration.md)
 
 ## Infrastructure Workflow
 
@@ -123,8 +123,8 @@ serverless deploy function -f <func> --stage dev
 
 ## Examples
 
-→ [Infrastructure Examples](./examples/devops-infrastructure.md) - Complete Serverless configs, PKL, IAM templates
+→ [Infrastructure Examples](@CLAUDE_AGENTS@/examples/devops-infrastructure.md) - Complete Serverless configs, PKL, IAM templates
 
 ## Cross-References
 
-→ [Deployment Guide](../docs/guides/deployment.md) | [Commands](../docs/reference/commands.md) | [Configuration](../docs/reference/configuration.md)
+→ [Deployment Guide](@CLAUDE_DOCS@/guides/deployment.md) | [Commands](@CLAUDE_DOCS@/reference/commands.md) | [Configuration](@CLAUDE_DOCS@/reference/configuration.md)
