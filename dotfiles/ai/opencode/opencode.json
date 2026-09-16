@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "opencode/claude-opus-5",
+  "model": "anthropic/claude-opus-5",
   "small_model": "opencode/glm-5.3-flash",
   "default_agent": "build",
   "subagent_depth": 1,
@@ -12,7 +12,7 @@
   "agent": {
     "build": {
       "mode": "primary",
-      "model": "opencode/claude-opus-5",
+      "model": "anthropic/claude-opus-5",
       "permission": {
         "edit": "allow",
         "bash": {
@@ -33,7 +33,7 @@
     },
     "plan": {
       "mode": "primary",
-      "model": "opencode/claude-opus-5",
+      "model": "anthropic/claude-opus-5",
       "permission": {
         "edit": "deny",
         "bash": {
@@ -47,7 +47,7 @@
     },
     "edit": {
       "mode": "primary",
-      "model": "opencode/claude-sonnet-5",
+      "model": "anthropic/claude-sonnet-5",
       "permission": {
         "edit": "allow",
         "bash": { "*": "ask" }

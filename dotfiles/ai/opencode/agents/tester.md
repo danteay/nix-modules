@@ -1,7 +1,7 @@
 ---
 description: Reviews a supplied diff for test coverage and test quality against the repo's documented test patterns. Review-only — never edits and never runs tests.
 mode: subagent
-model: opencode/claude-opus-5
+model: anthropic/claude-opus-5
 temperature: 0.1
 tools:
   read: true

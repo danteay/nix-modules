@@ -1,7 +1,7 @@
 ---
 description: Reviews a supplied diff for architectural fit, production readiness and scalability, and checks it against the stated task intent. Review-only — never edits.
 mode: subagent
-model: opencode/claude-opus-5
+model: anthropic/claude-opus-5
 temperature: 0.1
 tools:
   read: true

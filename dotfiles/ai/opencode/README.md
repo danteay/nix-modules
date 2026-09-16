@@ -20,13 +20,27 @@ installed config's node_modules rather than trying to resolve dependencies in th
 
 ## Agents
 
+Claude agents use Anthropic directly: the default model, `build`, and `plan` use
+`anthropic/claude-opus-5`; `edit` uses `anthropic/claude-sonnet-5`. Review agents
+also use the `anthropic/` provider. This bypasses Zen's Opus 5 route, which returned
+`No provider available` while a direct Anthropic request succeeded on 2026-09-16.
+The small model and cost-routing workers remain on `opencode/glm-5.3-flash`.
+
+Connect a workspace-scoped Anthropic API key using OpenCode's `/connect` command
+and select Anthropic. A key saved on Zen's website does not configure this direct
+connection. Keep credentials in OpenCode's local credential store, never in these
+Nix sources. Apply model changes with `hms draftea`, then start a fresh OpenCode
+session. The pricing table retains historical Zen rates; direct Anthropic calls
+use provider-reported costs, or remain unknown when no matching fallback exists.
+
 Two families live in `agents/`, and they are governed by the same worker restrictions.
 
 **Cost-routing workers** (`glm-5.3-flash`) — `bulk-reader`, `explorer`, `code-writer`,
 `doc-writer`. Listed in `workerAgents` in `lib/paths.ts`, so delegation prompts naming an
 excluded path are rejected before they reach the worker.
 
-**Review agents** (`claude-sonnet-5`) — `code-reviewer`, `architect`, `refactorer`, `tester`,
+**Review agents** (`claude-opus-5` for `code-reviewer`, `architect`, `refactorer`,
+and `tester`; `claude-sonnet-5` for `devops` and `documentor`) — `code-reviewer`, `architect`, `refactorer`, `tester`,
 `devops`, `documentor`. Ported from `../claude-code/agents/` for the `/review-pr` flow. They are
 review-only: no `write`, no `edit`, and the plugin denies everything outside `read`, `go_outline`
 and `repo_grep` for any subagent. They are deliberately **not** in `workerAgents` — the prompt
