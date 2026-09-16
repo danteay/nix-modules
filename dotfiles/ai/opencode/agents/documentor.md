@@ -1,7 +1,7 @@
 ---
 description: Reviews a supplied diff for documentation impact — docs to update, create, delete or cross-reference — plus doc-comment quality and clarity. Review-only; use doc-writer to actually write docs.
 mode: subagent
-model: opencode/claude-sonnet-5
+model: anthropic/claude-sonnet-5
 temperature: 0.2
 tools:
   read: true

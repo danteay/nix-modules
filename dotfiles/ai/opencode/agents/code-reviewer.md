@@ -1,7 +1,7 @@
 ---
 description: Reviews a supplied diff for bugs, races, leaks, layering violations and security issues. Review-only — never edits. Requires the diff and changed-file list in the prompt.
 mode: subagent
-model: opencode/claude-opus-5
+model: anthropic/claude-opus-5
 temperature: 0.1
 tools:
   read: true
