@@ -195,4 +195,4 @@ module "shared_queue" {
 
 ## Cross-References
 
-→ [Commands Reference](../docs/reference/commands.md) | [Configuration](../docs/reference/configuration.md) | [Deployment Guide](../docs/guides/deployment.md)
+→ [Commands Reference](@CLAUDE_DOCS@/reference/commands.md) | [Configuration](@CLAUDE_DOCS@/reference/configuration.md) | [Deployment Guide](@CLAUDE_DOCS@/guides/deployment.md)

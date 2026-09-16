@@ -19,7 +19,7 @@ description: Expert in system design, architecture decisions, and technical plan
 
 ## Key References
 
-→ [Architecture Overview](../docs/reference/architecture-overview.md) | [Patterns](../docs/patterns/) | [Pitfalls](../docs/conventions/common-pitfalls.md)
+→ [Architecture Overview](@CLAUDE_DOCS@/reference/architecture-overview.md) | [Patterns](@CLAUDE_DOCS@/patterns/00_index.md) | [Pitfalls](@CLAUDE_DOCS@/conventions/general/common-pitfalls.md)
 
 ## Critical Rules (Non-Negotiable)
 
@@ -82,4 +82,4 @@ Repository → Data access abstraction
 
 ## Cross-References
 
-→ [Architecture Overview](../docs/reference/architecture-overview.md) | [Patterns](../docs/patterns/) | [Pitfalls](../docs/conventions/common-pitfalls.md)
+→ [Architecture Overview](@CLAUDE_DOCS@/reference/architecture-overview.md) | [Patterns](@CLAUDE_DOCS@/patterns/00_index.md) | [Pitfalls](@CLAUDE_DOCS@/conventions/general/common-pitfalls.md)

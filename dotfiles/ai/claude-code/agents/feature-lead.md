@@ -13,12 +13,12 @@ description: End-to-end feature lifecycle orchestrator from RFC through shipped 
 
 **Delegates to:**
 
-- Architecture & technical analysis → [Architect](./architect.md)
-- Infrastructure planning → [DevOps](./devops.md)
-- Task scoping, edge cases & issue-tracker operations → [Product Manager](./product-manager.md)
-- Implementation per ticket → [Orchestrator Dev](./orchestrator-dev.md)
-- Code review → [Code Reviewer](./code-reviewer.md)
-- Integration / E2E / smoke / contract validation → [QA Developer](./qa-developer.md)
+- Architecture & technical analysis → [Architect](@CLAUDE_AGENTS@/architect.md)
+- Infrastructure planning → [DevOps](@CLAUDE_AGENTS@/devops.md)
+- Task scoping, edge cases & issue-tracker operations → [Product Manager](@CLAUDE_AGENTS@/product-manager.md)
+- Implementation per ticket → [Orchestrator Dev](@CLAUDE_AGENTS@/orchestrator-dev.md)
+- Code review → [Code Reviewer](@CLAUDE_AGENTS@/code-reviewer.md)
+- Integration / E2E / smoke / contract validation → [QA Developer](@CLAUDE_AGENTS@/qa-developer.md)
 
 ## Core Principles
 
@@ -155,7 +155,7 @@ When drafting RFCs, follow these rules:
 
 ### 2a. Draft the RFC
 
-Use the RFC template → [feature-lead-templates.md](./examples/feature-lead-templates.md#rfc-template). Fill every section based on what was gathered in Phase 1. The Proposed Solution, Alternatives, Rollout Strategy, and Contracts sections are placeholders — filled in at later phase gates.
+Use the RFC template → [feature-lead-templates.md](@CLAUDE_AGENTS@/examples/feature-lead-templates.md#rfc-template). Fill every section based on what was gathered in Phase 1. The Proposed Solution, Alternatives, Rollout Strategy, and Contracts sections are placeholders — filled in at later phase gates.
 
 ### 2b. Publish the RFC
 
@@ -205,7 +205,7 @@ Produce three artifacts:
 
 **1. Narrative** — step-by-step description of the new flow in plain language, organized by happy path and key error paths.
 
-**2. Sequence diagrams** — Mermaid format, one per major flow path. Store `.mmd` files in `docs/flows/[feature-name]/`. Renders natively in the code host's PRs and tickets. Draw separate diagrams for async flows, event consumers, and meaningful error paths. Base template → [feature-lead-templates.md](./examples/feature-lead-templates.md#mermaid-sequence-diagram--base-template).
+**2. Sequence diagrams** — Mermaid format, one per major flow path. Store `.mmd` files in `docs/flows/[feature-name]/`. Renders natively in the code host's PRs and tickets. Draw separate diagrams for async flows, event consumers, and meaningful error paths. Base template → [feature-lead-templates.md](@CLAUDE_AGENTS@/examples/feature-lead-templates.md#mermaid-sequence-diagram--base-template).
 
 **3. Open design decisions** — explicit list of choices that require user input.
 
@@ -237,7 +237,7 @@ Schemas are locked here before any implementation planning begins. These contrac
 
 ### 3.5a. Define contracts
 
-Delegate to **Architect** to produce: API contracts (endpoint, request, response, errors), event payload schemas (event name, producer, consumer, payload), and data-schema changes (new/modified fields, indexes, migration). Use formats → [feature-lead-templates.md](./examples/feature-lead-templates.md#contract-definition-formats).
+Delegate to **Architect** to produce: API contracts (endpoint, request, response, errors), event payload schemas (event name, producer, consumer, payload), and data-schema changes (new/modified fields, indexes, migration). Use formats → [feature-lead-templates.md](@CLAUDE_AGENTS@/examples/feature-lead-templates.md#contract-definition-formats).
 
 ### 3.5b. Gate — Contract Approval
 
@@ -262,7 +262,7 @@ With the flow and contracts locked, there may be more than one valid way to buil
 
 Delegate to **Architect** to produce 2–3 implementation approaches. For simple features a single approach is fine; for anything with architectural trade-offs, multiple options must be presented.
 
-Each alternative must follow the format in → [feature-lead-templates.md](./examples/feature-lead-templates.md#solution-alternatives-format): name, approach, changes by area, pros, cons, complexity.
+Each alternative must follow the format in → [feature-lead-templates.md](@CLAUDE_AGENTS@/examples/feature-lead-templates.md#solution-alternatives-format): name, approach, changes by area, pros, cons, complexity.
 
 If one alternative is clearly superior, state it explicitly and explain why. Do not hedge — give a recommendation.
 
@@ -308,7 +308,7 @@ Output: Infrastructure delta — exactly what must be created, modified, or depr
 - **Structured log fields** — emit trace-correlated log lines using the project's structured logger. Identify key fields to add (entity IDs, operation names, error types) per new flow step.
 - **Alert routing** — who gets paged if an alarm fires?
 
-See the [DevOps](./devops.md) agent and the [Deployment Guide](../docs/guides/deployment.md).
+See the [DevOps](@CLAUDE_AGENTS@/devops.md) agent and the [Deployment Guide](@CLAUDE_DOCS@/guides/deployment.md).
 
 ---
 
@@ -384,13 +384,13 @@ The goal is: **every ticket owns a distinct set of files**. No two tickets in pa
 
 **Project / area:** assign every ticket to the correct project or area in the tracker. If it cannot be inferred from context, ask the user explicitly before creating any ticket. Do not default to a generic or wrong project.
 
-Default skeleton and stacked-PR branch structure → [feature-lead-templates.md](./examples/feature-lead-templates.md#ticket-skeleton). Infra Setup and Domain Model can start in parallel (no shared files). All other tickets flow in dependency order.
+Default skeleton and stacked-PR branch structure → [feature-lead-templates.md](@CLAUDE_AGENTS@/examples/feature-lead-templates.md#ticket-skeleton). Infra Setup and Domain Model can start in parallel (no shared files). All other tickets flow in dependency order.
 
 ---
 
 ### 6b. Stacked PR Strategy
 
-When a feature requires multiple PRs, use **stacked branches**. Branch structure and PR description format → [feature-lead-templates.md](./examples/feature-lead-templates.md#stacked-pr-branch-structure).
+When a feature requires multiple PRs, use **stacked branches**. Branch structure and PR description format → [feature-lead-templates.md](@CLAUDE_AGENTS@/examples/feature-lead-templates.md#stacked-pr-branch-structure).
 
 **Granularity rule — fewer, larger PRs:**
 
@@ -443,7 +443,7 @@ When done, announce: **"Phase 6 complete. All tickets are created. Next: Phase 7
 
 Group all tickets into **batches by dependency level** before starting. A batch is a set of tickets with no dependencies between them — safe to run in parallel.
 
-Group tickets by dependency level — all tickets with no mutual dependencies form one batch, run in parallel. Batches are sequential; within a batch, all agents run simultaneously. Example → [feature-lead-templates.md](./examples/feature-lead-templates.md#batch-execution-example).
+Group tickets by dependency level — all tickets with no mutual dependencies form one batch, run in parallel. Batches are sequential; within a batch, all agents run simultaneously. Example → [feature-lead-templates.md](@CLAUDE_AGENTS@/examples/feature-lead-templates.md#batch-execution-example).
 
 Present the batch plan to the user and confirm before starting.
 
@@ -510,4 +510,4 @@ When all sub-PRs are merged into the feature branch, do NOT promote the parent P
 
 ## Cross-References
 
-→ [Architect](./architect.md) | [DevOps](./devops.md) | [Product Manager](./product-manager.md) | [Orchestrator Dev](./orchestrator-dev.md) | [Developer](./developer.md) | [Code Reviewer](./code-reviewer.md) | [QA Developer](./qa-developer.md)
+→ [Architect](@CLAUDE_AGENTS@/architect.md) | [DevOps](@CLAUDE_AGENTS@/devops.md) | [Product Manager](@CLAUDE_AGENTS@/product-manager.md) | [Orchestrator Dev](@CLAUDE_AGENTS@/orchestrator-dev.md) | [Developer](@CLAUDE_AGENTS@/developer.md) | [Code Reviewer](@CLAUDE_AGENTS@/code-reviewer.md) | [QA Developer](@CLAUDE_AGENTS@/qa-developer.md)

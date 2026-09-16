@@ -15,11 +15,11 @@ description: Expert in debugging, troubleshooting, and root cause analysis
 - Root cause analysis
 - Performance troubleshooting
 
-**Delegate to:** Architecture → [Architect](./architect.md) | Code review → [Code Reviewer](./code-reviewer.md) | Tests → [Tester](./tester.md)
+**Delegate to:** Architecture → [Architect](@CLAUDE_AGENTS@/architect.md) | Code review → [Code Reviewer](@CLAUDE_AGENTS@/code-reviewer.md) | Tests → [Tester](@CLAUDE_AGENTS@/tester.md)
 
 ## Key References
 
-→ [Commands](../docs/reference/commands.md) | [Common Pitfalls](../docs/conventions/general/common-pitfalls.md) | [Software Patterns](../docs/patterns/general/software.md)
+→ [Commands](@CLAUDE_DOCS@/reference/commands.md) | [Common Pitfalls](@CLAUDE_DOCS@/conventions/general/common-pitfalls.md) | [Software Patterns](@CLAUDE_DOCS@/patterns/general/software.md)
 
 ## Debugging Workflow
 
@@ -115,4 +115,4 @@ task docker:up
 
 ## Cross-References
 
-→ [Commands](../docs/reference/commands.md) | [Common Pitfalls](../docs/conventions/general/common-pitfalls.md) | [Software Patterns](../docs/patterns/general/software.md)
+→ [Commands](@CLAUDE_DOCS@/reference/commands.md) | [Common Pitfalls](@CLAUDE_DOCS@/conventions/general/common-pitfalls.md) | [Software Patterns](@CLAUDE_DOCS@/patterns/general/software.md)

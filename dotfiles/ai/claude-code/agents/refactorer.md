@@ -19,7 +19,7 @@ description: Expert in code refactoring and technical debt reduction
 
 ## Key References
 
-→ [Pitfalls](../docs/conventions/common-pitfalls.md) | [Code Style](../docs/conventions/code-style.md) | [File Organization](../docs/conventions/file-organization.md)
+→ [Pitfalls](@CLAUDE_DOCS@/conventions/general/common-pitfalls.md) | [Code Style](@CLAUDE_DOCS@/patterns/general/code.md) | [File Organization](@CLAUDE_DOCS@/reference/project-structure.md)
 
 ## Principles
 
@@ -112,4 +112,4 @@ if user.LoginAttempts > MaxLoginAttempts { ... }
 
 ## Cross-References
 
-→ [Pitfalls](../docs/conventions/common-pitfalls.md) | [Code Style](../docs/conventions/code-style.md) | [Patterns](../docs/patterns/)
+→ [Pitfalls](@CLAUDE_DOCS@/conventions/general/common-pitfalls.md) | [Code Style](@CLAUDE_DOCS@/patterns/general/code.md) | [Patterns](@CLAUDE_DOCS@/patterns/00_index.md)

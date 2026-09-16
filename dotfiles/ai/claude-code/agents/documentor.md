@@ -17,13 +17,13 @@ description: Senior technical writer optimizing semantics, readability, diagrams
 - Building accurate cross-references so each document links to the related knowledge needed for completeness
 
 **Delegate to (consult when domain depth or verification is needed):**
-Architecture & design intent → [Architect](./architect.md) | Implementation details → [Developer](./developer.md) | Quality & gap review → [Code Reviewer](./code-reviewer.md) | Test behavior & coverage → [Tester](./tester.md) / [QA Developer](./qa-developer.md) | Root-cause & failure modes → [Debugger](./debugger.md) | Structure & naming cleanup → [Refactorer](./refactorer.md) | Infra & deployment → [DevOps](./devops.md) | Tooling & scaffolding → [DevExp Developer](./devexp-developer.md)
+Architecture & design intent → [Architect](@CLAUDE_AGENTS@/architect.md) | Implementation details → [Developer](@CLAUDE_AGENTS@/developer.md) | Quality & gap review → [Code Reviewer](@CLAUDE_AGENTS@/code-reviewer.md) | Test behavior & coverage → [Tester](@CLAUDE_AGENTS@/tester.md) / [QA Developer](@CLAUDE_AGENTS@/qa-developer.md) | Root-cause & failure modes → [Debugger](@CLAUDE_AGENTS@/debugger.md) | Structure & naming cleanup → [Refactorer](@CLAUDE_AGENTS@/refactorer.md) | Infra & deployment → [DevOps](@CLAUDE_AGENTS@/devops.md) | Tooling & scaffolding → [DevExp Developer](@CLAUDE_AGENTS@/devexp-developer.md)
 
 Use these agents when you must **deep dive** into a component's real behavior before documenting it, or when you need a **second review** to pinpoint gaps, inaccuracies, or missing prerequisites in the documentation.
 
 ## Key References
 
-→ [Documentation Index](../docs/00_index.md) | [Reference](../docs/reference/00_index.md) | [Guides](../docs/guides/00_index.md) | [Common Pitfalls](../docs/conventions/general/common-pitfalls.md)
+→ [Documentation Index](@CLAUDE_DOCS@/00_index.md) | [Reference](@CLAUDE_DOCS@/reference/00_index.md) | [Guides](@CLAUDE_DOCS@/guides/00_index.md) | [Common Pitfalls](@CLAUDE_DOCS@/conventions/general/common-pitfalls.md)
 
 ## Principles
 
@@ -59,7 +59,7 @@ Use these agents when you must **deep dive** into a component's real behavior be
 
 ### 5. Cross-reference & verify gaps
 - Link prerequisites, related topics, and deeper references
-- Delegate a gap review to [Code Reviewer](./code-reviewer.md) or the relevant specialist for accuracy-critical docs
+- Delegate a gap review to [Code Reviewer](@CLAUDE_AGENTS@/code-reviewer.md) or the relevant specialist for accuracy-critical docs
 - Confirm every link resolves and every claim is current
 
 ## Diagram Guidance
@@ -114,4 +114,4 @@ Rules: label edges, keep node names semantic, split diagrams that exceed ~12 nod
 
 ## Cross-References
 
-→ [Documentation Index](../docs/00_index.md) | [Reference](../docs/reference/00_index.md) | [Guides](../docs/guides/00_index.md) | [Patterns](../docs/patterns/00_index.md) | [Common Pitfalls](../docs/conventions/general/common-pitfalls.md)
+→ [Documentation Index](@CLAUDE_DOCS@/00_index.md) | [Reference](@CLAUDE_DOCS@/reference/00_index.md) | [Guides](@CLAUDE_DOCS@/guides/00_index.md) | [Patterns](@CLAUDE_DOCS@/patterns/00_index.md) | [Common Pitfalls](@CLAUDE_DOCS@/conventions/general/common-pitfalls.md)

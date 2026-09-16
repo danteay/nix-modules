@@ -61,7 +61,7 @@ functions:
 
 ## PKL Configuration Example
 
-Each service has a PKL project in `config/app/` that depends on shared config sub-projects, referenced by their PklProject namespace via `@baseconfig/` imports. For conventions, see [PKL Configuration](../../docs/reference/pkl-configuration.md) and [PKL Usage](../../docs/guides/pkl-usage.md).
+Each service has a PKL project in `config/app/` that depends on shared config sub-projects, referenced by their PklProject namespace via `@baseconfig/` imports. For conventions, see [PKL Configuration](@CLAUDE_DOCS@/reference/pkl-configuration.md) and [PKL Usage](@CLAUDE_DOCS@/guides/pkl-usage.md).
 
 ```pkl
 # **/app/modules.pkl — service selects shared configs via the @baseconfig PklProject namespace

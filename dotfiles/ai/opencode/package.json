@@ -1,0 +1,13 @@
+{
+  "name": "opencode-desvio-config",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@opencode-ai/plugin": "latest"
+  },
+  "scripts": {
+    "test": "bun test tests",
+    "report": "bun scripts/report.ts",
+    "benchmark": "bun scripts/benchmark.ts"
+  }
+}

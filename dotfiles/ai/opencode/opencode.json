@@ -1,0 +1,57 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "opencode/claude-opus-5",
+  "small_model": "opencode/glm-5.3-flash",
+  "default_agent": "build",
+  "subagent_depth": 1,
+  "permission": {
+    "external_directory": {
+      "**/.config/opencode/docs/**": "allow"
+    }
+  },
+  "agent": {
+    "build": {
+      "mode": "primary",
+      "model": "opencode/claude-opus-5",
+      "permission": {
+        "edit": "allow",
+        "bash": {
+          "*": "ask",
+          "git status*": "allow",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "go build*": "allow",
+          "go test*": "allow",
+          "go vet*": "allow",
+          "rg *": "allow",
+          "gh pr view*": "allow",
+          "gh pr diff*": "allow",
+          "gh pr list*": "allow",
+          "gh api --paginate*": "allow"
+        }
+      }
+    },
+    "plan": {
+      "mode": "primary",
+      "model": "opencode/claude-opus-5",
+      "permission": {
+        "edit": "deny",
+        "bash": {
+          "*": "deny",
+          "git status*": "allow",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "rg *": "allow"
+        }
+      }
+    },
+    "edit": {
+      "mode": "primary",
+      "model": "opencode/claude-sonnet-5",
+      "permission": {
+        "edit": "allow",
+        "bash": { "*": "ask" }
+      }
+    }
+  }
+}

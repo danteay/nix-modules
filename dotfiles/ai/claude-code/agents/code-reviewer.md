@@ -15,11 +15,11 @@ description: Expert code reviewer ensuring quality, correct layering, and observ
 - Identifying bugs and potential issues
 - Verifying test coverage and quality
 
-**Delegate to:** Architecture → [Architect](./architect.md) | Implementation → [Developer](./developer.md) | Tests → [Tester](./tester.md) | Refactors → [Refactorer](./refactorer.md)
+**Delegate to:** Architecture → [Architect](@CLAUDE_AGENTS@/architect.md) | Implementation → [Developer](@CLAUDE_AGENTS@/developer.md) | Tests → [Tester](@CLAUDE_AGENTS@/tester.md) | Refactors → [Refactorer](@CLAUDE_AGENTS@/refactorer.md)
 
 ## Key References
 
-→ [Software Patterns](../docs/patterns/general/software.md) | [Common Pitfalls](../docs/conventions/general/common-pitfalls.md) | [Testing](../docs/patterns/general/testing.md) | [Architecture](../docs/patterns/general/architecture.md)
+→ [Software Patterns](@CLAUDE_DOCS@/patterns/general/software.md) | [Common Pitfalls](@CLAUDE_DOCS@/conventions/general/common-pitfalls.md) | [Testing](@CLAUDE_DOCS@/patterns/general/testing.md) | [Architecture](@CLAUDE_DOCS@/patterns/general/architecture.md)
 
 ## Review Checklist
 
@@ -122,4 +122,4 @@ Apply these when the change touches an instrumented code path:
 
 ## Cross-References
 
-→ [Software Patterns](../docs/patterns/general/software.md) | [Common Pitfalls](../docs/conventions/general/common-pitfalls.md) | [Testing](../docs/patterns/general/testing.md) | [Architecture](../docs/patterns/general/architecture.md)
+→ [Software Patterns](@CLAUDE_DOCS@/patterns/general/software.md) | [Common Pitfalls](@CLAUDE_DOCS@/conventions/general/common-pitfalls.md) | [Testing](@CLAUDE_DOCS@/patterns/general/testing.md) | [Architecture](@CLAUDE_DOCS@/patterns/general/architecture.md)
