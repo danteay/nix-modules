@@ -33,6 +33,7 @@ in
     ".claude/settings.json".source = ../../dotfiles/ai/claude-code/settings.json;
     ".claude/agents".source = withPaths "agents" ../../dotfiles/ai/claude-code/agents;
     ".claude/commands".source = withPaths "commands" ../../dotfiles/ai/claude-code/commands;
-    ".claude/docs".source = ../../dotfiles/ai/claude-code/docs;
+    # Provider-agnostic knowledge base shared with OpenCode; see dotfiles/ai/docs.
+    ".claude/docs".source = ../../dotfiles/ai/docs;
   };
 }

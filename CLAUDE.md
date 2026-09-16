@@ -113,6 +113,7 @@ Theme setup is owned by the profile: each profile's `custom/zsh.nix` injects its
 | `home-manager/profiles/danteay/` | Personal dev environment |
 | `home-manager/profiles/draftea/` | Drafteame org environment (sets `GOPRIVATE`) |
 | `dotfiles/` | Source files linked by home-manager |
+| `dotfiles/ai/docs/` | Provider-agnostic AI knowledge base, mounted at `~/.claude/docs` and `~/.config/opencode/docs` |
 | `nix-darwin/configuration.nix` | Homebrew casks/brews + system packages |
 
 ## Commit style

@@ -60,8 +60,8 @@ flow makes (`gh pr view|diff|list`, `gh api --paginate`); submitting the review 
 
 ### Shared knowledge base
 
-Home Manager mounts `~/.config/opencode/docs` from `dotfiles/ai/claude-code/docs` — the same tree
-`~/.claude/docs` uses, so there is one copy for two tools.
+Home Manager mounts `~/.config/opencode/docs` from `dotfiles/ai/docs` — a provider-agnostic tree,
+the same one `~/.claude/docs` uses, so there is one copy for two tools.
 
 Agent and command bodies cite it as `@OPENCODE_DOCS@/...`. Home Manager substitutes the absolute
 path at build time (`withDocsPath` in `home-manager/global/opencode.nix`), because:

@@ -31,10 +31,11 @@ in
     ".config/opencode/agents".source = withDocsPath "agents" ../../dotfiles/ai/opencode/agents;
     ".config/opencode/commands".source = withDocsPath "commands" ../../dotfiles/ai/opencode/commands;
 
-    # Shared knowledge base, single source of truth in dotfiles/ai/claude-code/docs —
-    # the same tree ~/.claude/docs uses. Mounted here so the review agents' absolute
-    # references resolve, and allowed in opencode.json's external_directory permission.
-    ".config/opencode/docs".source = ../../dotfiles/ai/claude-code/docs;
+    # Shared knowledge base, single source of truth in dotfiles/ai/docs — provider
+    # agnostic, the same tree ~/.claude/docs uses. Mounted here so the review agents'
+    # absolute references resolve, and allowed in opencode.json's external_directory
+    # permission.
+    ".config/opencode/docs".source = ../../dotfiles/ai/docs;
 
     ".envs/opencode.sh".text = ''
       export DESVIO_ENABLED=${if cfg.enforce then "1" else "0"}
