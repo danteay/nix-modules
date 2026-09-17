@@ -2,6 +2,10 @@ import { realpath } from "node:fs/promises"
 import { dirname, basename, resolve } from "node:path"
 
 export const workerAgents = new Set(["bulk-reader", "explorer", "code-writer", "doc-writer"])
+export const reviewAgents = new Set([
+  "architect", "code-reviewer", "devops", "documentor", "tester", "refactorer",
+])
+export const reviewWorkerAgents = new Set(["bulk-reader", "code-writer", "doc-writer"])
 const excluded = (process.env.DESVIO_EXCLUDE ??
   "/wallet/,/kyc/,/aml/,/payments/,/payouts/,/secrets/,\\.env,\\.tfvars,\\.pem$,\\.p12$,credentials")
   .split(",").map(s => s.trim()).filter(Boolean).map(s => new RegExp(s))

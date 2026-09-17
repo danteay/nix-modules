@@ -10,12 +10,15 @@ Follow every step in order — do NOT skip any.
 ## How dispatch works here
 
 You are the primary agent. The review agents (`code-reviewer`, `architect`, `refactorer`,
-`tester`, `devops`, `documentor`) run as desvio workers via the `task` tool, which means:
+`tester`, `devops`, `documentor`) run as desvio review agents via the `task` tool, which means:
 
-- **Workers have no `bash`, no `grep`, no `glob` and no `task`.** Only `read`, `go_outline` and
-  `repo_grep`. They cannot run `gh`, `git`, tests, builds, `terraform plan` or `pkl eval`.
+- **Review agents have no `bash`, no `grep`, and no `glob`.** They can use `read`, `go_outline`,
+  `repo_grep`, and `task` only to delegate to the cheap `bulk-reader`, `code-writer`, and
+  `doc-writer` agents. They cannot run `gh`, `git`, tests, builds, `terraform plan` or `pkl eval`.
   Everything they need from git or GitHub, **you** must fetch and pass in the prompt.
-- **Workers cannot delegate.** `subagent_depth` is 1. Do not ask an agent to hand off.
+- **Review agents own the judgment.** They use `bulk-reader` for broad large-file context,
+  `code-writer` for reference-backed draft snippets, and `doc-writer` for draft prose. Writer
+  tasks must start with `DRAFT ONLY`; nested workers cannot edit files. `subagent_depth` is 2.
 - **Workers cannot read desvio-excluded paths** (wallet, kyc, aml, payments, payouts, secrets,
   credentials, `.env`, `.tfvars`, `.pem`, `.p12`). They review those hunks from the diff text and
   report the path in their `notes`. Any excluded file that needs a real read is **yours** to read.
@@ -171,8 +174,9 @@ in the final output so the gating is transparent — never silently drop an agen
 4. The condensed prior-comment triage from Step 4
 5. Whether `documentor` is in this run (`refactorer` and `documentor` both need to know — it
    decides who owns comment-quality findings)
-6. The reminder that it has no `bash`/`grep`/`glob`/`task`, and that excluded paths must be
-   reported in `notes` rather than read
+6. The reminder that it has no `bash`/`grep`/`glob`; it may delegate only to `bulk-reader`,
+   `code-writer`, and `doc-writer`, and excluded paths must be reported in `notes` rather than
+   read or delegated
 7. The JSON output contract, restated
 
 Only the **architect** additionally gets the Linear task context (or an explicit "no task context

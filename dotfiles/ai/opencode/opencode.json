@@ -3,7 +3,7 @@
   "model": "anthropic/claude-opus-5",
   "small_model": "opencode/glm-5.3-flash",
   "default_agent": "build",
-  "subagent_depth": 1,
+  "subagent_depth": 2,
   "permission": {
     "external_directory": {
       "**/.config/opencode/docs/**": "allow"
