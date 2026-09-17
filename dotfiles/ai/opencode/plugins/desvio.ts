@@ -23,7 +23,9 @@ import { createReadStream } from "node:fs"
 import { homedir } from "node:os"
 import { join, extname } from "node:path"
 import { createInterface } from "node:readline"
-import { canonicalPath, protectedPath, protectedPrompt, workerAgents } from "../lib/paths"
+import {
+  canonicalPath, protectedPath, protectedPrompt, reviewAgents, reviewWorkerAgents, workerAgents,
+} from "../lib/paths"
 
 // ---------------------------------------------------------------- configuration
 
@@ -151,15 +153,22 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
     }
     return info
   }
-  async function identity(id: string) {
-    const info = await session(id)
-    let agent = agents.get(id) ?? info.agent
+  async function agentFor(id: string, info = sessions.get(id)) {
+    let agent = agents.get(id) ?? info?.agent
     if (!agent) {
       const result = await client.session.messages({ path: { id } })
       const messages = result.data ?? []
       agent = [...messages].reverse().map((m: any) => m.info?.agent ?? m.info?.mode).find(Boolean)
       if (agent) agents.set(id, agent)
     }
+    return agent ?? null
+  }
+  async function identity(id: string) {
+    const info = await session(id)
+    const agent = await agentFor(id, info)
+    const parentAgent = info.parentID
+      ? await agentFor(info.parentID, await session(info.parentID))
+      : null
     let root = info
     const seen = new Set([id])
     while (root.parentID && !seen.has(root.parentID)) {
@@ -167,7 +176,8 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
       root = await session(root.parentID)
     }
     return { sessionID: id, parentSessionID: info.parentID ?? null, workflowID: root.id,
-      agent: agent ?? null, worker: Boolean(info.parentID) || workerAgents.has(agent ?? "") }
+      agent, parentAgent, worker: Boolean(info.parentID) || workerAgents.has(agent ?? ""),
+      reviewAgent: reviewAgents.has(agent ?? ""), reviewChild: reviewAgents.has(parentAgent ?? "") }
   }
   const key = (input: {sessionID: string; callID: string}) => `${input.sessionID}:${input.callID}`
 
@@ -199,11 +209,21 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
         await write(USAGE_LOG, { ...record, kind: "worker_denied", reason })
         throw new Error(`desvio: ${reason}. Keep excluded source with the primary agent.`)
       }
+      if (input.tool === "task" && who.reviewAgent) {
+        if (!reviewWorkerAgents.has(args.subagent_type))
+          return deny(`review agent may delegate only to ${[...reviewWorkerAgents].join(", ")}`)
+        if (protectedPrompt(args.prompt ?? ""))
+          return deny("delegation prompt names an excluded path")
+        pending.set(key(input), record)
+        return
+      }
       if (who.worker) {
         // Content-producing tools must have a checked path or filter paths before reading.
         // Deny inherited tools (including bash/grep/go_doc/MCP) that could bypass this check.
         if (!["read", "go_outline", "repo_grep", "write", "edit"].includes(input.tool))
           return deny(`worker tool ${input.tool} is not permitted; use read, go_outline or repo_grep`)
+        if (who.reviewChild && ["write", "edit"].includes(input.tool))
+          return deny(`nested review worker cannot ${input.tool}; return a draft to the review agent`)
         if (input.tool !== "repo_grep" && (!path || await protectedPath(rawPath, directory)))
           return deny(`worker access to ${rawPath ?? "an unspecified path"} is excluded`)
       }
@@ -215,7 +235,7 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
         const lines = await countLines(path)
         const threshold = thresholdFor(path)
         Object.assign(record, { lines, threshold, excluded })
-        if (ENABLED && !who.worker && !record.targeted && !excluded &&
+        if (ENABLED && (!who.worker || who.reviewAgent) && !record.targeted && !excluded &&
             !matches(path, NEVER_BLOCK) && lines != null && lines > threshold) {
           await write(USAGE_LOG, { ...record, kind: "read_blocked" })
           throw new Error([
@@ -223,7 +243,7 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
             "Pick one:",
             '  1. Delegate — task with subagent "bulk-reader", this path and ONE specific question.',
             "  2. Target — go_outline, then read with offset/limit for the section you need.",
-            "Do not retry an unbounded primary-agent read.",
+            "Do not retry an unbounded expensive-agent read.",
           ].join("\n"))
         }
       }

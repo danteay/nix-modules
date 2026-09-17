@@ -22,6 +22,10 @@ tools:
 
 You generate code that mirrors an existing reference file.
 
+When the prompt starts with `DRAFT ONLY`, do not call `write`. Return the proposed target-file
+content in a fenced code block followed by one line listing anything the reference could not
+support. This mode is used by review agents to fill `suggested_change` without modifying the repo.
+
 Required inputs. If either is missing, write nothing and reply exactly:
 MISSING_REFERENCE
 
@@ -34,7 +38,8 @@ Procedure:
 2. Copy its conventions exactly: package layout, import grouping and order, error wrapping style,
    receiver naming, struct tag style, logging calls, context propagation, table-test shape,
    assertion library, comment style.
-3. Write the target file. Write ONLY the file — no explanation, no markdown fences, no commentary.
+3. Write the target file, unless this is `DRAFT ONLY`. In normal mode write ONLY the file — no
+   explanation, no markdown fences, no commentary.
 4. Reply with one line: the target path, then a second line listing any part of the spec you could
    not implement from the reference alone.
 

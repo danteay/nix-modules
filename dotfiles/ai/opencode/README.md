@@ -8,8 +8,9 @@ installed config's node_modules rather than trying to resolve dependencies in th
 
 - The primary agent uses an outline and a targeted read for narrow questions, or
   delegates broad file questions to bulk-reader. The Go threshold remains 200 lines.
-- Worker sessions may read large eligible files directly. Worker reads/writes and
-  outlines check excluded paths, including symlink targets, before offset/limit.
+- Cheap worker sessions may read large eligible files directly. Expensive review agents use the
+  same size guard as primary agents and delegate broad reads to `bulk-reader`. Worker reads/writes
+  and outlines check excluded paths, including symlink targets, before offset/limit.
 - Workers use repo_grep for search. It filters excluded paths before reading content.
   Raw grep, glob, shell and unreviewed inherited tools are denied for workers.
 - Delegation prompts naming excluded paths are rejected. Pass file paths and a
@@ -33,7 +34,7 @@ Nix sources. Apply model changes with `hms draftea`, then start a fresh OpenCode
 session. The pricing table retains historical Zen rates; direct Anthropic calls
 use provider-reported costs, or remain unknown when no matching fallback exists.
 
-Two families live in `agents/`, and they are governed by the same worker restrictions.
+Two families live in `agents/`, with review agents allowed one constrained delegation layer.
 
 **Cost-routing workers** (`glm-5.3-flash`) — `bulk-reader`, `explorer`, `code-writer`,
 `doc-writer`. Listed in `workerAgents` in `lib/paths.ts`, so delegation prompts naming an
@@ -42,12 +43,16 @@ excluded path are rejected before they reach the worker.
 **Review agents** (`claude-opus-5` for `code-reviewer`, `architect`, `refactorer`,
 and `tester`; `claude-sonnet-5` for `devops` and `documentor`) — `code-reviewer`, `architect`, `refactorer`, `tester`,
 `devops`, `documentor`. Ported from `../claude-code/agents/` for the `/review-pr` flow. They are
-review-only: no `write`, no `edit`, and the plugin denies everything outside `read`, `go_outline`
-and `repo_grep` for any subagent. They are deliberately **not** in `workerAgents` — the prompt
+review-only: no `write` and no `edit`. They can use `read`, `go_outline`, `repo_grep`, and `task`
+only for `bulk-reader`, `code-writer`, or `doc-writer`; all other tools remain denied. Broad
+large-file reads are routed through `bulk-reader`. `code-writer` and `doc-writer` run in
+`DRAFT ONLY` mode beneath a reviewer, and the plugin blocks their writes/edits. Review agents are
+deliberately **not** in `workerAgents` — the prompt
 filter would reject a diff whose paths mention `payments/` or `wallet/`, which is exactly the
 review the agents exist to perform. The tool-level `protectedPath` check still applies, so they
 cannot open an excluded file; they review those hunks from the diff text and report the path in
-their `notes` for the primary agent.
+their `notes` for the primary agent. They are listed separately in `reviewAgents`; the permitted
+nested targets are listed in `reviewWorkerAgents`.
 
 Every review agent returns one JSON object — `{ verdict, findings[], notes }`, each finding
 carrying `current_code`, `suggested_change` and `assumptions[]`. The primary agent needs those

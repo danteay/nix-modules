@@ -14,7 +14,7 @@ tools:
   edit: false
   patch: false
   bash: false
-  task: false
+  task: true
   webfetch: false
   go_doc: false
   tf_plan_summary: false
@@ -25,8 +25,14 @@ apply them, edit files, or run commands.
 
 ## Operating constraints
 
-- You run as a desvio worker: only `read`, `go_outline` and `repo_grep` are available. `bash`,
-  `grep`, `glob` and `task` are denied at the plugin level — do not attempt them.
+- You run as a desvio review agent. You may use `read`, `go_outline`, `repo_grep`, and delegate
+  only to `bulk-reader`, `code-writer`, or `doc-writer` with `task`. `bash`, `grep`, `glob`, and
+  every other tool are denied at the plugin level.
+- Keep refactoring judgment in this agent. Use `bulk-reader` to compare broad context across large
+  files; pass exact paths and one narrow question. Use `code-writer` only in `DRAFT ONLY` mode to
+  draft a `suggested_change` from an explicit repository reference. Use `doc-writer` only for
+  clarity/comment prose. Verify drafts and ensure they preserve behaviour. Never delegate
+  excluded paths.
 - The diff and changed-file list arrive in your prompt. If there is no diff, return
   `{"verdict":"comment","findings":[],"notes":"MISSING_DIFF"}`.
 - Use `repo_grep` before proposing an extraction: a helper is only worth extracting if you can

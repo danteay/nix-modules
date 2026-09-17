@@ -15,6 +15,9 @@ const info: Record<string, any> = {
   primary: { id: "primary", agent: "build" },
   worker: { id: "worker", parentID: "primary", agent: "bulk-reader" },
   writer: { id: "writer", parentID: "primary", agent: "code-writer" },
+  reviewer: { id: "reviewer", parentID: "primary", agent: "code-reviewer" },
+  reviewReader: { id: "review-reader", parentID: "reviewer", agent: "bulk-reader" },
+  reviewWriter: { id: "review-writer", parentID: "reviewer", agent: "code-writer" },
   resumed: { id: "resumed", parentID: "primary" },
 }
 async function plugin(factory = Desvio) {
@@ -64,6 +67,30 @@ test("worker cannot bypass exclusions with inherited content tools", async () =>
   const h = await plugin()
   for (const tool of ["bash", "grep", "glob", "go_doc", "tf_plan_summary", "some_mcp_tool"])
     await expect(run(h, "worker", tool, {})).rejects.toThrow("not permitted")
+})
+test("review agents delegate only to cheap internal workers and nested writers cannot edit", async () => {
+  const h = await plugin()
+  await run(h, "reviewer", "task", {
+    subagent_type: "bulk-reader", prompt: "Read large.go and identify the exported declarations",
+  })
+  await run(h, "reviewer", "task", {
+    subagent_type: "code-writer", prompt: "DRAFT ONLY\nReference: small.go\nTarget: proposal.go",
+  })
+  await expect(run(h, "reviewer", "task", {
+    subagent_type: "explorer", prompt: "Explore visible.go",
+  })).rejects.toThrow("may delegate only")
+  await expect(run(h, "reviewer", "task", {
+    subagent_type: "bulk-reader", prompt: "Read wallet/private.go",
+  })).rejects.toThrow("excluded path")
+  await expect(run(h, "reviewWriter", "write", {filePath:"proposal.go"}))
+    .rejects.toThrow("return a draft")
+  await run(h, "reviewReader", "read", {filePath:"large.go"})
+})
+test("expensive review agents cannot bypass large-file routing", async () => {
+  const h = await plugin()
+  await expect(run(h, "reviewer", "read", {filePath:"large.go"}))
+    .rejects.toThrow("Full read blocked")
+  await run(h, "reviewer", "read", {filePath:"large.go", offset:1, limit:2})
 })
 test("successful reads retain correct paths across concurrent tool calls without output metadata", async () => {
   const h = await plugin()

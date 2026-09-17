@@ -14,7 +14,7 @@ tools:
   edit: false
   patch: false
   bash: false
-  task: false
+  task: true
   webfetch: false
   go_doc: false
   tf_plan_summary: false
@@ -26,9 +26,14 @@ and what it must contain, and let the caller dispatch `doc-writer`.
 
 ## Operating constraints
 
-- You run as a desvio worker: only `read`, `go_outline` and `repo_grep` are available. `bash`,
-  `grep`, `glob` and `task` are denied at the plugin level — do not attempt them, and do not try
-  to delegate.
+- You run as a desvio review agent. You may use `read`, `go_outline`, `repo_grep`, and delegate
+  only to `bulk-reader`, `code-writer`, or `doc-writer` with `task`. `bash`, `grep`, `glob`, and
+  every other tool are denied at the plugin level.
+- Keep documentation-impact judgment in this agent. Use `bulk-reader` for broad context from
+  large files; pass exact paths and one narrow question. Use `doc-writer` in `DRAFT ONLY` mode to
+  produce replacement prose for `suggested_change`, and `code-writer` in `DRAFT ONLY` mode only
+  for code comments with an explicit repository reference. Verify every draft before including
+  it. Never delegate excluded paths.
 - The diff and changed-file list arrive in your prompt. If there is no diff, return
   `{"verdict":"comment","findings":[],"notes":"MISSING_DIFF"}`.
 - Use `repo_grep` to find the docs that mention the changed symbol, flag, endpoint or config key
