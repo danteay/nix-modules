@@ -77,6 +77,16 @@ must never claim a result they could not produce. `opencode.json` allows the rea
 flow makes (`gh pr view|diff|list`, `gh api --paginate`); submitting the review with
 `gh api -X POST` still prompts, which is intended.
 
+## Creating a pull request
+
+```
+/new-pr [additional context for the commit and PR description]
+```
+
+The command runs with `opencode/glm-5.3` on the `build` agent. It commits remaining changes,
+syncs with `origin/main`, pushes the branch, checks for an existing open PR, and creates one
+using the Draftea PR template when needed. It returns the PR URL.
+
 ### Shared knowledge base
 
 Home Manager mounts `~/.config/opencode/docs` from `dotfiles/ai/docs` — a provider-agnostic tree,
