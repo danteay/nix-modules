@@ -1,7 +1,7 @@
 ---
 description: Answers repo-wide "where is X" questions using structural search only. Cheapest first stop before any file read. Returns file:line locations, never explanations.
 mode: subagent
-model: opencode/glm-5.3-flash
+model: opencode/glm-5.3
 temperature: 0
 tools:
   grep: false

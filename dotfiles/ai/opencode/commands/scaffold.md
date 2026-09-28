@@ -1,6 +1,7 @@
 ---
 description: Generate boilerplate from a reference file via the cheap code-writer subagent
-agent: build
+agent: bulk
+model: opencode/glm-5.3
 ---
 
 Use the task tool with subagent `code-writer`. Pass it:

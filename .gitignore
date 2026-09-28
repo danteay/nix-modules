@@ -25,3 +25,7 @@ dotfiles/danteay/ssh/github.pub
 
 # exclude flake.lock
 result/
+dotfiles/ai/opencode/reports/
+dotfiles/ai/opencode/plans/
+
+node_modules/
