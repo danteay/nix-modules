@@ -1,7 +1,7 @@
 ---
 description: Generates boilerplate by copying the patterns of a reference file. REQUIRES an explicit reference file path plus a target path. Do not use for logic that does not already exist elsewhere in the repo.
 mode: subagent
-model: opencode/glm-5.3-flash
+model: opencode/glm-5.3
 temperature: 0
 tools:
   read: true

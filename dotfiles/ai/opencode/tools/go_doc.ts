@@ -27,7 +27,10 @@ export default tool({
     // Cap output: go doc -all on a large package can be thousands of lines.
     const lines = out.trimEnd().split("\n")
     if (lines.length > 200) {
-      return lines.slice(0, 200).join("\n") + `\n\n[truncated ${lines.length - 200} lines — narrow the target to a specific symbol]`
+      return (
+        lines.slice(0, 200).join("\n") +
+        `\n\n[truncated ${lines.length - 200} lines — narrow the target to a specific symbol]`
+      )
     }
     return out
   },

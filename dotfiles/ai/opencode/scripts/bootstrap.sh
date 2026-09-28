@@ -41,7 +41,13 @@ if [[ -L "$DST/package.json" ]]; then unlink "$DST/package.json"; fi
 if [[ -f "$DST/package.json" ]]; then chmod u+w "$DST/package.json"; fi
 cp -L "$SRC/package.json" "$DST/package.json"
 chmod u+w "$DST/package.json"
+if [[ -f "$SRC/bun.lock" ]]; then
+  if [[ -L "$DST/bun.lock" ]]; then unlink "$DST/bun.lock"; fi
+  if [[ -f "$DST/bun.lock" ]]; then chmod u+w "$DST/bun.lock"; fi
+  cp -L "$SRC/bun.lock" "$DST/bun.lock"
+  chmod u+w "$DST/bun.lock"
+fi
 
 if [[ "$MODE" != --skip-install ]]; then
-  (cd "$DST" && bun install)
+  (cd "$DST" && bun install --frozen-lockfile)
 fi

@@ -1,7 +1,7 @@
 ---
 description: Writes or updates prose documentation (READMEs, ADRs, changelogs, runbook sections) from source material it is given. Not for code.
 mode: subagent
-model: opencode/glm-5.3-flash
+model: opencode/glm-5.3
 temperature: 0.3
 tools:
   read: true

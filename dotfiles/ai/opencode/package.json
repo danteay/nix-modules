@@ -3,11 +3,23 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@opencode-ai/plugin": "latest"
+    "@opencode-ai/plugin": "1.18.31"
   },
   "scripts": {
     "test": "bun test tests",
     "report": "bun scripts/report.ts",
-    "benchmark": "bun scripts/benchmark.ts"
+    "benchmark": "bun scripts/benchmark.ts",
+    "control": "bun scripts/control.ts",
+    "smoke": "bun scripts/smoke.ts",
+    "benchmark:lifecycle": "bun scripts/lifecycle-benchmark.ts",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "check": "biome check .",
+    "check:fix": "biome check --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.14"
   }
 }

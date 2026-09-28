@@ -41,9 +41,13 @@ in
       export DESVIO_ENABLED=${if cfg.enforce then "1" else "0"}
       export DESVIO_MIN_LINES=${toString cfg.minLines}
       export DESVIO_LOG_DIR="${config.home.homeDirectory}/.local/share/desvio"
+      # Observe before enabling enforcement; CLI 1.18.33 cannot hand off a running root loop.
+      export DESVIO_LIFECYCLE=observe
+      export DESVIO_BASELINE_AGENT=coordinator
 
       alias desvio-outline="bash ~/.config/opencode/bin/go-outline.sh"
       alias desvio-report="bun run ~/.config/opencode/scripts/report.ts"
+      alias desvio-control="bun run ~/.config/opencode/scripts/control.ts"
       alias desvio-baseline="bash ~/.config/opencode/scripts/baseline.sh"
       alias desvio-off="export DESVIO_ENABLED=0 && echo 'desvio routing disabled; usage logging and worker exclusions remain active'"
     '';

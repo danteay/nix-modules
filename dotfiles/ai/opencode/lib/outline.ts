@@ -8,9 +8,14 @@ export async function goOutline(file: string, directory = process.cwd()): Promis
   if (lines.at(-1) === "") lines.pop()
   const declarations = lines.flatMap((line, i) =>
     /^(package |import |func |type |const |var |\/\/go:generate)/.test(line)
-      ? [`${String(i + 1).padStart(6)}  ${line.trim()}`] : [])
-  return `${file} — ${lines.length} lines, ${declarations.length} declarations\n` +
-    declarations.join("\n") + "\n\nRead a specific declaration with read(filePath, offset=<line>, limit=<n>)."
+      ? [`${String(i + 1).padStart(6)}  ${line.trim()}`]
+      : [],
+  )
+  return (
+    `${file} — ${lines.length} lines, ${declarations.length} declarations\n` +
+    declarations.join("\n") +
+    "\n\nRead a specific declaration with read(filePath, offset=<line>, limit=<n>)."
+  )
 }
 if (import.meta.main) {
   try {

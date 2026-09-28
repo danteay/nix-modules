@@ -1,9 +1,19 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "anthropic/claude-opus-5",
-  "small_model": "opencode/glm-5.3-flash",
+  "model": "anthropic/claude-sonnet-5",
+  "small_model": "opencode/glm-5.3",
   "default_agent": "build",
   "subagent_depth": 2,
+  "mcp": {
+    "lucid": {
+      "type": "remote",
+      "url": "https://mcp.lucid.app/mcp"
+    },
+    "linear": {
+      "type": "remote",
+      "url": "https://mcp.linear.app/mcp"
+    }
+  },
   "permission": {
     "external_directory": {
       "**/.config/opencode/docs/**": "allow"
@@ -12,7 +22,7 @@
   "agent": {
     "build": {
       "mode": "primary",
-      "model": "anthropic/claude-opus-5",
+      "model": "anthropic/claude-sonnet-5",
       "permission": {
         "edit": "allow",
         "bash": {
@@ -50,7 +60,77 @@
       "model": "anthropic/claude-sonnet-5",
       "permission": {
         "edit": "allow",
-        "bash": { "*": "ask" }
+        "bash": {
+          "*": "ask"
+        }
+      }
+    },
+    "bulk": {
+      "description": "Run defined bulk operations and utility commands with GLM; escalate unresolved decisions to the appropriate specialist.",
+      "mode": "primary",
+      "model": "opencode/glm-5.3",
+      "permission": {
+        "edit": "allow",
+        "bash": {
+          "*": "ask",
+          "git status*": "allow",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "go build*": "allow",
+          "go test*": "allow",
+          "go vet*": "allow",
+          "rg *": "allow",
+          "gh pr view*": "allow",
+          "gh pr diff*": "allow",
+          "gh pr list*": "allow",
+          "gh api --paginate*": "allow"
+        }
+      }
+    },
+    "general": {
+      "mode": "subagent",
+      "model": "anthropic/claude-sonnet-5"
+    },
+    "explore": {
+      "mode": "subagent",
+      "model": "opencode/glm-5.3",
+      "tools": {
+        "bash": false,
+        "grep": false,
+        "glob": false,
+        "list": false,
+        "read": true,
+        "go_outline": true,
+        "repo_grep": true,
+        "write": false,
+        "edit": false,
+        "patch": false,
+        "task": false,
+        "webfetch": false,
+        "go_doc": false,
+        "tf_plan_summary": false
+      },
+      "prompt": "Gather repository context with repo_grep, go_outline and read. Do not use bash, grep or glob. Return concise file:line evidence. Excluded paths must stay with the primary agent."
+    },
+    "coordinator": {
+      "mode": "primary",
+      "model": "anthropic/claude-opus-5",
+      "permission": {
+        "edit": "allow",
+        "bash": {
+          "*": "ask",
+          "git status*": "allow",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "go build*": "allow",
+          "go test*": "allow",
+          "go vet*": "allow",
+          "rg *": "allow",
+          "gh pr view*": "allow",
+          "gh pr diff*": "allow",
+          "gh pr list*": "allow",
+          "gh api --paginate*": "allow"
+        }
       }
     }
   }

@@ -1,14 +1,89 @@
 {
-  "_comment": "OpenCode Zen list prices, USD per 1M tokens, captured 2026-09-15. VERIFY at https://opencode.ai/docs/zen/ before trusting any report output. Zen also reports a per-message cost which the report script prefers; this table is only the fallback.",
+  "_comment": "USD per 1M tokens. Reported cost (including zero) is authoritative. Fallbacks marked reasoning_billing are dated estimates at standard speed, non-batch, default cache TTL; modifiers and one-hour cache writes are not inferred.",
   "_captured": "2026-09-15",
   "models": {
-    "opencode/claude-opus-5":        { "tier": "T3", "input": 5.00, "output": 25.00, "cache_read": 0.50, "cache_write": 6.25 },
-    "opencode/claude-sonnet-5":      { "tier": "T2", "input": 2.00, "output": 10.00, "cache_read": 0.20, "cache_write": 2.50 },
-    "opencode/claude-haiku-4-5":     { "tier": "T1", "input": 1.00, "output": 5.00,  "cache_read": 0.10, "cache_write": 1.25 },
-    "opencode/glm-5.3-flash":        { "tier": "T1", "input": 0.15, "output": 0.50,  "cache_read": 0.03, "cache_write": 0 },
-    "opencode/deepseek-v4-flash":    { "tier": "T1", "input": 0.14, "output": 0.28,  "cache_read": 0.028, "cache_write": 0 },
-    "opencode/gemini-3.5-flash-lite":{ "tier": "T1", "input": 0.30, "output": 2.50,  "cache_read": 0.03, "cache_write": 0 },
-    "opencode/minimax-m3":           { "tier": "T1", "input": 0.30, "output": 1.20,  "cache_read": 0.06, "cache_write": 0 }
+    "opencode/claude-opus-5": {
+      "tier": "T3",
+      "input": 5.0,
+      "output": 25.0,
+      "cache_read": 0.5,
+      "cache_write": 6.25
+    },
+    "opencode/claude-sonnet-5": {
+      "tier": "T2",
+      "input": 2.0,
+      "output": 10.0,
+      "cache_read": 0.2,
+      "cache_write": 2.5
+    },
+    "opencode/claude-haiku-4-5": {
+      "tier": "T1",
+      "input": 1.0,
+      "output": 5.0,
+      "cache_read": 0.1,
+      "cache_write": 1.25
+    },
+    "opencode/glm-5.3-flash": {
+      "tier": "T1",
+      "input": 0.15,
+      "output": 0.5,
+      "cache_read": 0.03,
+      "cache_write": 0
+    },
+    "opencode/deepseek-v4-flash": {
+      "tier": "T1",
+      "input": 0.14,
+      "output": 0.28,
+      "cache_read": 0.028,
+      "cache_write": 0
+    },
+    "opencode/gemini-3.5-flash-lite": {
+      "tier": "T1",
+      "input": 0.3,
+      "output": 2.5,
+      "cache_read": 0.03,
+      "cache_write": 0
+    },
+    "opencode/minimax-m3": {
+      "tier": "T1",
+      "input": 0.3,
+      "output": 1.2,
+      "cache_read": 0.06,
+      "cache_write": 0
+    },
+    "anthropic/claude-opus-5": {
+      "input": 5,
+      "output": 25,
+      "cache_read": 0.5,
+      "cache_write": 6.25,
+      "reasoning_billing": "separate",
+      "verified": "2026-09-28",
+      "source": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "usage_normalization": "OpenCode getUsage subtracts reasoning from output, and bills both at output rate.",
+      "assumptions": "Standard speed, non-batch; Anthropic cache writes assume 5-minute TTL."
+    },
+    "anthropic/claude-sonnet-5": {
+      "input": 2,
+      "output": 10,
+      "cache_read": 0.2,
+      "cache_write": 2.5,
+      "reasoning_billing": "separate",
+      "verified": "2026-09-28",
+      "source": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "usage_normalization": "OpenCode getUsage subtracts reasoning from output, and bills both at output rate.",
+      "assumptions": "Standard speed, non-batch; Anthropic cache writes assume 5-minute TTL."
+    },
+    "opencode/glm-5.3": {
+      "input": 1.4,
+      "output": 4.4,
+      "cache_read": 0.26,
+      "cache_write": 0,
+      "reasoning_billing": "separate",
+      "verified": "2026-09-28",
+      "source": "https://opencode.ai/docs/zen/",
+      "usage_normalization": "OpenCode getUsage subtracts reasoning from output, and bills both at output rate.",
+      "assumptions": "Standard speed, non-batch; Anthropic cache writes assume 5-minute TTL."
+    }
   },
   "denied_models": {
     "_comment": "Never select these for Draftea code. Free/contributor tiers may train on prompts or forbid confidential data outright.",
@@ -22,5 +97,6 @@
       "opencode-go/muse-spark-1.3-contributor",
       "opencode-go/muse-spark-1.2-contributor"
     ]
-  }
+  },
+  "_verified": "2026-09-28"
 }

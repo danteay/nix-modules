@@ -1,6 +1,7 @@
 ---
 description: Multi-agent code review over a pull request — writes full findings to .review-<pr>.md, then posts one consolidated GitHub review
 agent: build
+model: anthropic/claude-sonnet-5
 ---
 
 Conduct a multi-agent code review over a pull request, write the full findings to a local
@@ -157,14 +158,20 @@ review wastes money and produces noise findings.
 | Agent | Dispatch WHEN | Skip WHEN |
 |-------|---------------|-----------|
 | `code-reviewer` | Any **source code** or **tests** changed | PR is **documentation-only** or **trivial/no-op** only |
-| `architect` | **Structural change** signal is set, **or** Linear task context exists and needs intent-vs-implementation validation | No structural change AND the change is a localized bug fix, docs-only, config-value tweak, or trivial/no-op |
-| `refactorer` | Any **source code** changed | Docs-only, infra-only, tests-only, or trivial/no-op only |
+| `architect` | An unresolved cross-boundary, contract, migration or architecture tradeoff needs a decision; state that decision in the prompt | Routine intent validation, existence of a Linear ticket, localized fixes, docs, or config values with no unresolved architectural decision |
+| `refactorer` | Source changes introduce a concrete duplication, coupling or maintainability concern needing a separate assessment | Routine source edits already covered by code-reviewer, docs-only, infra-only, tests-only, or trivial/no-op |
 | `tester` | **Source code** with testable logic changed, **or** **tests** changed | Docs-only, infra-only, config-only, comment-only, or trivial/no-op only |
 | `devops` | **Infrastructure** bucket present | No infrastructure files changed |
 | `documentor` | **Documentation** bucket present, **or** **Public/behavioural surface** signal is set, **or** source code adds doc-worthy complexity (public APIs, non-obvious logic) | Change is only tests, infra config values, or trivial/no-op with no doc surface and no public/behavioural change |
 
 Record which agents were selected and why (one line each). Report the skipped agents and the reason
 in the final output so the gating is transparent — never silently drop an agent.
+
+The coordinator and routine reviewers use Sonnet. Architect uses Opus only for its bounded
+decision. For a difficult unresolved correctness/security question, gather evidence first and
+send that question to `reasoner`; do not restart every reviewer on Opus. User corrections to
+severity, formatting and posting remain on Sonnet. Reuse eligible GLM context summaries across
+reviewers, with source references and relevant diff slices; avoid rediscovering the same files.
 
 ### Prompt payload — every dispatched agent gets
 

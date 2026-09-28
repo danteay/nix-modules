@@ -23,11 +23,12 @@ export default tool({
 
     if (!json.trim()) return `Could not read a plan from ${args.planFile}.`
 
+    type ResourceChange = { address: string; change?: { actions?: string[] } }
     try {
-      const plan = JSON.parse(json)
+      const plan = JSON.parse(json) as { resource_changes?: ResourceChange[] }
       const changes = (plan.resource_changes ?? [])
-        .filter((c: any) => !(c.change?.actions?.length === 1 && c.change.actions[0] === "no-op"))
-        .map((c: any) => `${(c.change.actions ?? []).join("+").padEnd(14)} ${c.address}`)
+        .filter((c) => !(c.change?.actions?.length === 1 && c.change.actions[0] === "no-op"))
+        .map((c) => `${(c.change?.actions ?? []).join("+").padEnd(14)} ${c.address}`)
       if (!changes.length) return "No changes in plan."
       return `${changes.length} resource changes\n${changes.join("\n")}`
     } catch (e) {

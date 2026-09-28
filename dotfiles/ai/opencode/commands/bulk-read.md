@@ -1,6 +1,7 @@
 ---
 description: Ask a question about one or more large files via the cheap bulk-reader subagent
-agent: build
+agent: bulk
+model: opencode/glm-5.3
 ---
 
 Use the task tool with subagent `bulk-reader` to answer the following, then report its bullets
