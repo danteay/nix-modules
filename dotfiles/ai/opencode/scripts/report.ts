@@ -25,10 +25,15 @@ if (
 const log = join(defaultLogDir(), "usage.jsonl")
 if (!existsSync(log)) throw new Error(`No usage log at ${log}`)
 let malformed = 0
-const records = parseJsonl(readFileSync(log, "utf8"), () => malformed++).filter(
-  (r) => !arg("experiment") || r.experiment === arg("experiment"),
+const records = parseJsonl(readFileSync(log, "utf8"), () => malformed++)
+if (
+  !records.some(
+    (r) =>
+      new Date(r.ts) >= since &&
+      new Date(r.ts) < until &&
+      (!arg("experiment") || r.experiment === arg("experiment")),
+  )
 )
-if (!records.some((r) => new Date(r.ts) >= since && new Date(r.ts) < until))
   throw new Error("No records in the selected window/experiment")
 let prices = {}
 try {
@@ -43,7 +48,12 @@ const summary = {
     days: (until.getTime() - since.getTime()) / 86400000,
     end_exclusive: true,
   },
-  ...summarize(records, prices, { since: since.getTime(), until: until.getTime(), timezone }),
+  ...summarize(records, prices, {
+    since: since.getTime(),
+    until: until.getTime(),
+    timezone,
+    experiment: arg("experiment"),
+  }),
   malformed_records: malformed,
 }
 if (argv.includes("--json")) console.log(JSON.stringify(summary, null, 2))
@@ -81,10 +91,24 @@ else {
         `  ${id}: ${w.messages} calls, ${usd(w.cost)}, ${w.primary_context} primary context`,
       )
   }
+  console.log("\nquality (explicit observations; terminal responses are not acceptance)")
+  console.log(`accepted tasks      ${summary.quality.accepted_tasks}`)
+  console.log(
+    `cost per accepted   ${usd(summary.quality.cost_per_accepted_task)} (full logged task history)`,
+  )
+  console.log(
+    `defect recovery     ${usd(summary.quality.recovery_cost)}; ${summary.quality.defect_continuations} labeled continuations`,
+  )
+  console.log(`worker gaps         ${summary.quality.capability_gap_delegations} delegations`)
+  console.log(
+    `validation          ${summary.quality.validation_failures}/${summary.quality.validation_checks} failed; ${summary.quality.expected_failure_checks} deliberate negative checks`,
+  )
   console.log("\nrouting (schema 2+)")
-  for (const [key, value] of Object.entries(summary.routing))
+  for (const [key, value] of Object.entries(summary.routing).filter(
+    ([key]) => !["rework_reads", "delegations_reworked", "rework_rate_pct"].includes(key),
+  ))
     console.log(`  ${key.padEnd(26)} ${value ?? "n/a"}`)
-  console.log("\nlifecycle (schema 3)")
+  console.log("\nlifecycle (schema 3+)")
   for (const [key, value] of Object.entries(summary.lifecycle))
     console.log(`  ${key.padEnd(26)} ${value ?? "n/a"}`)
   console.log("\ndaily usage (boundary dates may be partial)")

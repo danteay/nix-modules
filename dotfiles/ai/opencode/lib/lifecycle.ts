@@ -1,7 +1,7 @@
 import type { MessageInfoLike } from "./opencode-types"
 import { modelForAgent } from "./routing"
 
-export const POLICY_VERSION = "desvio-lifecycle-1"
+export const POLICY_VERSION = "desvio-lifecycle-4"
 export type Route = { agent: string; providerID: string; modelID: string; variant?: string }
 export type Outcome = "completed" | "failed" | "aborted" | "superseded"
 export type Run = {
@@ -14,6 +14,8 @@ export type Run = {
   waits: string[]
   terminal?: Outcome
   firstAssistant?: string
+  skill?: string
+  continuationKind?: "feedback" | "defect" | "scope_change"
 }
 export type State = {
   version: 1
@@ -23,6 +25,8 @@ export type State = {
   pin?: Route
   command?: { name: string; at: number }
   continueTask?: string
+  continuationKind?: "feedback" | "defect" | "scope_change"
+  baselinePolicy?: string
   run?: Run
   previous?: Run
   resetPending?: boolean
@@ -40,8 +44,9 @@ export const sameRoute = (a: Route, b: Route) =>
   modelKey(a) === modelKey(b) &&
   (a.variant ?? "default") === (b.variant ?? "default")
 export const returnRoute = (s: State) => s.pin ?? s.baseline
-export function initialState(sessionID: string, baseline = routeFor("coordinator")): State {
-  return { version: 1, revision: 0, sessionID, baseline }
+export const completionRoute = returnRoute
+export function initialState(sessionID: string, baseline = routeFor("build")): State {
+  return { version: 1, revision: 0, sessionID, baseline, baselinePolicy: POLICY_VERSION }
 }
 
 /**
@@ -89,6 +94,7 @@ export function begin(s: State, messageID: string, requested: Route, now = Date.
     revision: s.revision + 1,
     command: undefined,
     continueTask: undefined,
+    continuationKind: undefined,
     resetPending: false,
     previous,
     run: {
@@ -97,6 +103,7 @@ export function begin(s: State, messageID: string, requested: Route, now = Date.
       taskID: continuation ? continuation.taskID : messageID,
       route,
       source,
+      continuationKind: continuation ? (s.continuationKind ?? "feedback") : undefined,
       status: "running",
       waits: [],
     },
@@ -120,7 +127,7 @@ export function settle(s: State, messageID: string, outcome: Outcome): State {
   return {
     ...s,
     revision: s.revision + 1,
-    resetPending: s.run.source !== "unmanaged",
+    resetPending: s.run.source !== "unmanaged" || Boolean(s.run.skill),
     run: { ...s.run, terminal: outcome, status: outcome },
   }
 }

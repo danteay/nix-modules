@@ -24,6 +24,7 @@
     brews = [
       "gitleaks"
       "gh"
+      "aviator-co/tap/av"
       "graphviz"
       "cpulimit"
       "rtk"

@@ -24,7 +24,7 @@ mkdir -p "$DST"
 
 # Unlink only managed paths; never write through a link into the Nix store.
 # Preserve unrelated local tools/plugins and the existing node_modules.
-for dir in plugins tools lib scripts tests bin; do
+for dir in plugins tui tools lib scripts tests bin; do
   if [[ -L "$DST/$dir" ]]; then unlink "$DST/$dir"; fi
   mkdir -p "$DST/$dir"
   for file in "$SRC/$dir/"*; do

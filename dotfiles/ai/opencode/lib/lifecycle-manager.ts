@@ -1,9 +1,10 @@
 import {
   begin,
+  completionRoute,
   initialState,
   modelKey,
+  POLICY_VERSION,
   type Route,
-  returnRoute,
   settle,
   terminalOutcome,
 } from "./lifecycle"
@@ -51,6 +52,12 @@ export class LifecycleManager {
     if (info.parentID) return
     return this.store.locked(sessionID, async () => {
       const before = this.store.get(sessionID) ?? initialState(sessionID, this.baseline)
+      // Upgrade old session baselines only at the next admission; retain explicit pins
+      // and continuation routes, and never alter a currently executing loop.
+      if (before.baselinePolicy !== POLICY_VERSION && before.run?.messageID !== messageID) {
+        before.baseline = this.baseline
+        before.baselinePolicy = POLICY_VERSION
+      }
       const s = begin(before, messageID, requested)
       if (s === before) {
         if (this.mode !== "enforce") return
@@ -76,6 +83,7 @@ export class LifecycleManager {
         messageID,
         action: "begin",
         source: s.run!.source,
+        continuation_kind: s.run!.continuationKind ?? null,
         baseline: s.baseline,
         previous_route: before.run?.route ?? null,
         selected_route: route,
@@ -105,10 +113,28 @@ export class LifecycleManager {
     if (this.mode === "off") return
     const p = e.properties ?? {}
     const id =
-      p.sessionID ?? p.info?.sessionID ?? (e.type === "session.deleted" ? p.info?.id : undefined)
+      p.sessionID ??
+      p.info?.sessionID ??
+      p.part?.sessionID ??
+      (e.type === "session.deleted" ? p.info?.id : undefined)
     if (!id) return
     if (e.type === "session.deleted") return this.onDeleted(id)
     if (e.type === "session.error") return this.onError(id)
+    if (e.type === "message.part.updated" && p.part?.type === "tool" && p.part.tool === "skill") {
+      await this.store.locked(id, () => {
+        const s = this.store.get(id)
+        const attribution = this.store.route(id, p.part.messageID)
+        if (
+          !s?.run ||
+          attribution?.runID !== s.run.id ||
+          !["running", "awaiting"].includes(s.run.status)
+        )
+          return
+        s.run.skill = p.part.state?.input?.name ?? "skill"
+        this.store.put(s)
+      })
+      return
+    }
     if (WAIT_EVENTS.includes(e.type)) return this.onWait(id, e.type, p)
     if (e.type === "session.idle" || (e.type === "session.status" && p.status?.type === "idle"))
       return this.onIdle(id)
@@ -130,7 +156,7 @@ export class LifecycleManager {
   }
 
   private async onWait(id: string, type: string, p: any) {
-    await this.store.locked(id, () => {
+    await this.store.locked(id, async () => {
       const s = this.store.get(id)
       if (!s?.run || !["running", "awaiting"].includes(s.run.status)) return
       const request = p.id ?? p.requestID
@@ -143,6 +169,15 @@ export class LifecycleManager {
         s.run.waits = [...new Set([...s.run.waits, request])]
       } else s.run.waits = s.run.waits.filter((w) => w !== request)
       s.run.status = s.run.waits.length ? "awaiting" : "running"
+      await this.log({
+        kind: "task_signal",
+        sessionID: id,
+        workflowID: id,
+        taskID: s.run.taskID,
+        runID: s.run.id,
+        outcome: s.run.waits.length ? "awaiting_input" : "running",
+        source: "native-wait",
+      })
       this.store.put(s)
     })
   }
@@ -190,15 +225,15 @@ export class LifecycleManager {
         })
       }
       if (!s.resetPending) return
-      const route = returnRoute(s)
-      await this.log({
-        kind: "reset_attempt",
-        sessionID: id,
-        runID: s.run!.id,
-        selected_route: route,
-        mode: this.mode,
-      })
+      const route = completionRoute(s)
       if (this.mode === "observe") {
+        await this.log({
+          kind: "reset_observed",
+          sessionID: id,
+          runID: s.run!.id,
+          selected_route: route,
+          mode: this.mode,
+        })
         s.resetPending = false
         this.store.put(s)
         return
@@ -206,6 +241,13 @@ export class LifecycleManager {
       try {
         // Recheck after reading history. A newly persisted input takes precedence.
         if (!(await this.api.idle(id))) return
+        await this.log({
+          kind: "reset_attempt",
+          sessionID: id,
+          runID: s.run!.id,
+          selected_route: route,
+          mode: this.mode,
+        })
         const persisted = await this.api.select(id, route)
         s.resetPending = false
         s.restoredRunID = s.run!.id

@@ -108,3 +108,158 @@ test("first inference after reset is checked once per run", () => {
   expect(s.routing.first_after_reset_checked).toBe(1)
   expect(s.routing.first_after_reset_mismatches).toBe(1)
 })
+
+test("shadow resets and stale bulk routes cannot masquerade as enforced routing", () => {
+  const event = { schema: 3, sessionID: "p", ts: "2026-09-28T07:00:00Z" }
+  const s = summarize([
+    {
+      ...event,
+      kind: "lifecycle",
+      action: "begin",
+      mode: "observe",
+      messageID: "m",
+      selected_route: { agent: "coordinator", providerID: "anthropic", modelID: "claude-opus-5" },
+    },
+    {
+      ...event,
+      kind: "model_route",
+      messageID: "m",
+      agent: "bulk",
+      selected_model: "opencode/glm-5.3",
+    },
+    message({ providerID: "opencode", modelID: "glm-5.3", expected_model: "opencode/glm-5.3" }),
+    { ...event, kind: "reset_attempt", mode: "observe" }, // Historical observation event.
+    { ...event, kind: "reset_observed", mode: "observe" },
+    { ...event, kind: "lifecycle", action: "begin", mode: "enforce", messageID: "next" },
+    { ...event, kind: "reset_attempt", mode: "enforce" },
+    { ...event, kind: "reset_success" },
+  ])
+  expect(s.routing.model_mismatches).toBe(0)
+  expect(s.lifecycle.observed_runs).toBe(1)
+  expect(s.lifecycle.enforced_runs).toBe(1)
+  expect(s.lifecycle.shadow_route_checks).toBe(1)
+  expect(s.lifecycle.shadow_route_differences).toBe(1)
+  expect(s.lifecycle.reset_observations).toBe(2)
+  expect(s.lifecycle.reset_attempts).toBe(1)
+  expect(s.lifecycle.reset_successes).toBe(1)
+})
+
+test("acceptance uses full task costs including child recovery, and later corrections reopen it", () => {
+  const event = (ts: string, extra: Record<string, any>) => ({
+    schema: 4,
+    sessionID: "p",
+    workflowID: "p",
+    taskID: "task",
+    ts,
+    ...extra,
+  })
+  const rows = [
+    message({ taskID: "task", ts: "2026-09-27T07:00:00Z", cost: 5 }),
+    event("2026-09-28T07:00:00Z", {
+      kind: "lifecycle",
+      action: "begin",
+      runID: "fix",
+      continuation_kind: "defect",
+    }),
+    message({ messageID: "fix", taskID: "task", cost: 2 }),
+    message({
+      sessionID: "child",
+      parentSessionID: "p",
+      messageID: "child",
+      taskID: "task",
+      cost: 1,
+    }),
+    event("2026-09-28T08:00:00Z", { kind: "task_outcome", outcome: "completed" }),
+    event("2026-09-28T08:01:00Z", {
+      kind: "task_acceptance",
+      source: "agent-status",
+      outcome: "accepted",
+    }),
+    event("2026-09-28T08:02:00Z", {
+      kind: "task_acceptance",
+      source: "user-control",
+      outcome: "accepted",
+    }),
+  ]
+  const window = { since: Date.parse("2026-09-28"), until: Date.parse("2026-09-29") }
+  const s = summarize(rows, {}, window)
+  expect(s.cost.total).toBe(3)
+  expect(s.quality.cost_per_accepted_task).toBe(8)
+  expect(s.quality.recovery_cost).toBe(3)
+  expect(s.quality.defect_continuations).toBe(1)
+  expect(summarize(rows.slice(0, -1), {}, window).quality.accepted_tasks).toBe(0)
+  expect(
+    summarize(
+      [
+        ...rows,
+        event("2026-09-28T09:00:00Z", {
+          kind: "lifecycle",
+          action: "begin",
+          continuation_kind: "scope_change",
+        }),
+      ],
+      {},
+      window,
+    ).quality.accepted_tasks,
+  ).toBe(0)
+  expect(
+    summarize(
+      [
+        ...rows,
+        event("2026-09-29T09:00:00Z", {
+          kind: "lifecycle",
+          action: "begin",
+          continuation_kind: "defect",
+        }),
+      ],
+      {},
+      window,
+    ).quality.accepted_tasks,
+  ).toBe(1)
+})
+
+test("unknown historical costs prevent an accepted-cost claim; gaps and expected failures are distinct", () => {
+  const base = { schema: 4, ts: "2026-09-28T07:00:00Z", sessionID: "p", taskID: "task" }
+  const s = summarize([
+    message({ taskID: "task", cost: null, reasoning: null }),
+    {
+      ...base,
+      kind: "task_signal",
+      sessionID: "child",
+      parentSessionID: "p",
+      outcome: "capability_gap",
+    },
+    { ...base, kind: "delegation", childSessionID: "child", delegation_outcome: "capability_gap" },
+    { ...base, kind: "validation", exit_code: 1, passed: true, expected_failure: true },
+    { ...base, kind: "validation", exit_code: 1, passed: false, expected_failure: false },
+    { ...base, kind: "task_acceptance", source: "user-control" },
+  ])
+  expect(s.quality.accepted_tasks).toBe(1)
+  expect(s.quality.cost_per_accepted_task).toBeNull()
+  expect(s.quality.capability_gap_delegations).toBe(1)
+  expect(s.quality.validation_checks).toBe(2)
+  expect(s.quality.validation_failures).toBe(1)
+  expect(s.quality.expected_failure_checks).toBe(1)
+})
+
+test("experiment filters window spend without losing prior task or lineage costs", () => {
+  const s = summarize(
+    [
+      message({ taskID: "task", cost: 4, experiment: "old" }),
+      message({ taskID: "task", messageID: "new", cost: 1, experiment: "trial" }),
+      {
+        schema: 4,
+        ts: "2026-09-28T08:00:00Z",
+        sessionID: "p",
+        taskID: "task",
+        experiment: "trial",
+        kind: "task_acceptance",
+        source: "user-control",
+      },
+    ],
+    {},
+    { experiment: "trial" },
+  )
+  expect(s.cost.total).toBe(1)
+  expect(s.quality.cost_per_accepted_task).toBe(5)
+})

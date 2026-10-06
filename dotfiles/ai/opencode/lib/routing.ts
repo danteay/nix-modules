@@ -42,7 +42,10 @@ export function modelRole(model: string): ModelRole | "other" {
 }
 
 export const routingInstructions =
-  "desvio model roles: Sonnet build/edit executes defined work, integrates changes, runs checks " +
+  "desvio model roles: Sonnet build is the ordinary baseline and executes defined work. " +
+  "Opus coordinator/architect/reasoner resolve bounded hard decisions. Completed commands return " +
+  "to the configured baseline or pin; this does not switch a running loop's model. " +
+  "Sonnet build/edit executes defined work, integrates changes, runs checks " +
   "and handles user feedback. GLM explorer locates files; bulk-reader gathers broad context; " +
   "code-writer copies explicit reference patterns; doc-writer drafts prose. " +
   "Use architect (Opus) only for unresolved architecture/contracts/tradeoffs; use reasoner " +
@@ -74,6 +77,7 @@ export const workerInstructions =
   "desvio worker contract: You have no shell, MCP, webfetch or raw search. Use only your " +
   "declared tools and eligible paths. If required evidence is unavailable, return CAPABILITY_GAP " +
   "with the missing evidence/tool and let the primary fetch it; do not retry a forbidden tool. " +
+  "Use task_status to record capability_gap or awaiting_input before stopping for a blocker. " +
   "Return concise findings, source references, decisions, changed files and verification gaps. " +
   "Aim for 1500 tokens for routine handoffs; preserve required review fields and correctness " +
   "evidence. Cite the source revision when provided; invalidate reused evidence after edits."

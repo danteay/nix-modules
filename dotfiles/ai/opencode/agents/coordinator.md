@@ -1,5 +1,5 @@
 ---
-description: Frames a new request and resolves bounded decisions; returns completed tasks to a stable reasoning baseline
+description: Resolves bounded hard decisions when explicitly selected; ordinary execution uses Sonnet build
 mode: primary
 model: anthropic/claude-opus-5
 ---

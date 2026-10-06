@@ -11,6 +11,7 @@
     "benchmark": "bun scripts/benchmark.ts",
     "control": "bun scripts/control.ts",
     "smoke": "bun scripts/smoke.ts",
+    "smoke:tui": "bun scripts/smoke.ts --tui",
     "benchmark:lifecycle": "bun scripts/lifecycle-benchmark.ts",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",

@@ -12,6 +12,11 @@
     "linear": {
       "type": "remote",
       "url": "https://mcp.linear.app/mcp"
+    },
+    "datadog": {
+      "type": "remote",
+      "url": "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
+      "enabled": true
     }
   },
   "permission": {
@@ -133,5 +138,9 @@
         }
       }
     }
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true
   }
 }

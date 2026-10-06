@@ -1,7 +1,8 @@
+import { reportQuality } from "./report-quality"
 import { modelRole } from "./routing"
 
 type Rec = Record<string, any>
-type Window = { since?: number; until?: number; timezone?: string }
+type Window = { since?: number; until?: number; timezone?: string; experiment?: string }
 const fields = ["input", "output", "reasoning", "cache_read", "cache_write"] as const
 type Field = (typeof fields)[number]
 const measured = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n) && n >= 0
@@ -149,7 +150,8 @@ function selectWindow(records: Rec[], window: Window): Rec[] {
   return records.filter(
     (r) =>
       (window.since == null || Date.parse(r.ts) >= window.since) &&
-      (window.until == null || Date.parse(r.ts) < window.until),
+      (window.until == null || Date.parse(r.ts) < window.until) &&
+      (window.experiment == null || r.experiment === window.experiment),
   )
 }
 
@@ -324,6 +326,7 @@ function aggregate(
         "lifecycle",
         "task_outcome",
         "reset_attempt",
+        "reset_observed",
         "reset_success",
         "reconciliation_failed",
       ].includes(r.kind),
@@ -376,6 +379,16 @@ function buildReport(agg: Aggregation, modern: Rec[], records: Rec[]) {
   const reads = modern.filter((r) => r.kind === "read")
   const n = Object.keys(workflows).length
   const completed = Object.values(tasks).filter((t) => t.outcome === "completed")
+  const modeOf = (r: Rec) => r.mode ?? r.lifecycle_mode
+  const begins = modern.filter((r) => r.kind === "lifecycle" && r.action === "begin")
+  const proposals = new Map(
+    records
+      .filter((r) => r.kind === "lifecycle" && r.action === "begin" && modeOf(r) === "observe")
+      .map((r) => [`${sid(r)}:${r.messageID}`, r.selected_route]),
+  )
+  const shadowChecks = modern.filter(
+    (r) => r.kind === "model_route" && proposals.has(`${sid(r)}:${r.messageID}`),
+  )
   return {
     workflows: n,
     messages: total.calls,
@@ -405,13 +418,40 @@ function buildReport(agg: Aggregation, modern: Rec[], records: Rec[]) {
       primary_reads: reads.filter((r) => !r.worker).length,
       completed_delegations: completedDelegations,
       delegations_with_reads: comparableDelegations,
+      post_delegation_reread_count: reworkReads,
+      delegations_reread: reworked.size,
+      post_delegation_reread_rate_pct: comparableDelegations
+        ? (reworked.size / comparableDelegations) * 100
+        : null,
+      // Deprecated aliases retained for historical consumers.
       rework_reads: reworkReads,
       delegations_reworked: reworked.size,
       rework_rate_pct: comparableDelegations ? (reworked.size / comparableDelegations) * 100 : null,
     },
     lifecycle: {
       observed: hasLifecycle,
-      reset_attempts: hasLifecycle ? count("reset_attempt") : null,
+      observed_runs: hasLifecycle ? begins.filter((r) => modeOf(r) === "observe").length : null,
+      enforced_runs: hasLifecycle ? begins.filter((r) => modeOf(r) === "enforce").length : null,
+      shadow_route_checks: hasLifecycle ? shadowChecks.length : null,
+      shadow_route_differences: hasLifecycle
+        ? shadowChecks.filter((r) => {
+            const proposed = proposals.get(`${sid(r)}:${r.messageID}`)
+            return (
+              proposed.agent !== r.agent ||
+              `${proposed.providerID}/${proposed.modelID}` !== r.selected_model
+            )
+          }).length
+        : null,
+      reset_observations: hasLifecycle
+        ? modern.filter(
+            (r) =>
+              r.kind === "reset_observed" ||
+              (r.kind === "reset_attempt" && modeOf(r) === "observe"),
+          ).length
+        : null,
+      reset_attempts: hasLifecycle
+        ? modern.filter((r) => r.kind === "reset_attempt" && modeOf(r) !== "observe").length
+        : null,
       reset_successes: hasLifecycle ? count("reset_success") : null,
       reconciliation_failures: hasLifecycle ? count("reconciliation_failed") : null,
       stale_resets: hasLifecycle ? count("stale_reset_ignored") : null,
@@ -442,7 +482,15 @@ function buildReport(agg: Aggregation, modern: Rec[], records: Rec[]) {
       "Worker means a delegated session, including Opus reviewers. Roles do not prove task difficulty.",
       "Costs are logged usage, not invoice reconciliation. Token sums include only observed fields; missing counts expose incomplete totals.",
       "Generated = visible output + reasoning. Cached = cache reads + writes (compatibility total, not a cache hit rate).",
-      "Task costs cover the selected window, not lifetime spend. Completed runs are not human acceptance judgments.",
+      "Task costs cover the selected window. Quality accepted-cohort costs include full logged history through the cutoff (not invoice reconciliation).",
+      "completed_tasks/per_completed_task and rework_* are legacy names: terminal responses are not acceptance; rereads are not defects.",
+      "Acceptance is explicit user-control input; absent acceptance or correction labels mean unmeasured, not successful or defect-free.",
+      "Shell exit status describes the shell, not nested checks. Use validation records for actual executable exit status.",
+      ...(begins.some((r) => modeOf(r) === "observe")
+        ? [
+            "Observe mode does not restore models. Shadow route differences compare proposed routes with selected routes; zero model mismatches does not prove lifecycle enforcement.",
+          ]
+        : []),
       "Rework means a successful parent read after its worker read and delegation completed; intentional verification also counts.",
       ...(records.some((r) => !r.schema || r.schema < 2)
         ? ["Legacy records contribute costs; routing/rework metrics use schema 2 and newer."]
@@ -462,5 +510,13 @@ export function summarize(all: Rec[], prices: Record<string, Rec> = {}, window: 
   const selected = selectWindow(records, window)
   const modern = selected.filter((r) => r.schema >= 2)
   const agg = aggregate(selected, prices, parents, taskForRun, window.timezone)
-  return buildReport(agg, modern, records)
+  const quality = reportQuality(
+    records.filter((r) => window.until == null || Date.parse(r.ts) < window.until),
+    selected,
+    (id) => rootOf(id, parents),
+    taskForRun,
+    (r) =>
+      measured(r.cost) ? r.cost : estimate(r, prices[`${r.providerID ?? "?"}/${r.modelID ?? "?"}`]),
+  )
+  return { ...buildReport(agg, modern, records), quality }
 }
