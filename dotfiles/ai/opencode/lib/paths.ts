@@ -53,5 +53,11 @@ export async function protectedPath(path: string, directory: string): Promise<bo
 export function protectedPrompt(text: string): boolean {
   // Reject explicit excluded paths before the task prompt reaches the worker.
   // This cannot classify arbitrary pasted source; callers must pass paths, not file contents.
-  return text.split(/[\s`"'<>]+/).some((token) => excluded.some((re) => re.test(`/${token}`)))
+  return text.split(/[\s`"'<>]+/).some((raw) => {
+    const token = raw.replace(/^[([{]+|[)\]},;:!?]+$/g, "")
+    // A bare prose noun ("credentials, region") is not a path. Actual file access
+    // still checks every canonical path, including a file literally named credentials.
+    if (!token.includes("/") && !token.includes(".") && !token.includes("\\")) return false
+    return excluded.some((re) => re.test(`/${token}`))
+  })
 }

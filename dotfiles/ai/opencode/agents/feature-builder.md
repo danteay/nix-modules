@@ -3,21 +3,16 @@ description: Implements one approved feature component in source or configuratio
 mode: subagent
 model: anthropic/claude-sonnet-5
 temperature: 0.1
-tools:
-  read: true
-  go_outline: true
-  repo_grep: true
-  write: true
-  edit: true
-  grep: false
-  glob: false
-  list: false
-  patch: false
-  bash: false
-  task: false
-  webfetch: false
-  go_doc: false
-  tf_plan_summary: false
+permission:
+  "*": deny
+  external_directory:
+    "*": ask
+    "**/.config/opencode/docs/**": allow
+  read: allow
+  go_outline: allow
+  repo_grep: allow
+  edit: allow
+  task_status: allow
 ---
 
 Implement exactly one component from an explicitly approved `plan-<proj-name>.md` slice. You

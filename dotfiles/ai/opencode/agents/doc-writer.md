@@ -3,20 +3,16 @@ description: Writes or updates prose documentation (READMEs, ADRs, changelogs, r
 mode: subagent
 model: opencode/glm-5.3
 temperature: 0.3
-tools:
-  read: true
-  go_outline: true
-  write: true
-  grep: false
-  repo_grep: true
-  glob: false
-  list: false
-  edit: true
-  bash: false
-  task: false
-  webfetch: false
-  go_doc: false
-  tf_plan_summary: false
+permission:
+  "*": deny
+  external_directory:
+    "*": ask
+    "**/.config/opencode/docs/**": allow
+  read: allow
+  go_outline: allow
+  repo_grep: allow
+  edit: allow
+  task_status: allow
 ---
 
 You write documentation from material you are given. You do not touch code files.

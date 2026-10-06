@@ -11,6 +11,8 @@ const dir = await realpath(await mkdtemp(join(tmpdir(), "desvio-test-")))
 process.env.DESVIO_LOG_DIR = join(dir, "log")
 process.env.DESVIO_MIN_LINES = "200"
 process.env.DESVIO_ENABLED = "1"
+// These tests exercise role routing; enforced lifecycle routing has separate integration tests.
+process.env.DESVIO_LIFECYCLE = "observe"
 const { Desvio } = await import("../plugins/desvio")
 const info: Record<string, any> = {
   primary: { id: "primary", agent: "build" },
@@ -174,6 +176,7 @@ test("offset alone and oversized limits cannot bypass the read guard, including 
 test("installed agent and command models agree with the routing policy", async () => {
   const source = join(import.meta.dir, "..")
   const config = JSON.parse(await readFile(join(source, "opencode.json"), "utf8"))
+  expect(config.default_agent).toBe("build")
   expect(config.model).toBe(models.execution)
   expect(config.small_model).toBe(models.bulk)
   for (const [name, agent] of Object.entries(config.agent) as [string, any][])
@@ -449,4 +452,66 @@ test("bootstrap replaces old directory symlinks and installs runnable scripts wi
   const text = await new Response(report.stdout).text()
   expect(await report.exited).toBe(0)
   expect(JSON.parse(text).routing).toBeDefined()
+})
+
+test("code-writer creates new targets but cannot overwrite or edit existing files", async () => {
+  const h = await plugin()
+  await run(h, "writer", "write", { filePath: "new-target.go" })
+  await expect(run(h, "writer", "write", { filePath: "visible.go" })).rejects.toThrow(
+    "cannot overwrite",
+  )
+  await expect(run(h, "writer", "edit", { filePath: "visible.go" })).rejects.toThrow("only create")
+})
+
+test("prose credentials noun is allowed but credential paths remain protected", async () => {
+  const h = await plugin()
+  await run(h, "primary", "task", {
+    subagent_type: "bulk-reader",
+    prompt: "Explain endpoint, credentials, region configuration in visible.go",
+  })
+  for (const path of [".env", "./credentials", "/home/me/.aws/credentials", "wallet/private.go"])
+    await expect(
+      run(h, "primary", "task", { subagent_type: "bulk-reader", prompt: `Read ${path}` }),
+    ).rejects.toThrow("excluded path")
+  await expect(run(h, "worker", "read", { filePath: "credentials" })).rejects.toThrow("excluded")
+})
+
+test("non-Go read guard recommends search rather than the Go outline tool", async () => {
+  const h = await plugin()
+  await writeFile(join(dir, "large.ex"), "# line\n".repeat(250))
+  await expect(run(h, "primary", "read", { filePath: "large.ex" })).rejects.toThrow(
+    "repo_grep for relevant symbols",
+  )
+})
+
+test("delegation gaps, explicit statuses and real validation results are observable", async () => {
+  const h = await plugin()
+  const input = { sessionID: "primary", tool: "task", callID: "gap-result" }
+  await h["tool.execute.before"](input, {
+    args: { subagent_type: "feature-builder", prompt: "Write new-target.go" },
+  })
+  await h["tool.execute.after"](input, {
+    output: "<task_result>\n## CAPABILITY_GAP\nNo edit tool",
+    metadata: { sessionId: "featureBuilder" },
+  })
+  expect((await logs()).at(-1).delegation_outcome).toBe("capability_gap")
+  await run(
+    h,
+    "worker",
+    "task_status",
+    { outcome: "awaiting_input", reason: "Need reference" },
+    { task_outcome: "awaiting_input" },
+  )
+  expect((await logs()).at(-1).outcome).toBe("awaiting_input")
+  await run(
+    h,
+    "primary",
+    "validate_command",
+    { argv: ["false"] },
+    { exit: 1, passed: false, expected_failure: false },
+  )
+  expect((await logs()).findLast((r: any) => r.kind === "validation").exit_code).toBe(1)
+  await expect(run(h, "worker", "validate_command", { argv: ["false"] })).rejects.toThrow(
+    "not permitted",
+  )
 })

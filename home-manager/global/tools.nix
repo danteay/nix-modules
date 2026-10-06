@@ -9,6 +9,7 @@
     ripgrep
     fzf
     uv
+    websocat
   ];
 
   programs.direnv = {

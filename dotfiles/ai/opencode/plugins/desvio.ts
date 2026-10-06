@@ -54,7 +54,7 @@ const int = (v: string | undefined, fallback: number) => {
 const ENABLED = process.env.DESVIO_ENABLED !== "0"
 const MODEL_ROUTING = ENABLED && process.env.DESVIO_MODEL_ROUTING !== "0"
 const DEBUG = process.env.DESVIO_DEBUG === "1"
-const lifecycleMode = process.env.DESVIO_LIFECYCLE ?? "observe"
+const lifecycleMode = process.env.DESVIO_LIFECYCLE ?? "enforce"
 if (!["off", "observe", "enforce"].includes(lifecycleMode))
   throw new Error("Invalid DESVIO_LIFECYCLE")
 
@@ -198,10 +198,10 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
   const logged = new Set<string>()
   const store = new StateStore(join(LOG_DIR, "state.sqlite"))
   const base = () => ({
-    schema: 3,
+    schema: 4,
     eventID: crypto.randomUUID(),
     policy_version: POLICY_VERSION,
-    plugin_version: "0.2.0",
+    plugin_version: "0.4.0",
     sdk_version: "1.18.31",
     lifecycle_mode: MODEL_ROUTING ? lifecycleMode : "off",
     ts: new Date().toISOString(),
@@ -215,7 +215,7 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
     store,
     client,
     (MODEL_ROUTING ? lifecycleMode : "off") as "off" | "observe" | "enforce",
-    routeFor(process.env.DESVIO_BASELINE_AGENT ?? "coordinator"),
+    routeFor(process.env.DESVIO_BASELINE_AGENT ?? "build"),
     (record) => write(USAGE_LOG, { ...base(), ...record }),
   )
 
@@ -279,8 +279,16 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
         output.system.push(who.reviewAgent ? reviewRoutingInstructions : routingInstructions)
       if (who.worker && !who.reviewAgent) return
       output.system.push(
-        "desvio routing: For a narrow source question, use go_outline then read only the relevant " +
-          "section with offset/limit. For a question requiring broad context from large files, delegate " +
+        "Record blockers or readiness with task_status before returning: awaiting_input, capability_gap, " +
+          "validation_failed, ready_for_review. Never mark human acceptance yourself or invoke control accept. " +
+          "Use validate_command for checks with executable/argv and their real exit status; classify deliberate " +
+          "negative tests with expected_failure. Never infer check success from a piped bash exit code. " +
+          "Keep handoffs concise: decisions, changed paths, source revisions, checks and gaps. " +
+          "For unrelated work prefer a fresh session with a bounded handoff; baseline resets do not shrink context.",
+      )
+      output.system.push(
+        "desvio routing: For a narrow Go source question, use go_outline then read the relevant " +
+          "section with offset/limit. For other languages use repo_grep then a bounded read; go_outline only supports .go. For broad context, delegate " +
           "to bulk-reader with exact paths and one specific question. Pass paths, not pasted source. " +
           "Keep excluded paths (wallet, kyc, aml, payments, payouts, secrets, credentials and key/env files) " +
           "with the primary agent. Do not use bash or search output to bypass a blocked full read. " +
@@ -336,6 +344,7 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
         ),
         baseline_model: state ? modelKey(state.pin ?? state.baseline) : null,
         route_source: managed ? state?.run?.source : "agent-policy",
+        continuation_kind: state?.run?.continuationKind ?? inherited?.continuation_kind ?? null,
       }
       store.record(input.sessionID, output.message.id, attribution)
       sessionModels.set(input.sessionID, actual)
@@ -357,12 +366,13 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
       const args = output.args ?? {}
       const rawPath = args.filePath ?? args.path ?? args.file
       const path = typeof rawPath === "string" ? await canonicalPath(rawPath, directory) : null
+      const inherited = store.route(input.sessionID, "__session__")
       const record = {
         ...base(),
         ...who,
         tool: input.tool,
         callID: input.callID,
-        taskID: store.get(input.sessionID)?.run?.taskID ?? null,
+        taskID: store.get(input.sessionID)?.run?.taskID ?? inherited?.taskID ?? null,
         runID: store.get(input.sessionID)?.run?.id ?? null,
         path,
         targeted:
@@ -378,6 +388,22 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
       const deny = async (reason: string) => {
         await write(USAGE_LOG, { ...record, kind: "worker_denied", reason })
         throw new Error(`desvio: ${reason}. Keep excluded source with the primary agent.`)
+      }
+      if (input.tool === "task_status") {
+        pending.set(key(input), record)
+        return
+      }
+      if (["write", "edit", "apply_patch", "patch"].includes(input.tool) && who.reviewAgent)
+        return deny("review agents are read-only")
+      if (who.agent === "code-writer" && ["write", "edit"].includes(input.tool)) {
+        if (input.tool !== "write") return deny("code-writer may only create new files")
+        if (!path) return deny("code-writer requires a target path")
+        try {
+          await stat(path)
+          return deny("code-writer cannot overwrite an existing file")
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error
+        }
       }
       if (input.tool === "task" && who.reviewAgent) {
         if (!reviewWorkerAgents.has(args.subagent_type))
@@ -421,7 +447,7 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
               `desvio: ${path} is ${lines} lines (threshold ${threshold}). Full read blocked.`,
               "Pick one:",
               '  1. Delegate — task with subagent "bulk-reader", this path and ONE specific question.',
-              `  2. Target — go_outline, then read with offset and a positive limit <= ${threshold}.`,
+              `  2. Target — ${extname(path) === ".go" ? "go_outline" : "repo_grep for relevant symbols"}, then read with offset and a positive limit <= ${threshold}.`,
               "Do not retry an unbounded expensive-agent read.",
             ].join("\n"),
           )
@@ -434,6 +460,35 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
       pending.delete(key(input))
       if (!record) return
       const childID = output.metadata?.sessionId ?? output.metadata?.sessionID
+      if (input.tool === "task_status") {
+        await write(USAGE_LOG, {
+          ...record,
+          kind: "task_signal",
+          source: "agent-status",
+          outcome: output.metadata?.task_outcome,
+          ts: new Date().toISOString(),
+        })
+        return
+      }
+      if (input.tool === "validate_command") {
+        await write(USAGE_LOG, {
+          ...record,
+          kind: "validation",
+          ts: new Date().toISOString(),
+          exit_code: output.metadata?.exit ?? null,
+          expected_failure: output.metadata?.expected_failure,
+          passed: output.metadata?.passed,
+          aborted: output.metadata?.aborted,
+        })
+      }
+      const marker =
+        input.tool === "task" && typeof output.output === "string"
+          ? output.output.match(
+              /(?:^|\n)\s*(?:#{1,6}\s*)?(?:\*\*)?(CAPABILITY_GAP|MISSING_PLAN_SLICE|MISSING_REFERENCE)\b/,
+            )?.[1]
+          : undefined
+      const delegationOutcome =
+        marker === "CAPABILITY_GAP" ? "capability_gap" : marker ? "awaiting_input" : null
       await write(USAGE_LOG, {
         ...record,
         ts: new Date().toISOString(),
@@ -443,6 +498,8 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
         kind: logKind(input.tool),
         childSessionID: input.tool === "task" ? (childID ?? null) : undefined,
         delegation_completed: input.tool === "task" ? !output.metadata?.background : undefined,
+        delegation_outcome: delegationOutcome,
+        exit_code: input.tool === "bash" ? (output.metadata?.exit ?? null) : undefined,
         title: output.title ?? null,
       })
     },
@@ -470,7 +527,11 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
           if (e.type === "session.created" && info.parentID) {
             const parent =
               store.get(info.parentID)?.run ?? store.route(info.parentID, "__session__")
-            if (parent?.taskID) store.record(info.id, "__session__", { taskID: parent.taskID })
+            if (parent?.taskID)
+              store.record(info.id, "__session__", {
+                taskID: parent.taskID,
+                continuation_kind: parent.continuationKind ?? parent.continuation_kind ?? null,
+              })
           }
           await write(USAGE_LOG, {
             ...base(),

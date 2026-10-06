@@ -43,7 +43,7 @@ function fixture(mode: "observe" | "enforce" | "off" = "enforce") {
       },
     },
   }
-  const manager = new LifecycleManager(store, client, mode, routeFor("coordinator"), async (r) => {
+  const manager = new LifecycleManager(store, client, mode, routeFor("build"), async (r) => {
     log.push(r)
   })
   const complete = (id: string, finish = "stop", extra = {}) => {
@@ -86,21 +86,19 @@ function fixture(mode: "observe" | "enforce" | "off" = "enforce") {
   }
 }
 
-test("PR completes on GLM then restores Opus for the next ordinary design question", async () => {
+test("PR completes on GLM then restores Sonnet for the next ordinary design question", async () => {
   const f = fixture()
   await f.manager.command("root", "new-pr")
   expect(await f.manager.incoming("root", "pr", routeFor("bulk"))).toEqual(routeFor("bulk"))
   f.complete("pr")
   await f.idle()
-  expect(f.selection.agent).toBe("coordinator")
+  expect(f.selection.agent).toBe("build")
   expect(f.store.get("root")?.run?.status).toBe("completed")
-  expect(await f.manager.incoming("root", "design", routeFor("bulk"))).toEqual(
-    routeFor("coordinator"),
-  )
+  expect(await f.manager.incoming("root", "design", routeFor("bulk"))).toEqual(routeFor("build"))
   expect(f.log.filter((r) => r.kind === "reset_success")).toHaveLength(1)
   expect(f.calls()).toBe(6) // Only agent/model selection; no prompt endpoint exists in fixture.
 })
-test("restart retains manual pin and variant across command completion", async () => {
+test("commands return to build after restart while retaining the next-turn pin", async () => {
   const f = fixture(),
     state = initialState("root")
   state.pin = { ...routeFor("build"), variant: "high" }
@@ -112,7 +110,7 @@ test("restart retains manual pin and variant across command completion", async (
     f.store,
     f.client,
     "enforce",
-    routeFor("coordinator"),
+    routeFor("build"),
     async (r) => {
       f.log.push(r)
     },
@@ -122,13 +120,70 @@ test("restart retains manual pin and variant across command completion", async (
   expect(f.selection.model.variant).toBe("high")
   expect((await resumed.incoming("root", "next", routeFor("bulk")))?.variant).toBe("high")
 })
+
+test("all commands, including slash skills and custom agents, return to build", async () => {
+  for (const [command, route] of [
+    ["new-pr", routeFor("bulk")],
+    ["new-feat", routeFor("build")],
+    ["my-skill", routeFor("bulk")],
+    ["custom-command", { agent: "custom", providerID: "local", modelID: "custom" }],
+  ] as const) {
+    const f = fixture()
+    await f.manager.command("root", command)
+    await f.manager.incoming("root", "request", route)
+    f.complete("request")
+    await f.idle()
+    expect(f.selection.agent).toBe("build")
+    expect(f.selection.model.id).toBe("claude-sonnet-5")
+  }
+})
+
+test("a skill tool returns only at root completion and ignores old or child skill events", async () => {
+  const f = fixture()
+  const s = initialState("root")
+  s.pin = routeFor("bulk")
+  f.store.put(s)
+  await f.manager.incoming("root", "request", routeFor("bulk"))
+  f.store.record("root", "answer", { runID: "request" })
+  const skill = (sessionID: string, messageID: string) => ({
+    type: "message.part.updated",
+    properties: {
+      part: {
+        type: "tool",
+        tool: "skill",
+        sessionID,
+        messageID,
+        state: { status: "completed", input: { name: "release" } },
+      },
+    },
+  })
+  await f.manager.event(skill("root", "old-answer"))
+  await f.manager.event(skill("child", "answer"))
+  expect(f.store.get("root")?.run?.skill).toBeUndefined()
+  await f.manager.event(skill("root", "answer"))
+  expect(f.store.get("root")?.run?.skill).toBe("release")
+  expect(f.selection.agent).toBe("bulk")
+  f.complete("request", "tool-calls")
+  await f.idle()
+  expect(f.selection.agent).toBe("bulk")
+  f.complete("request")
+  await f.idle()
+  expect(f.selection.agent).toBe("bulk")
+  const custom = { agent: "custom", providerID: "local", modelID: "custom" }
+  await f.manager.incoming("root", "custom-request", custom)
+  f.store.record("root", "custom-answer", { runID: "custom-request" })
+  await f.manager.event(skill("root", "custom-answer"))
+  f.complete("custom-request")
+  await f.idle()
+  expect(f.selection.agent).toBe("bulk")
+})
 test("explicit continuation reuses task and executor; ordinary free text does not", () => {
   let s = initialState("root")
   s.command = { name: "new-pr", at: Date.now() }
   s = settle(begin(s, "a", routeFor("bulk")), "a", "completed")
   expect(begin(s, "yes", routeFor("bulk")).run?.source).toBe("baseline")
   s.continueTask = "a"
-  const next = begin(s, "b", routeFor("coordinator"))
+  const next = begin(s, "b", routeFor("build"))
   expect(next.run?.taskID).toBe("a")
   expect(next.run?.route.agent).toBe("bulk")
   expect(next.continueTask).toBeUndefined()
@@ -208,7 +263,7 @@ test("terminal errors and aborts restore baseline without recording success", as
     f.complete("a", "stop", { error: { name } })
     await f.idle()
     expect(f.store.get("root")?.run?.status).toBe(outcome)
-    expect(f.selection.agent).toBe("coordinator")
+    expect(f.selection.agent).toBe("build")
   }
   expect(terminalOutcome({ finish: "length", time: { completed: 3 } })).toBe("failed")
 })
@@ -220,6 +275,10 @@ test("observe and off perform no API model changes", async () => {
     f.complete("a")
     await f.idle()
     expect(f.calls()).toBe(0)
+    expect(f.log.filter((r) => r.kind === "reset_attempt")).toHaveLength(0)
+    expect(f.log.filter((r) => r.kind === "reset_observed")).toHaveLength(
+      mode === "observe" ? 1 : 0,
+    )
   }
 })
 test("failed reset reconciliation stays pending and never emits success", async () => {
@@ -231,6 +290,29 @@ test("failed reset reconciliation stays pending and never emits success", async 
   expect(f.store.get("root")?.resetPending).toBe(true)
   expect(f.log.filter((r) => r.kind === "reset_success")).toHaveLength(0)
   expect(f.log.at(-1).kind).toBe("reconciliation_failed")
+})
+
+test("enforcement recovers stale bulk after an observed command, even without an idle reset", async () => {
+  for (const finish of [false, true]) {
+    const f = fixture("observe")
+    await f.manager.command("root", "new-pr")
+    await f.manager.incoming("root", "pr", routeFor("bulk"))
+    if (finish) {
+      f.complete("pr")
+      await f.idle()
+    }
+    expect(f.selection.agent).toBe("bulk")
+    const enforced = new LifecycleManager(
+      f.store,
+      f.client,
+      "enforce",
+      routeFor("build"),
+      async () => {},
+    )
+    expect(await enforced.incoming("root", "design", routeFor("bulk"))).toEqual(routeFor("build"))
+    expect(f.selection.agent).toBe("build")
+    expect(f.selection.model.id).toBe("claude-sonnet-5")
+  }
 })
 test("unmanaged routes are preserved; child input is not rerouted", async () => {
   const f = fixture(),
@@ -252,10 +334,10 @@ test("unavailable models fail before selection and a repaired admission can be r
     f.store,
     { ...f.client, provider: undefined },
     "enforce",
-    routeFor("coordinator"),
+    routeFor("build"),
     async () => {},
   )
-  expect(await recovered.incoming("root", "a", routeFor("bulk"))).toEqual(routeFor("coordinator"))
+  expect(await recovered.incoming("root", "a", routeFor("bulk"))).toEqual(routeFor("build"))
   expect(f.store.get("root")?.run?.status).toBe("running")
 })
 
@@ -309,4 +391,38 @@ test("store serializes multiple connections and preserves immutable attribution"
   } finally {
     second.close()
   }
+})
+
+test("old session baselines migrate at admission while explicit pins and continuations survive", async () => {
+  const f = fixture()
+  const old = initialState("root", routeFor("coordinator"))
+  delete old.baselinePolicy
+  f.store.put(old)
+  expect(await f.manager.incoming("root", "new", routeFor("coordinator"))).toEqual(
+    routeFor("build"),
+  )
+  f.complete("new")
+  await f.idle()
+  const state = f.store.get("root")!
+  state.pin = routeFor("coordinator")
+  delete state.baselinePolicy
+  f.store.put(state)
+  expect(await f.manager.incoming("root", "pinned", routeFor("build"))).toEqual(
+    routeFor("coordinator"),
+  )
+})
+
+test("correction and scope continuations retain task identity with distinct labels", () => {
+  let s = initialState("root")
+  s.command = { name: "new-pr", at: Date.now() }
+  s = settle(begin(s, "first", routeFor("bulk")), "first", "completed")
+  s.continueTask = "first"
+  s.continuationKind = "defect"
+  const corrected = begin(s, "correction", routeFor("build"))
+  expect(corrected.run?.taskID).toBe("first")
+  expect(corrected.run?.continuationKind).toBe("defect")
+  expect(corrected.run?.route.agent).toBe("bulk")
+  expect(corrected.continuationKind).toBeUndefined()
+  s.continuationKind = "scope_change"
+  expect(begin(s, "scope", routeFor("build")).run?.continuationKind).toBe("scope_change")
 })
