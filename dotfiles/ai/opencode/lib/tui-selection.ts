@@ -13,7 +13,7 @@ export type LocalSelection = {
   }
 }
 
-/** OpenCode 1.18.33/1.18.34 have no public TUI selection setter. Keep this compatibility
+/** OpenCode 1.18.33–1.18.35 have no public TUI selection setter. Keep this compatibility
  * boundary isolated: the app slot shares the host's Solid LocalProvider context.
  * Never cycle agents blindly or rewrite conversation messages to change the UI.
  */
@@ -21,7 +21,7 @@ export function localSelection(
   owner: { context?: object | null; owner?: unknown } | null,
   version: string,
 ): LocalSelection {
-  if (!["1.18.33", "1.18.34"].includes(version))
+  if (!["1.18.33", "1.18.34", "1.18.35"].includes(version))
     throw new Error(`Desvio TUI selection is unverified on OpenCode ${version}`)
   for (let node: any = owner; node; node = node.owner) {
     for (const key of Reflect.ownKeys(node.context ?? {})) {

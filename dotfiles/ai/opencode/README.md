@@ -20,7 +20,13 @@ for other Datadog sites.
   routes and resets; `off` retains the original model-by-agent routing.
   `DESVIO_BASELINE_AGENT=build` selects the Sonnet baseline; Home Manager tags usage with
   `DESVIO_EXPERIMENT=sonnet-baseline-v4`. Restart the shell and OpenCode after applying.
-  Pre-v4 stored baselines migrate on the next input, preserving pins and continuation routes.
+  Stored baselines reconcile with the running configuration on every new input, even when
+  the policy version is unchanged, preserving pins and continuation routes. A shell left open
+  across activation can still export `DESVIO_BASELINE_AGENT=coordinator`: source
+  `~/.envs/opencode.sh` in the launching shell and restart OpenCode after applying. Updating
+  files does not update the environment or loaded plugin of an existing process.
+  Logs include `configured_baseline` and `baseline_source`; the report warns about ordinary
+  runs using a reasoning-model baseline even when model-mismatch counts are zero.
 - Every command, including slash skills, returns to the baseline or pin after a terminal response and
   an idle root. A skill loaded through the `skill` tool returns when the enclosing root run ends,
   not when the skill text loads. Ordinary runs return to their baseline or explicit pin.
@@ -29,13 +35,13 @@ for other Datadog sites.
   the active run. Ordinary free text is a new task; it is never classified as an approval by
   keyword. Use `/desvio-continue` for a completed task's follow-up. Unknown agents stay
   unmanaged unless they invoke a command or skill. Commands temporarily override managed pins.
-- `tui.json` loads the Desvio terminal bridge. OpenCode 1.18.33/1.18.34 keep its prompt selector separate
+- `tui.json` loads the Desvio terminal bridge. OpenCode 1.18.33–1.18.35 keep its prompt selector separate
   from saved session selection; the bridge synchronizes the visible primary agent/model/variant
   and restores them when reopening a completed session. Background sessions cannot change the
   active session's selector. This uses a version-checked internal LocalProvider adapter because
   the public TUI plugin API has no selection setter. Other CLI versions show a compatibility
   error instead of guessing. Revalidate `bun scripts/smoke.ts --tui` before upgrading OpenCode.
-- Verified on OpenCode 1.18.34 (also supports 1.18.33) with plugin/SDK 1.18.31. Completion/next-turn restoration works;
+- Verified on OpenCode 1.18.35 (also supports 1.18.33/1.18.34) with plugin/SDK 1.18.31. Completion/next-turn restoration works;
   **automatic model handoff within a running legacy loop is unavailable**. That limitation
   does not prevent restoration between completed tasks. Selection changes alone cannot establish
   that a running model changed; the smoke test verifies the next actual provider request too.

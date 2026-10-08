@@ -5,6 +5,7 @@ import {
   modelKey,
   POLICY_VERSION,
   type Route,
+  sameRoute,
   settle,
   terminalOutcome,
 } from "./lifecycle"
@@ -51,13 +52,17 @@ export class LifecycleManager {
     const info = await this.api.info(sessionID)
     if (info.parentID) return
     return this.store.locked(sessionID, async () => {
-      const before = this.store.get(sessionID) ?? initialState(sessionID, this.baseline)
-      // Upgrade old session baselines only at the next admission; retain explicit pins
-      // and continuation routes, and never alter a currently executing loop.
-      if (before.baselinePolicy !== POLICY_VERSION && before.run?.messageID !== messageID) {
-        before.baseline = this.baseline
-        before.baselinePolicy = POLICY_VERSION
-      }
+      let before = this.store.get(sessionID) ?? initialState(sessionID, this.baseline)
+      const previousBaseline = before.baseline
+      // Configuration can change without a policy-version bump (for example, after
+      // restarting a shell that still exported the old coordinator baseline).
+      // Reconcile on each new admission, preserving explicit pins, continuations,
+      // and the immutable route of a retry or an already executing run.
+      const baselineChanged =
+        before.run?.messageID !== messageID &&
+        (before.baselinePolicy !== POLICY_VERSION || !sameRoute(before.baseline, this.baseline))
+      if (baselineChanged)
+        before = { ...before, baseline: this.baseline, baselinePolicy: POLICY_VERSION }
       const s = begin(before, messageID, requested)
       if (s === before) {
         if (this.mode !== "enforce") return
@@ -85,6 +90,8 @@ export class LifecycleManager {
         source: s.run!.source,
         continuation_kind: s.run!.continuationKind ?? null,
         baseline: s.baseline,
+        baseline_changed: baselineChanged,
+        previous_baseline: baselineChanged ? previousBaseline : null,
         previous_route: before.run?.route ?? null,
         selected_route: route,
         mode: this.mode,

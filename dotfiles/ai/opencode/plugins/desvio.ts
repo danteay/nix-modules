@@ -197,11 +197,12 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
   const pending = new Map<string, Record<string, any>>()
   const logged = new Set<string>()
   const store = new StateStore(join(LOG_DIR, "state.sqlite"))
+  const configuredBaseline = routeFor(process.env.DESVIO_BASELINE_AGENT ?? "build")
   const base = () => ({
     schema: 4,
     eventID: crypto.randomUUID(),
     policy_version: POLICY_VERSION,
-    plugin_version: "0.4.0",
+    plugin_version: "0.4.1",
     sdk_version: "1.18.31",
     lifecycle_mode: MODEL_ROUTING ? lifecycleMode : "off",
     ts: new Date().toISOString(),
@@ -210,12 +211,14 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
     routing_enabled: ENABLED,
     model_routing: MODEL_ROUTING,
     experiment: process.env.DESVIO_EXPERIMENT ?? null,
+    configured_baseline: configuredBaseline,
+    baseline_source: process.env.DESVIO_BASELINE_AGENT ? "environment" : "default",
   })
   const lifecycle = new LifecycleManager(
     store,
     client,
     (MODEL_ROUTING ? lifecycleMode : "off") as "off" | "observe" | "enforce",
-    routeFor(process.env.DESVIO_BASELINE_AGENT ?? "build"),
+    configuredBaseline,
     (record) => write(USAGE_LOG, { ...base(), ...record }),
   )
 
