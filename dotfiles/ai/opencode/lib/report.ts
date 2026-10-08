@@ -381,6 +381,12 @@ function buildReport(agg: Aggregation, modern: Rec[], records: Rec[]) {
   const completed = Object.values(tasks).filter((t) => t.outcome === "completed")
   const modeOf = (r: Rec) => r.mode ?? r.lifecycle_mode
   const begins = modern.filter((r) => r.kind === "lifecycle" && r.action === "begin")
+  const reasoningBaselines = begins.filter(
+    (r) =>
+      modeOf(r) === "enforce" &&
+      r.source === "baseline" &&
+      modelRole(`${r.selected_route?.providerID}/${r.selected_route?.modelID}`) === "reasoning",
+  ).length
   const proposals = new Map(
     records
       .filter((r) => r.kind === "lifecycle" && r.action === "begin" && modeOf(r) === "observe")
@@ -432,6 +438,10 @@ function buildReport(agg: Aggregation, modern: Rec[], records: Rec[]) {
       observed: hasLifecycle,
       observed_runs: hasLifecycle ? begins.filter((r) => modeOf(r) === "observe").length : null,
       enforced_runs: hasLifecycle ? begins.filter((r) => modeOf(r) === "enforce").length : null,
+      reasoning_baseline_runs: hasLifecycle ? reasoningBaselines : null,
+      baseline_reconciliations: hasLifecycle
+        ? begins.filter((r) => r.baseline_changed).length
+        : null,
       shadow_route_checks: hasLifecycle ? shadowChecks.length : null,
       shadow_route_differences: hasLifecycle
         ? shadowChecks.filter((r) => {
@@ -486,6 +496,11 @@ function buildReport(agg: Aggregation, modern: Rec[], records: Rec[]) {
       "completed_tasks/per_completed_task and rework_* are legacy names: terminal responses are not acceptance; rereads are not defects.",
       "Acceptance is explicit user-control input; absent acceptance or correction labels mean unmeasured, not successful or defect-free.",
       "Shell exit status describes the shell, not nested checks. Use validation records for actual executable exit status.",
+      ...(reasoningBaselines
+        ? [
+            `WARNING: ${reasoningBaselines} ordinary runs used a reasoning-model baseline. Check the running process's DESVIO_BASELINE_AGENT and stored session baseline; zero model mismatches only means the selected policy was followed.`,
+          ]
+        : []),
       ...(begins.some((r) => modeOf(r) === "observe")
         ? [
             "Observe mode does not restore models. Shadow route differences compare proposed routes with selected routes; zero model mismatches does not prove lifecycle enforcement.",

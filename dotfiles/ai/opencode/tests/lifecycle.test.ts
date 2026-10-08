@@ -426,3 +426,57 @@ test("correction and scope continuations retain task identity with distinct labe
   s.continuationKind = "scope_change"
   expect(begin(s, "scope", routeFor("build")).run?.continuationKind).toBe("scope_change")
 })
+
+test("same-policy Opus baseline follows changed configuration on next admission and reset", async () => {
+  const f = fixture()
+  // A stale shell wrote coordinator with the CURRENT policy version, not a legacy version.
+  f.store.put(initialState("root", routeFor("coordinator")))
+  expect(await f.manager.incoming("root", "new", routeFor("coordinator"))).toEqual(
+    routeFor("build"),
+  )
+  expect(f.log[0]).toMatchObject({
+    baseline_changed: true,
+    previous_baseline: routeFor("coordinator"),
+    baseline: routeFor("build"),
+  })
+  f.complete("new")
+  await f.idle()
+  expect(f.selection.agent).toBe("build")
+  await f.manager.command("root", "new-pr")
+  expect(await f.manager.incoming("root", "pr", routeFor("bulk"))).toEqual(routeFor("bulk"))
+  f.complete("pr")
+  await f.idle()
+  expect(f.selection.agent).toBe("build")
+})
+
+test("same-policy reconciliation preserves explicit pins and task continuations", async () => {
+  for (const mode of ["pin", "continue"] as const) {
+    const f = fixture()
+    let s = initialState("root", routeFor("coordinator"))
+    s = settle(begin(s, "decision", routeFor("coordinator")), "decision", "completed")
+    if (mode === "pin") s.pin = routeFor("coordinator")
+    else s.continueTask = "decision"
+    f.store.put(s)
+    expect(await f.manager.incoming("root", "next", routeFor("build"))).toEqual(
+      routeFor("coordinator"),
+    )
+    expect(f.store.get("root")?.baseline).toEqual(routeFor("build"))
+    if (mode === "continue") expect(f.store.get("root")?.run?.taskID).toBe("decision")
+    f.complete("next")
+    await f.idle()
+    expect(f.selection.agent).toBe(mode === "pin" ? "coordinator" : "build")
+  }
+})
+
+test("baseline configuration changes do not reroute an in-flight admission retry", async () => {
+  const f = fixture()
+  const s = begin(initialState("root", routeFor("coordinator")), "running", routeFor("coordinator"))
+  f.store.put(s)
+  expect(await f.manager.incoming("root", "running", routeFor("build"))).toEqual(
+    routeFor("coordinator"),
+  )
+  expect(f.store.get("root")?.baseline).toEqual(routeFor("coordinator"))
+  expect(await f.manager.incoming("root", "next", routeFor("coordinator"))).toEqual(
+    routeFor("build"),
+  )
+})

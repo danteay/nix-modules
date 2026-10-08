@@ -17,6 +17,37 @@ const message = (extra: Record<string, any> = {}) => ({
   cost: 1,
   ...extra,
 })
+test("an expensive ordinary baseline is visible even with zero model mismatches", () => {
+  const begin = {
+    schema: 4,
+    kind: "lifecycle",
+    action: "begin",
+    sessionID: "p",
+    mode: "enforce",
+    source: "baseline",
+    selected_route: { agent: "coordinator", providerID: "anthropic", modelID: "claude-opus-5" },
+  }
+  const s = summarize([
+    begin,
+    { ...begin, source: "manual-pin" },
+    { ...begin, source: "command:decision" },
+    { ...begin, mode: "observe" },
+    message({ modelID: "claude-opus-5", expected_model: "anthropic/claude-opus-5" }),
+  ])
+  expect(s.routing.model_mismatches).toBe(0)
+  expect(s.lifecycle.reasoning_baseline_runs).toBe(1)
+  expect(s.notes.some((n) => n.includes("WARNING: 1 ordinary runs"))).toBe(true)
+  const fixed = summarize([
+    {
+      ...begin,
+      selected_route: { providerID: "anthropic", modelID: "claude-sonnet-5" },
+      baseline_changed: true,
+    },
+  ])
+  expect(fixed.lifecycle.reasoning_baseline_runs).toBe(0)
+  expect(fixed.lifecycle.baseline_reconciliations).toBe(1)
+  expect(fixed.notes.some((n) => n.includes("WARNING:"))).toBe(false)
+})
 test("reasoning and both caches are separate in every aggregation", () => {
   const s = summarize([message({ taskID: "task", runID: "run" })])
   for (const b of [

@@ -5,6 +5,8 @@ import { mkdir, mkdtemp, readFile, realpath, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { pathToFileURL } from "node:url"
+import { initialState, routeFor } from "../lib/lifecycle"
+import { StateStore } from "../lib/state"
 
 const dir = await realpath(await mkdtemp(join(tmpdir(), "desvio-smoke-")))
 const requests: string[] = []
@@ -310,6 +312,11 @@ try {
   type SessionState = { agent: string; model?: { id: string } }
   console.log("smoke: server ready; creating session")
   const session = await call<SessionRef>("/session", { title: "Desvio mock lifecycle" })
+  // Reproduce a stale shell persisting an Opus baseline under the current policy.
+  // The new runtime must reconcile it even though its policy version already matches.
+  const staleStore = new StateStore(join(dir, "desvio/state.sqlite"))
+  staleStore.put(initialState(session.id, routeFor("coordinator")))
+  staleStore.close()
   if (checkTui) {
     terminal = Bun.spawn(
       [
