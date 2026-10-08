@@ -7,5 +7,8 @@ in
   home.packages = with pkgs; [
     (writeShellScriptBin "update-node-deps" "${updateNodeDeps}")
     (writeShellScriptBin "set-serverless-version" "${setServerlessVersion}")
+    (writeShellScriptBin "disk-clean" ''
+      exec ${python3}/bin/python3 ${../../dotfiles/scripts/disk-clean.py} "$@"
+    '')
   ];
 }
