@@ -1,7 +1,7 @@
 ---
 description: Run the project's build, lint and test checks with real exit codes, fix what the current change broke, and report
 agent: build
-model: anthropic/claude-sonnet-5
+model: anthropic/claude-sonnet-5-5
 ---
 
 Run checks and fix failures on Sonnet `build`. Do not commit; do not change test expectations to

@@ -73,7 +73,7 @@ for other Datadog sites.
 - The primary agent uses `go_outline` only for Go, or `repo_grep` for other languages,
   followed by a targeted read for narrow questions. It
   delegates broad file questions to bulk-reader. The Go threshold remains 200 lines.
-- GLM sessions may read large eligible files directly. Other models, including Sonnet feature
+- Bulk-role sessions (Haiku) may read large eligible files directly. Other models, including Sonnet feature
   builders and Opus reviewers, use the size guard. A targeted read needs a positive integer
   `limit` no larger than the language threshold; `offset` alone does not bypass it. Worker reads/writes
   and outlines check excluded paths, including symlink targets, before offset/limit.
@@ -94,12 +94,25 @@ Claude agents use Anthropic directly. The configured routes are:
 
 | Work | Agents | Model |
 |---|---|---|
-| Explicit bounded reasoning | `coordinator` | `anthropic/claude-opus-5` |
-| Defined execution, integration, routine review | `build`, `edit`, `general`, `feature-builder`, `code-reviewer`, `tester`, `refactorer`, `devops`, `documentor` | `anthropic/claude-sonnet-5` |
-| Hard decisions | `plan`, `architect`, `reasoner` | `anthropic/claude-opus-5` |
-| Context, reference-based boilerplate, prose, utility commands | `bulk`, `explorer`, `explore`, `bulk-reader`, `code-writer`, `doc-writer` | `opencode/glm-5.3` |
+| Explicit bounded reasoning | `coordinator` | `anthropic/claude-opus-5-5` |
+| Defined execution, integration, routine review | `build`, `edit`, `general`, `feature-builder`, `code-reviewer`, `tester`, `refactorer`, `devops`, `documentor` | `anthropic/claude-sonnet-5-5` |
+| Hard decisions | `plan`, `architect`, `reasoner` | `anthropic/claude-opus-5-5` |
+| Context, reference-based boilerplate, prose, utility commands | `bulk`, `explorer`, `explore`, `bulk-reader`, `code-writer`, `doc-writer` | `anthropic/claude-haiku-5-5` |
 
-The default is Sonnet `build`; `small_model` is GLM 5.3. Utility commands explicitly choose
+Model versions (October 12, 2026): Opus 5.5 replaced Opus 5 for the reasoning role (same tier,
+$4/$20 per MTok, cache reads $0.20 instead of $0.50) and Sonnet 5.5 replaced Sonnet 5 for
+execution (same list price, cache reads $0.10). Haiku 5.5 replaced GLM 5.3 for the bulk role
+after a three-question read-only comparison on the API repo (3/3 correct for both, Haiku
+$0.147 versus Haiku $0.471; details in [the October 12 audit](reports/routing-audit-2026-10-12.md)).
+Haiku bills $0.10/$0.50 per MTok for prompts up to 100K tokens and $0.50/$2.50 above that; bulk
+prompts usually sit above 100K and were still about three times cheaper. To go back to Haiku,
+change `models.bulk` in `lib/routing.ts` plus the matching `model:` lines in `opencode.json`,
+`agents/` and `commands/` (the desvio test checks they agree). `modelRole` reports both
+`glm-*` and `claude-haiku-*` as bulk. `pricing.json` carries the new rates; the Haiku
+long-context tier cannot be expressed by the fallback estimator, so reported cost stays
+authoritative.
+
+The default is Sonnet `build`; `small_model` is Haiku 5.5. Utility commands explicitly choose
 `bulk` (`/new-pr`, `/commit`, `/linear-task`, `/bulk-read`, `/scaffold`, `/outline`, `/usage`);
 feature, architecture-task, PR-review, PR-comment, rebase, check and investigation commands
 choose Sonnet `build` (`/new-feat`, `/new-arch-task`, `/review-pr`, `/fix-pr-comments`,
@@ -113,7 +126,7 @@ session devoted to hard reasoning. `reasoner` resolves a
 single difficult correctness/security/debugging question; `architect` handles structural tradeoffs.
 The model decides when such a task is warranted from the routing instructions and command gates;
 Desvio enforces the model for the selected role, not the correctness of that difficulty judgment.
-The built-in `explore` also has an explicit GLM model and permitted search/read tools;
+The built-in `explore` also has an explicit Haiku model and permitted search/read tools;
 `explorer` remains the narrower location-only worker.
 Unknown custom agents retain their selected models. No per-turn model-classifier call is needed.
 
@@ -194,10 +207,10 @@ Linear create or update; this command never implements the planned work.
 
 ```
 /fix-pr-comments [pr]            # Sonnet build: triage threads, verify claimed errors, fix, push, reply
-/commit [context|push]           # GLM bulk: group the working tree into conventional commits
+/commit [context|push]           # Haiku bulk: group the working tree into conventional commits
 /rebase [base-branch]            # Sonnet build: fetch, rebase, resolve conflicts, rerun checks
 /check [command ...]             # Sonnet build: run build/lint/test with real exit codes, fix
-/linear-task <issue> <changes>   # GLM bulk: update an issue or add subtasks after confirmation
+/linear-task <issue> <changes>   # Haiku bulk: update an issue or add subtasks after confirmation
 /investigate <symptom> [svc env window]  # Sonnet build: Datadog + git evidence, ranked hypotheses
 ```
 
@@ -215,7 +228,7 @@ escalates at most one unclear correctness/security claim to `reasoner`. `/commit
 /new-pr [base-branch] [additional context for the commit and PR description]
 ```
 
-The command runs with `opencode/glm-5.3` on the `bulk` agent. It commits remaining changes,
+The command runs with `anthropic/claude-haiku-5-5` on the `bulk` agent. It commits remaining changes,
 syncs with `origin/<base-branch>`, pushes the branch, checks for an existing open PR, and creates one
 against that base using the Draftea PR template when needed. The base defaults to `main`: use
 `/new-pr develop` to target `develop`, or `/new-pr main <context>` to add context with the default
@@ -370,7 +383,7 @@ The TUI exposes `/desvio-continue`, `/desvio-correct`, `/desvio-scope`, `/desvio
 and `/desvio-bulk`. Select the control, then send your follow-up normally. Controls require local Desvio state; remote-server attachment is not
 supported for controls. Missing state is an error and never silently creates a replacement.
 
-The smoke test starts an isolated OpenCode server and local mock providers, verifies actual GLM
+The smoke test starts an isolated OpenCode server and local mock providers, verifies actual Haiku
 command execution, saved Sonnet restoration and Sonnet execution on a stale bulk follow-up, then stops
 the server. It also delegates a real write/edit using the shipped worker permissions. It uses no paid APIs or existing sessions. Artifacts remain in a printed temporary
 directory. `--tui` also starts a disposable terminal through Python 3's PTY module, checks the

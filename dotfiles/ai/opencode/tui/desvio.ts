@@ -28,7 +28,7 @@ const tui: TuiPlugin = async (api) => {
       "coordinator",
       "sticky",
     ],
-    ["desvio-bulk", "Pin GLM utility work", "pin", "bulk"],
+    ["desvio-bulk", "Pin Haiku utility work", "pin", "bulk"],
   ]
   const unregister = api.keymap.registerLayer({
     commands: actions.map(([name, title, action, value, scope]) => ({

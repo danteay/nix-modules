@@ -1,7 +1,7 @@
 ---
 description: Ask a question about one or more large files via the cheap bulk-reader subagent
 agent: bulk
-model: opencode/glm-5.3
+model: anthropic/claude-haiku-5-5
 ---
 
 Use the task tool with subagent `bulk-reader` to answer the following, then report its bullets

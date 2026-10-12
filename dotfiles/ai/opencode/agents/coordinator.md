@@ -1,7 +1,7 @@
 ---
 description: Resolves one bounded hard decision on Opus and hands execution back to Sonnet build; never implements
 mode: primary
-model: anthropic/claude-opus-5
+model: anthropic/claude-opus-5-5
 permission:
   edit: deny
   bash:
@@ -23,7 +23,7 @@ Your job on each message:
    when a decision depends on something only the user knows.
 2. Make only the decisions needed to unblock execution: architecture, contracts, tradeoffs, a
    hard correctness or security call. Reuse supplied evidence; read narrowly (`go_outline`,
-   `repo_grep`, targeted `read`) or delegate broad context to `bulk-reader` (GLM).
+   `repo_grep`, targeted `read`) or delegate broad context to `bulk-reader` (Haiku).
 3. Return the decision and a concrete execution checklist: files, changes, checks to run,
    acceptance criteria, open risks. Keep it tight; Sonnet executes it next.
 

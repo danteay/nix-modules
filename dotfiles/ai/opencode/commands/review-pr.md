@@ -1,7 +1,7 @@
 ---
 description: Multi-agent code review over a pull request — writes full findings to .review-<pr>.md, then posts one consolidated GitHub review
 agent: build
-model: anthropic/claude-sonnet-5
+model: anthropic/claude-sonnet-5-5
 ---
 
 Conduct a multi-agent code review over a pull request, write the full findings to a local
@@ -170,7 +170,7 @@ in the final output so the gating is transparent — never silently drop an agen
 The coordinator and routine reviewers use Sonnet. Architect uses Opus only for its bounded
 decision. For a difficult unresolved correctness/security question, gather evidence first and
 send that question to `reasoner`; do not restart every reviewer on Opus. User corrections to
-severity, formatting and posting remain on Sonnet. Reuse eligible GLM context summaries across
+severity, formatting and posting remain on Sonnet. Reuse eligible Haiku context summaries across
 reviewers, with source references and relevant diff slices; avoid rediscovering the same files.
 
 ### Prompt payload — every dispatched agent gets

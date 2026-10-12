@@ -1,7 +1,7 @@
 ---
 description: Commit, sync, push, and open a pull request to a base branch (default main)
 agent: bulk
-model: opencode/glm-5.3
+model: anthropic/claude-haiku-5-5
 ---
 
 Create a pull request from the current branch. This command supports two workflows and automatically detects which one applies — do NOT ask the user to choose unless detection is inconclusive.

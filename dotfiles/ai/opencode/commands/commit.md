@@ -1,10 +1,10 @@
 ---
 description: Group uncommitted work into conventional commits, confirm the plan, then commit (push only when asked)
 agent: bulk
-model: opencode/glm-5.3
+model: anthropic/claude-haiku-5-5
 ---
 
-Turn the working tree into well-formed commits. This is utility work on GLM; it never
+Turn the working tree into well-formed commits. This is utility work on Haiku; it never
 decides what the code should do. If a change looks wrong or incomplete, say so and let the user
 decide; do not "fix" it here.
 

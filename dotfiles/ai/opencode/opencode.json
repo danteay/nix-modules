@@ -1,7 +1,7 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "anthropic/claude-sonnet-5",
-  "small_model": "opencode/glm-5.3",
+  "model": "anthropic/claude-sonnet-5-5",
+  "small_model": "anthropic/claude-haiku-5-5",
   "default_agent": "build",
   "subagent_depth": 2,
   "mcp": {
@@ -27,7 +27,7 @@
   "agent": {
     "build": {
       "mode": "primary",
-      "model": "anthropic/claude-sonnet-5",
+      "model": "anthropic/claude-sonnet-5-5",
       "permission": {
         "edit": "allow",
         "bash": {
@@ -49,7 +49,7 @@
     },
     "plan": {
       "mode": "primary",
-      "model": "anthropic/claude-opus-5",
+      "model": "anthropic/claude-opus-5-5",
       "permission": {
         "edit": "deny",
         "bash": {
@@ -63,7 +63,7 @@
     },
     "edit": {
       "mode": "primary",
-      "model": "anthropic/claude-sonnet-5",
+      "model": "anthropic/claude-sonnet-5-5",
       "permission": {
         "edit": "allow",
         "bash": {
@@ -75,7 +75,7 @@
     "bulk": {
       "description": "Run defined bulk operations and utility commands with GLM; escalate unresolved decisions to the appropriate specialist.",
       "mode": "primary",
-      "model": "opencode/glm-5.3",
+      "model": "anthropic/claude-haiku-5-5",
       "permission": {
         "edit": "allow",
         "bash": {
@@ -97,11 +97,11 @@
     },
     "general": {
       "mode": "subagent",
-      "model": "anthropic/claude-sonnet-5"
+      "model": "anthropic/claude-sonnet-5-5"
     },
     "explore": {
       "mode": "subagent",
-      "model": "opencode/glm-5.3",
+      "model": "anthropic/claude-haiku-5-5",
       "tools": {
         "bash": false,
         "grep": false,
@@ -123,7 +123,7 @@
     "coordinator": {
       "description": "Resolves one bounded hard decision on Opus and hands execution back to Sonnet build; never implements",
       "mode": "primary",
-      "model": "anthropic/claude-opus-5",
+      "model": "anthropic/claude-opus-5-5",
       "permission": {
         "edit": "deny",
         "bash": {

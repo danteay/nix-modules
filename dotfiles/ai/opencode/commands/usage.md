@@ -1,7 +1,7 @@
 ---
 description: Show desvio usage and cost report for the current experiment
 agent: bulk
-model: opencode/glm-5.3
+model: anthropic/claude-haiku-5-5
 ---
 
 Run this and show me the output verbatim:

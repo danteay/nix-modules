@@ -1,7 +1,7 @@
 ---
 description: Implements one approved feature component in source or configuration files, using an explicit plan slice and repository evidence
 mode: subagent
-model: anthropic/claude-sonnet-5
+model: anthropic/claude-sonnet-5-5
 temperature: 0.1
 permission:
   "*": deny
