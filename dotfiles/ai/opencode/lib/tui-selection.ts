@@ -13,9 +13,14 @@ export type LocalSelection = {
   }
 }
 
-/** OpenCode 1.18.33–1.18.35 have no public TUI selection setter. Keep this compatibility
- * boundary isolated: the app slot shares the host's Solid LocalProvider context.
- * Never cycle agents blindly or rewrite conversation messages to change the UI.
+/** Verified OpenCode versions: the TUI selection setter is not public, so the bridge reaches
+ * into the host's Solid LocalProvider context. Add a version only after
+ * `bun scripts/smoke.ts --tui` passes on it. */
+export const VERIFIED_TUI_VERSIONS = ["1.18.33", "1.18.34", "1.18.35", "1.19.0"]
+
+/** Keep this compatibility boundary isolated: the app slot shares the host's Solid
+ * LocalProvider context. Never cycle agents blindly or rewrite conversation messages to
+ * change the UI.
  */
 type OwnerNode = { context?: Record<PropertyKey, unknown> | null; owner?: unknown }
 const isSelection = (value: unknown): value is LocalSelection => {
@@ -31,7 +36,7 @@ const isSelection = (value: unknown): value is LocalSelection => {
 }
 
 export function localSelection(owner: OwnerNode | null, version: string): LocalSelection {
-  if (!["1.18.33", "1.18.34", "1.18.35"].includes(version))
+  if (!VERIFIED_TUI_VERSIONS.includes(version))
     throw new Error(`Desvio TUI selection is unverified on OpenCode ${version}`)
   for (let node = owner; node; node = (node.owner ?? null) as OwnerNode | null) {
     const context = node.context ?? {}

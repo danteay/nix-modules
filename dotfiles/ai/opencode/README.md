@@ -53,13 +53,14 @@ for other Datadog sites.
   the active run. Ordinary free text is a new task; it is never classified as an approval by
   keyword. Use `/desvio-continue` for a completed task's follow-up. Unknown agents stay
   unmanaged unless they invoke a command or skill. Commands temporarily override managed pins.
-- `tui.json` loads the Desvio terminal bridge. OpenCode 1.18.33–1.18.35 keep its prompt selector separate
+- `tui.json` loads the Desvio terminal bridge. OpenCode 1.18.33–1.19.0 keep its prompt selector separate
   from saved session selection; the bridge synchronizes the visible primary agent/model/variant
   and restores them when reopening a completed session. Background sessions cannot change the
   active session's selector. This uses a version-checked internal LocalProvider adapter because
   the public TUI plugin API has no selection setter. Other CLI versions show a compatibility
   error instead of guessing. Revalidate `bun scripts/smoke.ts --tui` before upgrading OpenCode.
-- Verified on OpenCode 1.18.35 (also supports 1.18.33/1.18.34) with plugin/SDK 1.18.31. Completion/next-turn restoration works;
+- Verified on OpenCode 1.19.0 (also 1.18.33–1.18.35; the list is `VERIFIED_TUI_VERSIONS` in
+  `lib/tui-selection.ts`) with plugin/SDK 1.18.31. Completion/next-turn restoration works;
   **automatic model handoff within a running legacy loop is unavailable**. That limitation
   does not prevent restoration between completed tasks. Selection changes alone cannot establish
   that a running model changed; the smoke test verifies the next actual provider request too.
