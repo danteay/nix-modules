@@ -1,11 +1,32 @@
+import { cheapClasses, type PromptClass } from "./classify"
+import type { LogRecord } from "./log-types"
 import { reportQuality } from "./report-quality"
 import { modelRole } from "./routing"
 
-type Rec = Record<string, any>
+type Rec = LogRecord
+/** One `pricing.json` entry (USD per million tokens). */
+type Price = {
+  [key: string]: unknown
+  input?: number
+  output?: number
+  cache_read?: number
+  cache_write?: number
+  reasoning_billing?: string
+}
 type Window = { since?: number; until?: number; timezone?: string; experiment?: string }
 const fields = ["input", "output", "reasoning", "cache_read", "cache_write"] as const
 type Field = (typeof fields)[number]
 const measured = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n) && n >= 0
+
+/** Read-or-create for the many keyed aggregates below (replaces `(map[key] ??= init())`). */
+function getOrInit<T>(map: Record<string, T>, key: string, init: () => T): T {
+  let value = map[key]
+  if (value === undefined) {
+    value = init()
+    map[key] = value
+  }
+  return value
+}
 
 /** Per-model/agent/role/day/task/total aggregate. Fully known shape (built only by
  * bucket()/add()/finish() below), unlike the raw log records flowing through this file. */
@@ -31,6 +52,25 @@ type Bucket = {
     max: number | null
   }
   missing?: Record<Field, number>
+}
+/** Per-task bucket plus identity and the latest terminal outcome. */
+type TaskAgg = Bucket & {
+  workflowID: string
+  taskID: string
+  outcome: string | null
+  cost_scope: string
+}
+/** Per-root-workflow cost summary, child sessions included. */
+type WorkflowAgg = {
+  cost: number
+  primary_input: number
+  primary_context: number
+  worker_input: number
+  messages: number
+  models: Record<string, Bucket>
+  duration_ms: number | null
+  experiment: string | null
+  routing_enabled: boolean | null
 }
 
 const bucket = (): Bucket => ({
@@ -66,7 +106,7 @@ function add(b: Bucket, r: Rec, cost: number | null, estimated: boolean) {
   b.context += context
   b.cached = b.cache_read + b.cache_write
   b.generated = b.output + b.reasoning
-  if (["input", "cache_read", "cache_write"].every((f) => measured(r[f]))) b.samples!.push(context)
+  if (["input", "cache_read", "cache_write"].every((f) => measured(r[f]))) b.samples?.push(context)
 }
 function finish(b: Bucket) {
   const samples = b.samples ?? []
@@ -84,22 +124,31 @@ function finish(b: Bucket) {
   >
   delete b.samples
 }
-function estimate(r: Rec, p: Rec | undefined): number | null {
+function estimate(r: Rec, p: Price | undefined): number | null {
   // No provider-agnostic/model-name fallback and no guessed billing semantics.
+  if (!p || !["separate", "included"].includes(p.reasoning_billing ?? "")) return null
+  const { input, output, reasoning, cache_read, cache_write } = r
   if (
-    !p ||
-    !["separate", "included"].includes(p.reasoning_billing) ||
-    !fields.every((f) => measured(r[f]))
+    !measured(input) ||
+    !measured(output) ||
+    !measured(reasoning) ||
+    !measured(cache_read) ||
+    !measured(cache_write)
   )
     return null
-  const values = {
-    input: r.input,
-    output: r.output + (p.reasoning_billing === "separate" ? r.reasoning : 0),
-    cache_read: r.cache_read,
-    cache_write: r.cache_write,
+  const values: Record<string, number> = {
+    input,
+    output: output + (p.reasoning_billing === "separate" ? reasoning : 0),
+    cache_read,
+    cache_write,
   }
   if (Object.entries(values).some(([f, n]) => n > 0 && !measured(p[f]))) return null
-  return Object.entries(values).reduce((sum, [f, n]) => sum + n * (p[f] ?? 0), 0) / 1e6
+  return (
+    Object.entries(values).reduce((sum, [f, n]) => {
+      const rate = p[f]
+      return sum + n * (measured(rate) ? rate : 0)
+    }, 0) / 1e6
+  )
 }
 
 /** A record without a stable identity (neither an eventID nor a message) can't be deduped. */
@@ -120,9 +169,13 @@ function dedupeAndSort(all: Rec[]): Rec[] {
       seen.add(key)
       return true
     })
-    .sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts))
+    .sort((a, b) => at(a) - at(b))
 }
-const sid = (r: Rec) => r.sessionID ?? r.session
+/** Session id of a record; "" when absent so callers can test truthiness. */
+const sid = (r: Rec) => r.sessionID ?? r.session ?? ""
+/** Timestamp of a record in ms; NaN when absent or unparseable (as before typing). */
+const at = (r: Rec) => Date.parse(r.ts ?? "")
+const schemaOf = (r: Rec) => r.schema ?? 0
 
 /** Session -> parent-session and run -> task lookups, built once over the full history
  * (not just the reporting window) so workflow/task roots resolve correctly regardless
@@ -140,27 +193,31 @@ function buildParentMap(records: Rec[]) {
 }
 function rootOf(id: string, parents: Map<string, string>): string {
   const seen = new Set<string>()
-  while (parents.has(id) && !seen.has(id)) {
+  for (
+    let parent = parents.get(id);
+    parent !== undefined && !seen.has(id);
+    parent = parents.get(id)
+  ) {
     seen.add(id)
-    id = parents.get(id)!
+    id = parent
   }
   return id
 }
 function selectWindow(records: Rec[], window: Window): Rec[] {
   return records.filter(
     (r) =>
-      (window.since == null || Date.parse(r.ts) >= window.since) &&
-      (window.until == null || Date.parse(r.ts) < window.until) &&
+      (window.since == null || at(r) >= window.since) &&
+      (window.until == null || at(r) < window.until) &&
       (window.experiment == null || r.experiment === window.experiment),
   )
 }
 
 type Aggregation = {
-  workflows: Record<string, Rec>
+  workflows: Record<string, WorkflowAgg>
   models: Record<string, Bucket>
   agents: Record<string, Bucket>
   roles: Record<string, Bucket>
-  tasks: Record<string, Rec>
+  tasks: Record<string, TaskAgg>
   days: Record<string, Bucket>
   total: Bucket
   workerCost: number
@@ -181,16 +238,17 @@ type Aggregation = {
  * the pass count over what can be a large log). */
 function aggregate(
   selected: Rec[],
-  prices: Record<string, Rec>,
+  prices: Record<string, Price>,
   parents: Map<string, string>,
   taskForRun: Map<string, string>,
   timezone: string | undefined,
 ): Aggregation {
-  const workflows: Record<string, Rec> = {}
+  const workflows: Record<string, WorkflowAgg> = {}
+  const span = new Map<string, { start: number; end: number }>()
   const models: Record<string, Bucket> = {}
   const agents: Record<string, Bucket> = {}
   const roles: Record<string, Bucket> = {}
-  const tasks: Record<string, Rec> = {}
+  const tasks: Record<string, TaskAgg> = {}
   const days: Record<string, Bucket> = {}
   const total = bucket()
   const format = new Intl.DateTimeFormat("en-CA", {
@@ -217,29 +275,31 @@ function aggregate(
     const session = sid(r)
     if (!session || r.kind === "session") continue
     const workflowID = r.workflowID ?? rootOf(session, parents)
-    const w = (workflows[workflowID] ??= {
+    const w = getOrInit(workflows, workflowID, () => ({
       cost: 0,
       primary_input: 0,
       primary_context: 0,
       worker_input: 0,
       messages: 0,
       models: {},
-      start: Infinity,
-      end: 0,
+      duration_ms: null,
       experiment: r.experiment ?? null,
       routing_enabled: r.routing_enabled ?? null,
-    })
+    }))
+    const timing = span.get(workflowID) ?? { start: Infinity, end: 0 }
+    span.set(workflowID, timing)
     const worker = r.worker ?? parents.has(session)
-    if (r.schema >= 2 && r.kind === "read" && r.path) {
-      if (!worker && delegated.has(`${session}:${r.path}`)) {
+    if (schemaOf(r) >= 2 && r.kind === "read" && r.path) {
+      const delegation = worker ? undefined : delegated.get(`${session}:${r.path}`)
+      if (delegation !== undefined) {
         reworkReads++
-        reworked.add(delegated.get(`${session}:${r.path}`)!)
+        reworked.add(delegation)
       }
       const paths = readsBySession.get(session) ?? new Set<string>()
       paths.add(r.path)
       readsBySession.set(session, paths)
     }
-    if (r.schema >= 2 && r.kind === "delegation" && r.delegation_completed && r.childSessionID) {
+    if (schemaOf(r) >= 2 && r.kind === "delegation" && r.delegation_completed && r.childSessionID) {
       completedDelegations++
       const paths = readsBySession.get(r.childSessionID)
       if (paths?.size) {
@@ -251,15 +311,15 @@ function aggregate(
       denialReasons[r.reason ?? "unknown"] = (denialReasons[r.reason ?? "unknown"] ?? 0) + 1
     const taskID = r.taskID ?? (r.runID && taskForRun.get(`${session}:${r.runID}`))
     const task = taskID
-      ? (tasks[`${workflowID}:${taskID}`] ??= {
+      ? getOrInit(tasks, `${workflowID}:${taskID}`, () => ({
           ...bucket(),
           workflowID,
           taskID,
           outcome: null,
           cost_scope: "selected-window",
-        })
+        }))
       : null
-    if (r.kind === "task_outcome" && task) task.outcome = r.outcome
+    if (r.kind === "task_outcome" && task) task.outcome = r.outcome ?? null
     if (r.kind !== "message") continue
     const key = `${session}:${r.messageID}`
     if (r.messageID && seenMessages.has(key)) continue
@@ -277,19 +337,18 @@ function aggregate(
         if (model !== r.expected_model) firstMismatch++
       }
     }
-    const reported = measured(r.cost)
-    const cost = reported ? r.cost : estimate(r, prices[model])
-    const estimated = !reported && cost != null
-    const day = Number.isFinite(Date.parse(r.ts)) ? format.format(new Date(r.ts)) : "unknown"
+    const cost = measured(r.cost) ? r.cost : estimate(r, prices[model])
+    const estimated = !measured(r.cost) && cost != null
+    const day = r.ts && Number.isFinite(at(r)) ? format.format(new Date(r.ts)) : "unknown"
     const buckets: Bucket[] = [
       total,
-      (models[model] ??= bucket()),
-      (agents[`${r.agent ?? "unknown"} (${model})`] ??= bucket()),
-      (roles[modelRole(model)] ??= bucket()),
-      (w.models[model] ??= bucket()),
-      (days[day] ??= bucket()),
+      getOrInit(models, model, bucket),
+      getOrInit(agents, `${r.agent ?? "unknown"} (${model})`, bucket),
+      getOrInit(roles, modelRole(model), bucket),
+      getOrInit(w.models, model, bucket),
+      getOrInit(days, day, bucket),
     ]
-    if (task) buckets.push(task as Bucket)
+    if (task) buckets.push(task)
     for (const b of buckets) add(b, r, cost, estimated)
     if (worker) workerCost += cost ?? 0
     w.messages++
@@ -299,16 +358,16 @@ function aggregate(
       w.primary_input += r.input ?? 0
       w.primary_context += (r.input ?? 0) + (r.cache_read ?? 0) + (r.cache_write ?? 0)
     }
-    if (typeof r.started === "number") w.start = Math.min(w.start, r.started)
-    if (typeof r.completed === "number") w.end = Math.max(w.end, r.completed)
+    if (typeof r.started === "number") timing.start = Math.min(timing.start, r.started)
+    if (typeof r.completed === "number") timing.end = Math.max(timing.end, r.completed)
   }
-  for (const w of Object.values(workflows)) {
-    w.duration_ms = Number.isFinite(w.start) && w.end >= w.start ? w.end - w.start : null
-    delete w.start
-    delete w.end
-    Object.values(w.models).forEach((b) => {
-      finish(b as Bucket)
-    })
+  for (const [id, w] of Object.entries(workflows)) {
+    const timing = span.get(id)
+    w.duration_ms =
+      timing && Number.isFinite(timing.start) && timing.end >= timing.start
+        ? timing.end - timing.start
+        : null
+    for (const b of Object.values(w.models)) finish(b)
   }
   for (const b of [
     total,
@@ -318,10 +377,10 @@ function aggregate(
     ...Object.values(tasks),
     ...Object.values(days),
   ])
-    finish(b as Bucket)
+    finish(b)
   const hasLifecycle = selected.some(
     (r) =>
-      r.schema >= 3 &&
+      schemaOf(r) >= 3 &&
       [
         "lifecycle",
         "task_outcome",
@@ -329,7 +388,7 @@ function aggregate(
         "reset_observed",
         "reset_success",
         "reconciliation_failed",
-      ].includes(r.kind),
+      ].includes(r.kind ?? ""),
   )
   return {
     workflows,
@@ -353,8 +412,114 @@ function aggregate(
   }
 }
 
+export type Turn = {
+  workflowID: string
+  sessionID: string
+  runID: string
+  ts: string
+  source: string
+  selection: string | null
+  requested_agent: string | null
+  agent: string
+  model: string
+  role: string
+  prompt_class: PromptClass | null
+  prompt_preview: string | null
+  calls: number
+  cost: number
+  reasoning_cost: number
+  cheap_on_reasoning: boolean
+}
+
+/**
+ * One row per root run: what was asked (preview + heuristic class), how it was routed, and
+ * what it cost until the next root run of the same workflow (child sessions included).
+ * Cost attribution by time interval mirrors the October 2026 audit; a background delegation
+ * finishing after the next prompt is charged to that next prompt.
+ */
+function turnsView(modern: Rec[], parents: Map<string, string>): Turn[] {
+  const begins = modern
+    .filter((r) => r.kind === "lifecycle" && r.action === "begin")
+    .sort((a, b) => at(a) - at(b))
+  if (!begins.length) return []
+  const routes = new Map<string, Rec>()
+  for (const r of modern)
+    if (r.kind === "model_route" && r.messageID) routes.set(`${sid(r)}:${r.messageID}`, r)
+  const byWorkflow = new Map<string, Rec[]>()
+  for (const r of modern) {
+    if (r.kind !== "message") continue
+    const wf = r.workflowID ?? rootOf(sid(r), parents)
+    const list = byWorkflow.get(wf) ?? []
+    list.push(r)
+    byWorkflow.set(wf, list)
+  }
+  for (const list of byWorkflow.values()) list.sort((a, b) => at(a) - at(b))
+  const next = new Map<string, number>()
+  const lastByWorkflow = new Map<string, Rec>()
+  for (const b of begins) {
+    const prev = lastByWorkflow.get(b.workflowID ?? sid(b))
+    if (prev) next.set(`${sid(prev)}:${prev.runID}`, at(b))
+    lastByWorkflow.set(b.workflowID ?? sid(b), b)
+  }
+  return begins.map((b): Turn => {
+    const wf = b.workflowID ?? sid(b)
+    const start = at(b)
+    const end = next.get(`${sid(b)}:${b.runID}`) ?? Infinity
+    const route = routes.get(`${sid(b)}:${b.messageID}`)
+    let calls = 0
+    let cost = 0
+    let reasoning = 0
+    for (const m of byWorkflow.get(wf) ?? []) {
+      const t = at(m)
+      if (t < start || t >= end) continue
+      calls++
+      const c = measured(m.cost) ? m.cost : 0
+      cost += c
+      if (modelRole(`${m.providerID}/${m.modelID}`) === "reasoning") reasoning += c
+    }
+    const model = `${b.selected_route?.providerID}/${b.selected_route?.modelID}`
+    const role = modelRole(model)
+    const cls = (route?.prompt_class ?? null) as PromptClass | null
+    return {
+      workflowID: wf,
+      sessionID: sid(b),
+      runID: b.runID ?? "",
+      ts: b.ts ?? "",
+      source: b.source ?? "unknown",
+      selection: b.selection ?? null,
+      requested_agent: b.requested_route?.agent ?? route?.requested_agent ?? null,
+      agent: b.selected_route?.agent ?? "unknown",
+      model,
+      role,
+      prompt_class: cls,
+      prompt_preview: route?.prompt_preview ?? null,
+      calls,
+      cost,
+      reasoning_cost: reasoning,
+      cheap_on_reasoning: role === "reasoning" && cls != null && cheapClasses.has(cls),
+    }
+  })
+}
+
+function turnClasses(turns: Turn[]) {
+  const out: Record<string, { turns: number; cost: number; reasoning_cost: number }> = {}
+  for (const t of turns) {
+    const key = t.prompt_class ?? "unlabeled"
+    const b = getOrInit(out, key, () => ({ turns: 0, cost: 0, reasoning_cost: 0 }))
+    b.turns++
+    b.cost += t.cost
+    b.reasoning_cost += t.reasoning_cost
+  }
+  return out
+}
+
 /** Shape the aggregated buckets into the report's public JSON structure. */
-function buildReport(agg: Aggregation, modern: Rec[], records: Rec[]) {
+function buildReport(
+  agg: Aggregation,
+  modern: Rec[],
+  records: Rec[],
+  parents: Map<string, string>,
+) {
   const {
     workflows,
     models,
@@ -395,6 +560,11 @@ function buildReport(agg: Aggregation, modern: Rec[], records: Rec[]) {
   const shadowChecks = modern.filter(
     (r) => r.kind === "model_route" && proposals.has(`${sid(r)}:${r.messageID}`),
   )
+  const turns = turnsView(modern, parents)
+  const cheapOnReasoning = turns.filter((t) => t.cheap_on_reasoning)
+  const ignoredUpgrades = begins.filter((r) => r.selection === "upgrade-ignored").length
+  const honoredSelections = begins.filter((r) => r.selection === "honored").length
+  const rejectedBaselines = begins.filter((r) => r.baseline_rejected).length
   return {
     workflows: n,
     messages: total.calls,
@@ -446,6 +616,7 @@ function buildReport(agg: Aggregation, modern: Rec[], records: Rec[]) {
       shadow_route_differences: hasLifecycle
         ? shadowChecks.filter((r) => {
             const proposed = proposals.get(`${sid(r)}:${r.messageID}`)
+            if (!proposed) return false
             return (
               proposed.agent !== r.agent ||
               `${proposed.providerID}/${proposed.modelID}` !== r.selected_model
@@ -465,6 +636,10 @@ function buildReport(agg: Aggregation, modern: Rec[], records: Rec[]) {
       reset_successes: hasLifecycle ? count("reset_success") : null,
       reconciliation_failures: hasLifecycle ? count("reconciliation_failed") : null,
       stale_resets: hasLifecycle ? count("stale_reset_ignored") : null,
+      manual_selections_honored: hasLifecycle ? honoredSelections : null,
+      upgrades_ignored: hasLifecycle ? ignoredUpgrades : null,
+      reasoning_baselines_rejected: hasLifecycle ? rejectedBaselines : null,
+      one_shot_pins: hasLifecycle ? begins.filter((r) => r.pin_scope === "once").length : null,
       completed_tasks: hasLifecycle ? completed.length : null,
       failed_tasks: hasLifecycle
         ? Object.values(tasks).filter((t) => t.outcome === "failed").length
@@ -487,6 +662,8 @@ function buildReport(agg: Aggregation, modern: Rec[], records: Rec[]) {
     by_workflow: workflows,
     by_task: tasks,
     by_day: days,
+    turns,
+    turn_classes: turnClasses(turns),
     notes: [
       "Worker spend share is descriptive, not a savings verdict. Compare matched tasks with routing on/off.",
       "Worker means a delegated session, including Opus reviewers. Roles do not prove task difficulty.",
@@ -499,6 +676,16 @@ function buildReport(agg: Aggregation, modern: Rec[], records: Rec[]) {
       ...(reasoningBaselines
         ? [
             `WARNING: ${reasoningBaselines} ordinary runs used a reasoning-model baseline. Check the running process's DESVIO_BASELINE_AGENT and stored session baseline; zero model mismatches only means the selected policy was followed.`,
+          ]
+        : []),
+      ...(cheapOnReasoning.length
+        ? [
+            `WARNING: ${cheapOnReasoning.length} turns labeled approval/git-pr/checks/admin ran on a reasoning model ($${cheapOnReasoning.reduce((n, t) => n + t.cost, 0).toFixed(2)}). Labels are heuristic; see --turns.`,
+          ]
+        : []),
+      ...(rejectedBaselines
+        ? [
+            `${rejectedBaselines} runs had a configured reasoning baseline rejected in favour of build (set allow_reasoning_baseline in desvio.json to opt in).`,
           ]
         : []),
       ...(begins.some((r) => modeOf(r) === "observe")
@@ -519,19 +706,19 @@ function buildReport(agg: Aggregation, modern: Rec[], records: Rec[]) {
   }
 }
 
-export function summarize(all: Rec[], prices: Record<string, Rec> = {}, window: Window = {}) {
+export function summarize(all: Rec[], prices: Record<string, Price> = {}, window: Window = {}) {
   const records = dedupeAndSort(all)
   const { parents, taskForRun } = buildParentMap(records)
   const selected = selectWindow(records, window)
-  const modern = selected.filter((r) => r.schema >= 2)
+  const modern = selected.filter((r) => schemaOf(r) >= 2)
   const agg = aggregate(selected, prices, parents, taskForRun, window.timezone)
   const quality = reportQuality(
-    records.filter((r) => window.until == null || Date.parse(r.ts) < window.until),
+    records.filter((r) => window.until == null || at(r) < window.until),
     selected,
     (id) => rootOf(id, parents),
     taskForRun,
     (r) =>
       measured(r.cost) ? r.cost : estimate(r, prices[`${r.providerID ?? "?"}/${r.modelID ?? "?"}`]),
   )
-  return { ...buildReport(agg, modern, records), quality }
+  return { ...buildReport(agg, modern, records, parents), quality }
 }

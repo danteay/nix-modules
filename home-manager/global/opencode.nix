@@ -28,6 +28,10 @@ in
   home.file = {
     ".config/opencode/pricing.json".source = ../../dotfiles/ai/opencode/pricing.json;
     ".config/opencode/opencode.json".source = ../../dotfiles/ai/opencode/opencode.json;
+    # Baseline agent for ordinary turns. Read by the plugin on every message, so this is the
+    # only place to change it; an environment export would outlive the shell in any running
+    # OpenCode process (see reports/routing-audit-2026-10-12.md).
+    ".config/opencode/desvio.json".source = ../../dotfiles/ai/opencode/desvio.json;
     ".config/opencode/tui.json".source = ../../dotfiles/ai/opencode/tui.json;
     ".config/opencode/agents".source = withDocsPath "agents" ../../dotfiles/ai/opencode/agents;
     ".config/opencode/commands".source = withDocsPath "commands" ../../dotfiles/ai/opencode/commands;
@@ -44,8 +48,10 @@ in
       export DESVIO_LOG_DIR="${config.home.homeDirectory}/.local/share/desvio"
       # Restore completed command routes; running-loop handoffs remain unsupported.
       export DESVIO_LIFECYCLE=enforce
-      export DESVIO_BASELINE_AGENT=build
-      export DESVIO_EXPERIMENT=sonnet-baseline-v4
+      # The baseline lives in ~/.config/opencode/desvio.json, not here: a stale shell export
+      # kept three OpenCode processes on Opus for a week. Never export DESVIO_BASELINE_AGENT.
+      unset DESVIO_BASELINE_AGENT
+      export DESVIO_EXPERIMENT=sonnet-baseline-v5
 
       alias desvio-outline="bash ~/.config/opencode/bin/go-outline.sh"
       alias desvio-report="bun run ~/.config/opencode/scripts/report.ts"

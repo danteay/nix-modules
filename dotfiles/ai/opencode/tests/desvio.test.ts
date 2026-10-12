@@ -2,6 +2,8 @@ import { afterAll, beforeAll, expect, test } from "bun:test"
 import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import type { LogRecord } from "../lib/log-types"
+import type { SessionInfoLike } from "../lib/opencode-types"
 import { goOutline } from "../lib/outline"
 import { summarize } from "../lib/report"
 import { modelForAgent, models } from "../lib/routing"
@@ -14,7 +16,11 @@ process.env.DESVIO_ENABLED = "1"
 // These tests exercise role routing; enforced lifecycle routing has separate integration tests.
 process.env.DESVIO_LIFECYCLE = "observe"
 const { Desvio } = await import("../plugins/desvio")
-const info: Record<string, any> = {
+type Hooks = Required<Awaited<ReturnType<typeof Desvio>>>
+type ChatOutput = Parameters<Hooks["chat.message"]>[1]
+type EventInput = Parameters<Hooks["event"]>[0]
+type ToolInput = Parameters<Hooks["tool.execute.after"]>[0]
+const info: Record<string, SessionInfoLike> = {
   primary: { id: "primary", agent: "build" },
   worker: { id: "worker", parentID: "primary", agent: "bulk-reader" },
   writer: { id: "writer", parentID: "primary", agent: "code-writer" },
@@ -24,25 +30,35 @@ const info: Record<string, any> = {
   reviewWriter: { id: "review-writer", parentID: "reviewer", agent: "code-writer" },
   resumed: { id: "resumed", parentID: "primary" },
 }
-async function plugin(factory = Desvio) {
-  return factory({
+async function plugin(factory = Desvio): Promise<Hooks> {
+  const hooks = await factory({
     directory: dir,
     project: { id: "fixture" },
     client: {
       session: {
-        get: async ({ path }: any) => ({ data: info[path.id] }),
+        get: async ({ path }: { path: { id: string } }) => ({ data: info[path.id] }),
         messages: async () => ({ data: [{ info: { role: "assistant", agent: "bulk-reader" } }] }),
       },
     },
-  } as any) as Promise<any>
+  } as unknown as Parameters<typeof Desvio>[0])
+  return hooks as Hooks
 }
-const logs = async () =>
-  (await readFile(join(dir, "log/usage.jsonl"), "utf8")).trim().split("\n").map(JSON.parse)
+const logs = async (): Promise<LogRecord[]> =>
+  (await readFile(join(dir, "log/usage.jsonl"), "utf8"))
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line) as LogRecord)
 let call = 0
-async function run(h: any, sessionID: string, tool: string, args: any, metadata = {}) {
-  const input = { sessionID, tool, callID: String(++call) }
+async function run(
+  h: Hooks,
+  sessionID: string,
+  tool: string,
+  args: Record<string, unknown>,
+  metadata = {},
+) {
+  const input: ToolInput = { sessionID, tool, callID: String(++call), args }
   await h["tool.execute.before"](input, { args })
-  await h["tool.execute.after"]({ ...input, args }, { title: "test", output: "ok", metadata })
+  await h["tool.execute.after"](input, { title: "test", output: "ok", metadata })
 }
 beforeAll(async () => {
   await mkdir(join(dir, "wallet"))
@@ -66,9 +82,9 @@ test("primary full read blocked; targeted primary and full bulk-reader reads suc
   await run(h, "worker", "read", { filePath: "large.go" })
   await run(h, "resumed", "read", { filePath: "large.go" })
   const r = await logs()
-  expect(r.at(-1).worker).toBe(true)
-  expect(r.at(-1).agent).toBe("bulk-reader")
-  expect(r.at(-1).workflowID).toBe("primary")
+  expect(r.at(-1)?.worker).toBe(true)
+  expect(r.at(-1)?.agent).toBe("bulk-reader")
+  expect(r.at(-1)?.workflowID).toBe("primary")
 })
 test("resumed build turns use Sonnet, bulk uses GLM, and explicit reasoning agents retain Opus", async () => {
   const h = await plugin()
@@ -95,7 +111,7 @@ test("resumed build turns use Sonnet, bulk uses GLM, and explicit reasoning agen
       },
       parts: [],
     }
-    await h["chat.message"]({ sessionID: "primary", agent }, output)
+    await h["chat.message"]({ sessionID: "primary", agent }, output as unknown as ChatOutput)
     expect(`${output.message.model.providerID}/${output.message.model.modelID}`).toBe(selected)
     if (selected !== models.reasoning) {
       expect(output.message.model.variant).toBeUndefined()
@@ -106,12 +122,13 @@ test("resumed build turns use Sonnet, bulk uses GLM, and explicit reasoning agen
     message: { id: "custom", agent: "my-agent", model: { providerID: "test", modelID: "custom" } },
     parts: [],
   }
-  await h["chat.message"]({ sessionID: "primary" }, custom)
+  await h["chat.message"]({ sessionID: "primary" }, custom as unknown as ChatOutput)
   expect(custom.message.model.modelID).toBe("custom")
-  expect((await logs()).at(-1).reason).toBe("unmanaged-or-disabled")
+  expect((await logs()).at(-1)?.reason).toBe("unmanaged-or-disabled")
 })
 test("model routing can be disabled independently without disabling the read guard", async () => {
   process.env.DESVIO_MODEL_ROUTING = "0"
+  // @ts-expect-error Bun query-string import busts the module cache; not a resolvable path for tsc.
   const { Desvio: manual } = await import("../plugins/desvio.ts?manual-model")
   delete process.env.DESVIO_MODEL_ROUTING
   const h = await plugin(manual)
@@ -123,7 +140,7 @@ test("model routing can be disabled independently without disabling the read gua
     },
     parts: [],
   }
-  await h["chat.message"]({ sessionID: "primary", agent: "build" }, output)
+  await h["chat.message"]({ sessionID: "primary", agent: "build" }, output as unknown as ChatOutput)
   expect(output.message.model.modelID).toBe("claude-opus-5")
   await expect(run(h, "primary", "read", { filePath: "large.go" })).rejects.toThrow(
     "Full read blocked",
@@ -134,7 +151,7 @@ test("built-in explore dispatch is logged and checks excluded prompts", async ()
   const args = { subagent_type: "explore", prompt: "Locate Small in small.go" }
   await run(h, "primary", "task", args)
   expect(args.subagent_type).toBe("explore")
-  expect((await logs()).at(-1).subagent_type).toBe("explore")
+  expect((await logs()).at(-1)?.subagent_type).toBe("explore")
   await expect(
     run(h, "primary", "task", { subagent_type: "explore", prompt: "Read wallet/private.go" }),
   ).rejects.toThrow("excluded path")
@@ -168,7 +185,7 @@ test("offset alone and oversized limits cannot bypass the read guard, including 
         },
       },
     },
-  })
+  } as unknown as EventInput)
   await expect(run(h, "worker", "read", { filePath: "large.go" })).rejects.toThrow(
     "Full read blocked",
   )
@@ -179,10 +196,10 @@ test("installed agent and command models agree with the routing policy", async (
   expect(config.default_agent).toBe("build")
   expect(config.model).toBe(models.execution)
   expect(config.small_model).toBe(models.bulk)
-  for (const [name, agent] of Object.entries(config.agent) as [string, any][])
+  for (const [name, agent] of Object.entries(config.agent) as [string, { model?: string }][])
     expect(agent.model).toBe(modelForAgent(name))
   for await (const path of new Bun.Glob("agents/*.md").scan(source)) {
-    const name = path.split("/").at(-1)!.replace(/\.md$/, "")
+    const name = path.replace(/^.*\//, "").replace(/\.md$/, "")
     const body = await readFile(join(source, path), "utf8")
     expect(body.match(/^model: (.+)$/m)?.[1]).toBe(modelForAgent(name))
   }
@@ -260,15 +277,15 @@ test("expensive review agents cannot bypass large-file routing", async () => {
 })
 test("successful reads retain correct paths across concurrent tool calls without output metadata", async () => {
   const h = await plugin()
-  const a = { sessionID: "primary", tool: "read", callID: "a" }
-  const b = { ...a, callID: "b" }
+  const a: ToolInput = { sessionID: "primary", tool: "read", callID: "a", args: {} }
+  const b: ToolInput = { ...a, callID: "b" }
   await h["tool.execute.before"](a, { args: { filePath: "small.go" } })
   await h["tool.execute.before"](b, { args: { filePath: "visible.go" } })
-  await h["tool.execute.after"](b, { metadata: {} })
-  await h["tool.execute.after"](a, { metadata: {} })
+  await h["tool.execute.after"](b, { title: "", output: "", metadata: {} })
+  await h["tool.execute.after"](a, { title: "", output: "", metadata: {} })
   const r = await logs()
-  expect(r.at(-2).path).toBe(join(dir, "visible.go"))
-  expect(r.at(-1).path).toBe(join(dir, "small.go"))
+  expect(r.at(-2)?.path).toBe(join(dir, "visible.go"))
+  expect(r.at(-1)?.path).toBe(join(dir, "small.go"))
 })
 test("failed reads do not become successful read events", async () => {
   const h = await plugin()
@@ -279,16 +296,17 @@ test("failed reads do not become successful read events", async () => {
       type: "message.part.updated",
       properties: { part: { ...input, type: "tool", state: { status: "error" } } },
     },
-  })
-  expect((await logs()).at(-1).kind).toBe("tool_error")
+  } as unknown as EventInput)
+  expect((await logs()).at(-1)?.kind).toBe("tool_error")
 })
 test("disabled routing still logs costs/reads and enforces worker exclusions", async () => {
   process.env.DESVIO_ENABLED = "0"
+  // @ts-expect-error Bun query-string import busts the module cache; not a resolvable path for tsc.
   const { Desvio: disabled } = await import("../plugins/desvio.ts?disabled")
   process.env.DESVIO_ENABLED = "1"
   const h = await plugin(disabled)
   await run(h, "primary", "read", { filePath: "large.go" })
-  expect((await logs()).at(-1).routing_enabled).toBe(false)
+  expect((await logs()).at(-1)?.routing_enabled).toBe(false)
   await expect(run(h, "worker", "read", { filePath: "wallet/private.go" })).rejects.toThrow(
     "excluded",
   )
@@ -308,8 +326,8 @@ test("disabled routing still logs costs/reads and enforces worker exclusions", a
       },
     },
   }
-  await h.event({ event })
-  await h.event({ event })
+  await h.event({ event } as unknown as EventInput)
+  await h.event({ event } as unknown as EventInput)
   expect((await logs()).filter((r) => r.messageID === "msg-test")).toHaveLength(1)
 })
 test("outline CLI and shared implementation agree, including spaces and unterminated final lines", async () => {
@@ -330,7 +348,7 @@ test("search filters sensitive paths and symlink targets before searching", asyn
 })
 test("report groups child costs, counts message-only workflows and attributes rework after completion", () => {
   let tick = 0
-  const row = (r: any) => ({
+  const row = (r: Record<string, unknown>) => ({
     schema: 2,
     ts: new Date(++tick * 1000).toISOString(),
     sessionID: "p",
@@ -486,15 +504,16 @@ test("non-Go read guard recommends search rather than the Go outline tool", asyn
 
 test("delegation gaps, explicit statuses and real validation results are observable", async () => {
   const h = await plugin()
-  const input = { sessionID: "primary", tool: "task", callID: "gap-result" }
+  const input: ToolInput = { sessionID: "primary", tool: "task", callID: "gap-result", args: {} }
   await h["tool.execute.before"](input, {
     args: { subagent_type: "feature-builder", prompt: "Write new-target.go" },
   })
   await h["tool.execute.after"](input, {
+    title: "",
     output: "<task_result>\n## CAPABILITY_GAP\nNo edit tool",
     metadata: { sessionId: "featureBuilder" },
   })
-  expect((await logs()).at(-1).delegation_outcome).toBe("capability_gap")
+  expect((await logs()).at(-1)?.delegation_outcome).toBe("capability_gap")
   await run(
     h,
     "worker",
@@ -502,7 +521,7 @@ test("delegation gaps, explicit statuses and real validation results are observa
     { outcome: "awaiting_input", reason: "Need reference" },
     { task_outcome: "awaiting_input" },
   )
-  expect((await logs()).at(-1).outcome).toBe("awaiting_input")
+  expect((await logs()).at(-1)?.outcome).toBe("awaiting_input")
   await run(
     h,
     "primary",
@@ -510,7 +529,7 @@ test("delegation gaps, explicit statuses and real validation results are observa
     { argv: ["false"] },
     { exit: 1, passed: false, expected_failure: false },
   )
-  expect((await logs()).findLast((r: any) => r.kind === "validation").exit_code).toBe(1)
+  expect((await logs()).findLast((r) => r.kind === "validation")?.exit_code).toBe(1)
   await expect(run(h, "worker", "validate_command", { argv: ["false"] })).rejects.toThrow(
     "not permitted",
   )

@@ -1,7 +1,9 @@
 import { appendFile } from "node:fs/promises"
 import { join } from "node:path"
-import { POLICY_VERSION, routeFor } from "./lifecycle"
+import { resolveBaseline } from "./config"
+import { type PinScope, POLICY_VERSION, routeFor } from "./lifecycle"
 import { defaultLogDir } from "./paths"
+import { agentRoles } from "./routing"
 import { StateStore } from "./state"
 
 export const controlActions = [
@@ -14,9 +16,20 @@ export const controlActions = [
   "accept",
 ] as const
 export type ControlAction = (typeof controlActions)[number]
+export const pinnableAgents = ["coordinator", "build", "edit", "bulk", "plan"] as const
+
+/** Reasoning pins expire after one run unless explicitly sticky; cheaper pins stay. */
+export function defaultPinScope(agent: string): PinScope {
+  return agentRoles[agent] === "reasoning" ? "once" : "sticky"
+}
 
 /** User controls only: never expose acceptance as a model tool. */
-export async function control(action: ControlAction, sessionID: string, value?: string) {
+export async function control(
+  action: ControlAction,
+  sessionID: string,
+  value?: string,
+  options: { scope?: PinScope } = {},
+) {
   const store = new StateStore(join(defaultLogDir(), "state.sqlite"))
   try {
     return await store.locked(sessionID, async () => {
@@ -31,16 +44,18 @@ export async function control(action: ControlAction, sessionID: string, value?: 
           "Session has an unfinished run; finish or abort it before changing controls",
         )
       if (action === "pin") {
-        if (!value || !["coordinator", "build", "edit", "bulk", "plan"].includes(value))
-          throw new Error("Pin requires coordinator, build, edit, bulk or plan")
+        if (!value || !(pinnableAgents as readonly string[]).includes(value))
+          throw new Error(`Pin requires one of ${pinnableAgents.join(", ")}`)
         s.pin = routeFor(value)
+        s.pinScope = options.scope ?? defaultPinScope(value)
         s.continueTask = undefined
         s.continuationKind = undefined
       } else if (action === "auto") {
         s.pin = undefined
+        s.pinScope = undefined
         s.continueTask = undefined
         s.continuationKind = undefined
-        s.baseline = routeFor(process.env.DESVIO_BASELINE_AGENT ?? "build")
+        s.baseline = resolveBaseline().route
         s.baselinePolicy = POLICY_VERSION
       } else {
         const taskID = value ?? s.run?.taskID

@@ -9,6 +9,8 @@ export type MessageInfoLike = {
   role?: string
   parentID?: string
   agent?: string
+  /** Legacy name of `agent` in older OpenCode message envelopes. */
+  mode?: string
   summary?: unknown
   sessionID?: string
   sessionId?: string
@@ -35,5 +37,71 @@ export type MessageInfoLike = {
 /** A message envelope as returned by client.session.messages(). */
 export type MessageLike = {
   info?: MessageInfoLike
-  parts?: Array<{ type?: string; state?: { status?: string } }>
+  parts?: PartLike[]
+}
+
+/** Loose shape of a message part (text, tool call, ...). */
+export type PartLike = {
+  type?: string
+  text?: string
+  tool?: string
+  sessionID?: string
+  messageID?: string
+  callID?: string
+  state?: { status?: string; input?: { name?: string } }
+}
+
+/** Session info as returned by client.session.get() and session.* events. */
+export type SessionInfoLike = {
+  id: string
+  parentID?: string
+  agent?: string
+  version?: string
+  model?: { providerID?: string; id?: string; variant?: string }
+}
+
+/** Session and message events share one envelope; only the fields Desvio reads are typed. */
+export type EventLike = {
+  type: string
+  properties?: {
+    sessionID?: string
+    info?: MessageInfoLike & Partial<SessionInfoLike>
+    part?: PartLike
+    status?: { type?: string }
+    id?: string
+    requestID?: string
+    messageID?: string
+    tool?: { messageID?: string }
+    error?: unknown
+  }
+}
+
+export type ApiResult<T> = {
+  data?: T
+  error?: unknown
+  response?: { ok?: boolean; status?: number }
+}
+export type ProviderLike = {
+  id: string
+  models?: Record<string, { [key: string]: unknown; variants?: Record<string, unknown> }>
+}
+type Signal = { signal?: AbortSignal }
+
+/** The SDK's internal HTTP transport. It is a protected member of the real client, so the
+ * adapter reads it through a cast; test doubles expose it directly. */
+export type Transport = {
+  post?(
+    request: { url: string; body: unknown; headers?: Record<string, string> } & Signal,
+  ): Promise<ApiResult<unknown>>
+}
+
+/** The slice of the OpenCode SDK client that Desvio uses, structurally typed so the plugin
+ * input, test doubles and the smoke harness all satisfy it. */
+export type ClientLike = {
+  session: {
+    get(args: { path: { id: string } } & Signal): Promise<ApiResult<SessionInfoLike>>
+    messages(args: { path: { id: string } } & Signal): Promise<ApiResult<MessageLike[]>>
+    status?(args?: Signal): Promise<ApiResult<Record<string, { type?: string }>>>
+  }
+  provider?: { list?(args?: Signal): Promise<ApiResult<{ all?: ProviderLike[] }>> }
 }

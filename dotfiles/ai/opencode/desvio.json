@@ -1,0 +1,5 @@
+{
+  "_comment": "Desvio baseline, re-read on every incoming turn. Home Manager links this file next to opencode.json so applying a change takes effect on the next message without restarting OpenCode or the shell. A reasoning agent (coordinator, plan) is rejected as baseline unless allow_reasoning_baseline is true.",
+  "baseline": "build",
+  "allow_reasoning_baseline": false
+}

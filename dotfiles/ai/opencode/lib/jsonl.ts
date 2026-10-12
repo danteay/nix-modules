@@ -3,7 +3,10 @@
  * than aborting the whole parse; pass onError to be notified (e.g. to count them) instead
  * of losing it silently.
  */
-export function parseJsonl<T = any>(text: string, onError?: (line: string) => void): T[] {
+export function parseJsonl<T = Record<string, unknown>>(
+  text: string,
+  onError?: (line: string) => void,
+): T[] {
   return text
     .split("\n")
     .filter(Boolean)
