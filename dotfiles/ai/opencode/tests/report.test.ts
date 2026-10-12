@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { summarize } from "../lib/report"
 
-const message = (extra: Record<string, any> = {}) => ({
+const message = (extra: Record<string, unknown> = {}) => ({
   schema: 3,
   kind: "message",
   sessionID: "p",
@@ -62,13 +62,13 @@ test("reasoning and both caches are separate in every aggregation", () => {
     expect(b.cache_read).toBe(40)
     expect(b.cache_write).toBe(50)
     expect(b.cached).toBe(90)
-    expect(b.context_per_call.p50).toBe(100)
+    expect(b.context_per_call?.p50).toBe(100)
   }
 })
 test("missing fields are counted, not treated as measured zeros", () => {
   const s = summarize([message({ reasoning: null, cache_write: undefined, cost: null })])
-  expect(s.tokens.missing.reasoning).toBe(1)
-  expect(s.tokens.context_per_call.p50).toBeNull()
+  expect(s.tokens.missing?.reasoning).toBe(1)
+  expect(s.tokens.context_per_call?.p50).toBeNull()
   expect(s.cost.unknown_messages).toBe(1)
 })
 test("reported zero wins; unverified fallback pricing is not fabricated", () => {
@@ -176,7 +176,7 @@ test("shadow resets and stale bulk routes cannot masquerade as enforced routing"
 })
 
 test("acceptance uses full task costs including child recovery, and later corrections reopen it", () => {
-  const event = (ts: string, extra: Record<string, any>) => ({
+  const event = (ts: string, extra: Record<string, unknown>) => ({
     schema: 4,
     sessionID: "p",
     workflowID: "p",
@@ -293,4 +293,74 @@ test("experiment filters window spend without losing prior task or lineage costs
   )
   expect(s.cost.total).toBe(1)
   expect(s.quality.cost_per_accepted_task).toBe(5)
+})
+
+test("turns view attributes cost per root run, labels prompts, and flags cheap work on a reasoning model", () => {
+  const begin = (id: string, ts: string, agent: string, extra: Record<string, unknown> = {}) => ({
+    schema: 4,
+    kind: "lifecycle",
+    action: "begin",
+    sessionID: "p",
+    workflowID: "p",
+    runID: id,
+    messageID: id,
+    ts,
+    mode: "enforce",
+    source: "baseline",
+    selected_route: {
+      agent,
+      providerID: "anthropic",
+      modelID: agent === "coordinator" ? "claude-opus-5" : "claude-sonnet-5",
+    },
+    ...extra,
+  })
+  const route = (id: string, ts: string, cls: string, text: string) => ({
+    schema: 4,
+    kind: "model_route",
+    sessionID: "p",
+    messageID: id,
+    ts,
+    prompt_class: cls,
+    prompt_preview: text,
+    requested_agent: "build",
+  })
+  const s = summarize([
+    begin("a", "2026-10-08T10:00:00Z", "coordinator", { selection: "upgrade-ignored" }),
+    route("a", "2026-10-08T10:00:00Z", "git-pr", "commit and push"),
+    message({ messageID: "a1", ts: "2026-10-08T10:00:05Z", modelID: "claude-opus-5", cost: 2 }),
+    message({ messageID: "a2", ts: "2026-10-08T10:00:09Z", modelID: "claude-opus-5", cost: 3 }),
+    // Child session message inside the first turn's interval counts toward it.
+    message({
+      sessionID: "child",
+      parentSessionID: "p",
+      workflowID: "p",
+      messageID: "c1",
+      ts: "2026-10-08T10:00:10Z",
+      cost: 1,
+    }),
+    begin("b", "2026-10-08T10:01:00Z", "build", {
+      source: "manual-selection",
+      selection: "honored",
+    }),
+    route("b", "2026-10-08T10:01:00Z", "design", "weigh the options"),
+    message({ messageID: "b1", ts: "2026-10-08T10:01:05Z", cost: 4 }),
+  ])
+  expect(s.turns).toHaveLength(2)
+  expect(s.turns[0]).toMatchObject({
+    runID: "a",
+    agent: "coordinator",
+    role: "reasoning",
+    prompt_class: "git-pr",
+    prompt_preview: "commit and push",
+    calls: 3,
+    cost: 6,
+    reasoning_cost: 5,
+    cheap_on_reasoning: true,
+    selection: "upgrade-ignored",
+  })
+  expect(s.turns[1]).toMatchObject({ runID: "b", cost: 4, cheap_on_reasoning: false })
+  expect(s.turn_classes["git-pr"]).toEqual({ turns: 1, cost: 6, reasoning_cost: 5 })
+  expect(s.lifecycle.upgrades_ignored).toBe(1)
+  expect(s.lifecycle.manual_selections_honored).toBe(1)
+  expect(s.notes.some((n) => n.includes("1 turns labeled approval/git-pr/checks/admin"))).toBe(true)
 })

@@ -23,9 +23,11 @@ import { appendFile, mkdir, stat } from "node:fs/promises"
 import { extname, join } from "node:path"
 import { createInterface } from "node:readline"
 import type { Plugin } from "@opencode-ai/plugin"
-import { modelKey, POLICY_VERSION, routeFor } from "../lib/lifecycle"
+import { classifyPrompt, preview } from "../lib/classify"
+import { currentBaseline, resolveBaseline } from "../lib/config"
+import { modelKey, POLICY_VERSION } from "../lib/lifecycle"
 import { LifecycleManager } from "../lib/lifecycle-manager"
-import type { MessageInfoLike } from "../lib/opencode-types"
+import type { EventLike, MessageInfoLike, MessageLike } from "../lib/opencode-types"
 import {
   canonicalPath,
   defaultLogDir,
@@ -194,31 +196,36 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
   const sessions = new Map<string, Session>()
   const agents = new Map<string, string>()
   const sessionModels = new Map<string, string>()
-  const pending = new Map<string, Record<string, any>>()
+  const pending = new Map<string, Record<string, unknown>>()
   const logged = new Set<string>()
   const store = new StateStore(join(LOG_DIR, "state.sqlite"))
-  const configuredBaseline = routeFor(process.env.DESVIO_BASELINE_AGENT ?? "build")
-  const base = () => ({
-    schema: 4,
-    eventID: crypto.randomUUID(),
-    policy_version: POLICY_VERSION,
-    plugin_version: "0.4.1",
-    sdk_version: "1.18.31",
-    lifecycle_mode: MODEL_ROUTING ? lifecycleMode : "off",
-    ts: new Date().toISOString(),
-    project: project?.id ?? "unknown",
-    cwd: directory,
-    routing_enabled: ENABLED,
-    model_routing: MODEL_ROUTING,
-    experiment: process.env.DESVIO_EXPERIMENT ?? null,
-    configured_baseline: configuredBaseline,
-    baseline_source: process.env.DESVIO_BASELINE_AGENT ? "environment" : "default",
-  })
+  // The baseline is resolved from desvio.json on every admission (lib/config.ts), never
+  // captured once at load: a process outlives the shell environment it was launched from.
+  const base = () => {
+    const baseline = currentBaseline()
+    return {
+      schema: 4,
+      eventID: crypto.randomUUID(),
+      policy_version: POLICY_VERSION,
+      plugin_version: "0.5.0",
+      sdk_version: "1.18.31",
+      lifecycle_mode: MODEL_ROUTING ? lifecycleMode : "off",
+      ts: new Date().toISOString(),
+      project: project?.id ?? "unknown",
+      cwd: directory,
+      routing_enabled: ENABLED,
+      model_routing: MODEL_ROUTING,
+      experiment: process.env.DESVIO_EXPERIMENT ?? null,
+      configured_baseline: baseline.route,
+      baseline_source: baseline.source,
+      baseline_rejected: baseline.rejected ?? null,
+    }
+  }
   const lifecycle = new LifecycleManager(
     store,
     client,
     (MODEL_ROUTING ? lifecycleMode : "off") as "off" | "observe" | "enforce",
-    configuredBaseline,
+    () => resolveBaseline(),
     (record) => write(USAGE_LOG, { ...base(), ...record }),
   )
 
@@ -236,10 +243,10 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
     let agent = agents.get(id) ?? info?.agent
     if (!agent) {
       const result = await client.session.messages({ path: { id } })
-      const messages = result.data ?? []
+      const messages = (result.data ?? []) as MessageLike[]
       agent = [...messages]
         .reverse()
-        .map((m: any) => m.info?.agent ?? m.info?.mode)
+        .map((m) => m.info?.agent ?? m.info?.mode)
         .find(Boolean)
       if (agent) agents.set(id, agent)
     }
@@ -300,13 +307,16 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
     },
     "chat.message": async (input, output) => {
       let agent = output.message.agent ?? input.agent
+      const requestedAgent = agent ?? null
       if (agent) agents.set(input.sessionID, agent)
       const requested = output.message.model
       const requestedModel = `${requested.providerID}/${requested.modelID}`
       const incomingRoute = {
         agent: agent ?? "build",
         ...requested,
-        variant: (requested as any).variant ?? output.message.variant,
+        variant:
+          (requested as { variant?: string }).variant ??
+          (output.message as { variant?: string }).variant,
       }
       const managed = await lifecycle.incoming(input.sessionID, output.message.id, incomingRoute)
       if (managed) {
@@ -317,8 +327,8 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
           providerID: managed.providerID,
           modelID: managed.modelID,
           ...(managed.variant ? { variant: managed.variant } : {}),
-        } as any
-        if (managed.variant) output.message.variant = managed.variant
+        } as typeof output.message.model
+        if (managed.variant) (output.message as { variant?: string }).variant = managed.variant
         else Reflect.deleteProperty(output.message, "variant")
       }
       // Lifecycle-managed route wins outright; otherwise fall back to agent-policy routing
@@ -351,17 +361,32 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
       }
       store.record(input.sessionID, output.message.id, attribution)
       sessionModels.set(input.sessionID, actual)
+      // A short preview lets the report label turns (approval, git/PR, checks...) without
+      // opening OpenCode's database. The label never feeds routing.
+      const text = (output.parts ?? [])
+        .flatMap((p) => {
+          const text = (p as { text?: unknown }).text
+          return p.type === "text" && typeof text === "string" ? [text] : []
+        })
+        .join("\n")
       await write(USAGE_LOG, {
         ...base(),
         ...(await identity(input.sessionID)),
         kind: "model_route",
         messageID: output.message.id,
+        requested_agent: requestedAgent,
         requested_model: requestedModel,
         selected_model: actual,
         ...attribution,
+        selection: state?.run?.selection ?? null,
         model_role: modelRole(actual),
         reason: selected ? `agent:${agent}` : "unmanaged-or-disabled",
         changed: actual !== requestedModel,
+        prompt_preview: text ? preview(text) : null,
+        prompt_length: text.length,
+        prompt_class: text
+          ? classifyPrompt(text, { command: state?.run?.source.startsWith("command:") })
+          : null,
       })
     },
     "tool.execute.before": async (input, output) => {
@@ -507,9 +532,14 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
       })
     },
     event: async ({ event }) => {
-      const e = event as any
+      const e = event as EventLike
       const info = e.properties?.info
-      if (e.type === "message.updated" && info?.role === "assistant" && info.parentID) {
+      if (
+        e.type === "message.updated" &&
+        info?.role === "assistant" &&
+        info.parentID &&
+        info.sessionID
+      ) {
         const attribution = store.route(info.sessionID, info.parentID)
         if (attribution) store.record(info.sessionID, info.id, attribution)
       }

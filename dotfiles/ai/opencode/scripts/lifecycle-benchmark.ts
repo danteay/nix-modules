@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 // Explicitly invoked PAID benchmark. Uses disposable, read-only tasks, never a real PR command.
+import { existsSync, writeFileSync } from "node:fs"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { join, resolve } from "node:path"
 import { flagValue } from "../lib/cli"
@@ -8,6 +9,14 @@ import { extractAnswer, type StreamEvent } from "../lib/opencode-events"
 import { summarize } from "../lib/report"
 import { saveResults } from "../lib/results-writer"
 import { models } from "../lib/routing"
+
+/** Write `{ baseline }` for a policy once and return its path (see lib/config.ts). */
+function policyConfig(logDir: string, baseline: string): string {
+  const path = join(logDir, `desvio-${baseline}.json`)
+  if (!existsSync(path))
+    writeFileSync(path, JSON.stringify({ baseline, allow_reasoning_baseline: true }))
+  return path
+}
 
 const OPENCODE_RUN_TIMEOUT_MS = 180_000
 
@@ -99,7 +108,9 @@ for (let repeat = 0; repeat < repeats; repeat++) {
           DESVIO_ENABLED: "1",
           DESVIO_MODEL_ROUTING: "1",
           DESVIO_LIFECYCLE: policy.mode,
-          DESVIO_BASELINE_AGENT: policy.baseline,
+          // The benchmark owns its baseline: point the plugin at a per-policy desvio.json so
+          // the user's ~/.config/opencode/desvio.json cannot override the policy under test.
+          DESVIO_CONFIG: policyConfig(logDir, policy.baseline),
           OPENCODE_CONFIG_CONTENT: JSON.stringify({
             model: models.execution,
             default_agent: "build",

@@ -17,12 +17,12 @@ const provider = Bun.serve({
   async fetch(req) {
     const body = (await req.json()) as {
       model: string
-      messages?: any[]
+      messages?: unknown[]
       tools?: { name: string }[]
     }
     const history = JSON.stringify(body.messages ?? [])
     const tools = new Set(body.tools?.map((t) => t.name))
-    let toolCall: { name: string; input: any } | undefined
+    let toolCall: { name: string; input: Record<string, unknown> } | undefined
     if (history.includes("DESVIO_WRITER_PROBE")) {
       const last = body.messages?.at(-1)
       if (!JSON.stringify(last).includes('"tool_result"')) {
@@ -178,8 +178,9 @@ const provider = Bun.serve({
   },
 })
 const probe = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => new Response("") })
-const port = probe.port!
+const port = probe.port
 probe.stop(true)
+if (!port) throw new Error("Could not reserve a local port for the smoke server")
 const url = `http://127.0.0.1:${port}`
 const source = resolve(import.meta.dir, "..")
 const checkTui = process.argv.includes("--tui")
@@ -261,7 +262,7 @@ for (const key of [
   "OPENCODE_SERVER_USERNAME",
   "DESVIO_LIFECYCLE", // Exercise the shipped default, independent of the invoking shell.
 ])
-  delete env[key]
+  delete (env as Record<string, string | undefined>)[key]
 const proc = Bun.spawn(["opencode", "serve", "--hostname", "127.0.0.1", "--port", String(port)], {
   cwd: dir,
   env,
@@ -520,7 +521,8 @@ try {
   )
 } finally {
   if (terminal) {
-    ;(terminal.stdin as any).write("\x03\x03")
+    const stdin = terminal.stdin as unknown as { write?: (data: string) => unknown }
+    stdin.write?.("\x03\x03")
     terminal.kill()
     await terminal.exited
   }

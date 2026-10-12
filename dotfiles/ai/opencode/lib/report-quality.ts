@@ -1,4 +1,21 @@
-type Rec = Record<string, any>
+import type { LogRecord } from "./log-types"
+
+type Rec = LogRecord
+/** Per-task quality ledger: full-history costs plus the latest explicit disposition. */
+type TaskQuality = {
+  taskID: string
+  workflowID: string
+  lifetime_cost: number
+  unknown_costs: number
+  window_cost: number
+  recovery_cost: number
+  disposition: string
+  accepted_in_window: boolean
+  terminal_outcome: string | null
+  continuation_kind?: string | null
+  capability_gaps: number
+  window_observed?: boolean
+}
 
 /** Keep human acceptance separate from terminal model runs. Use full pre-cutoff history
  * for accepted-cohort costs, and selected-window costs for ongoing/recovery work. */
@@ -10,11 +27,12 @@ export function reportQuality(
   costOf: (r: Rec) => number | null,
 ) {
   const selectedEvents = new Set(selected)
-  const tasks: Record<string, Rec> = {}
+  const tasks: Record<string, TaskQuality> = {}
   const seenMessages = new Set<string>()
   const signals = new Map<string, string>()
   let measuredDelegations = 0
-  const taskOf = (r: Rec) => r.taskID ?? taskForRun.get(`${r.sessionID ?? r.session}:${r.runID}`)
+  const taskOf = (r: Rec) =>
+    r.taskID ?? taskForRun.get(`${r.sessionID ?? r.session}:${r.runID}`) ?? undefined
   let gaps = 0,
     validationChecks = 0,
     validationFailures = 0,
@@ -29,11 +47,14 @@ export function reportQuality(
     unassignedCost = 0
   for (const r of records) {
     const inWindow = selectedEvents.has(r)
-    const session = r.sessionID ?? r.session
+    const session = r.sessionID ?? r.session ?? ""
     const taskID = taskOf(r)
     const key = taskID && `${r.workflowID ?? root(session)}:${taskID}`
-    const t = key
-      ? (tasks[key] ??= {
+    let t: TaskQuality | undefined
+    if (key && taskID) {
+      t = tasks[key]
+      if (!t) {
+        t = {
           taskID,
           workflowID: r.workflowID ?? root(session),
           lifetime_cost: 0,
@@ -45,8 +66,10 @@ export function reportQuality(
           terminal_outcome: null,
           continuation_kind: null,
           capability_gaps: 0,
-        })
-      : undefined
+        }
+        tasks[key] = t
+      }
+    }
     if (t && inWindow) t.window_observed = true
     if (r.kind === "lifecycle" && r.action === "begin" && t) {
       t.disposition = "in_progress"
@@ -59,20 +82,20 @@ export function reportQuality(
       }
     }
     if (r.kind === "task_outcome" && t) {
-      t.terminal_outcome = r.outcome
+      t.terminal_outcome = r.outcome ?? null
       if (["in_progress", "unassessed"].includes(t.disposition))
-        t.disposition = r.outcome === "completed" ? "terminal_unassessed" : r.outcome
+        t.disposition = r.outcome === "completed" ? "terminal_unassessed" : (r.outcome ?? "unknown")
     }
     if (r.kind === "model_route") signals.delete(session)
-    if (r.kind === "task_signal") signals.set(session, r.outcome)
+    if (r.kind === "task_signal") signals.set(session, r.outcome ?? "")
     if (r.kind === "task_signal" && t) {
-      t.disposition = r.outcome === "running" ? "in_progress" : r.outcome
+      t.disposition = r.outcome === "running" ? "in_progress" : (r.outcome ?? "unknown")
     }
     // A delegation result is one observation, even if the worker also sent a status signal.
     if (r.kind === "delegation" && inWindow && "delegation_outcome" in r) measuredDelegations++
     if (
       r.kind === "delegation" &&
-      (r.delegation_outcome ?? signals.get(r.childSessionID)) === "capability_gap"
+      (r.delegation_outcome ?? signals.get(r.childSessionID ?? "")) === "capability_gap"
     ) {
       if (inWindow) gaps++
       if (t && inWindow) t.capability_gaps++

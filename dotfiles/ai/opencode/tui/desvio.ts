@@ -1,7 +1,8 @@
 import type { TuiPlugin } from "@opencode-ai/plugin/tui"
 import { createEffect, getOwner, onCleanup } from "solid-js"
 import { type ControlAction, control } from "../lib/control"
-import { modelKey, type Route, sameRoute } from "../lib/lifecycle"
+import { modelKey, type PinScope, type Route, sameRoute } from "../lib/lifecycle"
+import type { SessionInfoLike } from "../lib/opencode-types"
 import { modelForAgent } from "../lib/routing"
 import { localSelection, readSelection, selectLocal } from "../lib/tui-selection"
 
@@ -12,18 +13,25 @@ const tui: TuiPlugin = async (api) => {
     ["off", "observe"].includes(process.env.DESVIO_LIFECYCLE ?? "enforce")
   )
     return
-  const actions: [string, string, ControlAction, string?][] = [
+  const actions: [string, string, ControlAction, string?, PinScope?][] = [
     ["desvio-continue", "Continue this task with its previous agent", "continue"],
     ["desvio-correct", "Correct a defect in this task", "correct"],
     ["desvio-scope", "Continue with changed requirements", "scope"],
     ["desvio-accept", "Accept the current task result", "accept"],
     ["desvio-auto", "Use the configured baseline", "auto"],
     ["desvio-build", "Pin Sonnet execution", "pin", "build"],
-    ["desvio-reason", "Pin Opus reasoning", "pin", "coordinator"],
+    ["desvio-reason", "Opus reasoning for the next message only", "pin", "coordinator", "once"],
+    [
+      "desvio-reason-sticky",
+      "Pin Opus reasoning until /desvio-auto",
+      "pin",
+      "coordinator",
+      "sticky",
+    ],
     ["desvio-bulk", "Pin GLM utility work", "pin", "bulk"],
   ]
   const unregister = api.keymap.registerLayer({
-    commands: actions.map(([name, title, action, value]) => ({
+    commands: actions.map(([name, title, action, value, scope]) => ({
       namespace: "palette",
       name,
       title,
@@ -31,7 +39,7 @@ const tui: TuiPlugin = async (api) => {
       slashName: name,
       run: async () => {
         api.ui.dialog.clear()
-        const id = api.route.current.params?.sessionID as string | undefined
+        const id = (api.route.current as { params?: { sessionID?: string } }).params?.sessionID
         if (!id) {
           api.ui.toast({
             title: "Desvio",
@@ -41,10 +49,15 @@ const tui: TuiPlugin = async (api) => {
           return
         }
         try {
-          await control(action, id, value)
+          await control(action, id, value, { scope })
           api.ui.toast({
             title: "Desvio",
-            message: action === "accept" ? "Task accepted." : "Route saved for your next message.",
+            message:
+              action === "accept"
+                ? "Task accepted."
+                : scope === "once"
+                  ? "Opus for your next message; then back to the baseline."
+                  : "Route saved for your next message.",
             variant: "success",
           })
         } catch (error) {
@@ -61,9 +74,10 @@ const tui: TuiPlugin = async (api) => {
         let local: ReturnType<typeof localSelection>
         try {
           local = localSelection(getOwner(), api.app.version)
-          if (process.env.DESVIO_TUI_TRACE) {
+          const trace = process.env.DESVIO_TUI_TRACE
+          if (trace) {
             void import("node:fs/promises").then(({ appendFile }) =>
-              appendFile(process.env.DESVIO_TUI_TRACE!, `${JSON.stringify({ kind: "ready" })}\n`),
+              appendFile(trace, `${JSON.stringify({ kind: "ready" })}\n`),
             )
           }
         } catch (error) {
@@ -79,15 +93,15 @@ const tui: TuiPlugin = async (api) => {
         let last: { session: string; route: Route } | undefined
         const active = () =>
           api.route.current.name === "session"
-            ? (api.route.current.params?.sessionID as string | undefined)
+            ? (api.route.current as { params?: { sessionID?: string } }).params?.sessionID
             : undefined
         const synchronize = async (id: string, force = false) => {
           const token = ++generation
           try {
             const result = await api.client.session.get({ sessionID: id })
             if (disposed || token !== generation || active() !== id || !result.data) return
-            const info = result.data as any
-            if (info.parentID || !info.agent || !info.model) return
+            const info = result.data as SessionInfoLike
+            if (info.parentID || !info.agent || !info.model?.providerID || !info.model.id) return
             const route: Route = {
               agent: info.agent,
               providerID: info.model.providerID,

@@ -43,8 +43,12 @@ export function modelRole(model: string): ModelRole | "other" {
 
 export const routingInstructions =
   "desvio model roles: Sonnet build is the ordinary baseline and executes defined work. " +
-  "Opus coordinator/architect/reasoner resolve bounded hard decisions. Completed commands return " +
-  "to the configured baseline or pin; this does not switch a running loop's model. " +
+  "Opus coordinator/architect/reasoner resolve bounded hard decisions; coordinator is read-only " +
+  "and selected per message with /desvio-reason, returning to build afterwards. Completed " +
+  "commands and runs return to the configured baseline or pin; this does not switch a running " +
+  "loop's model. Recurring mechanics have commands with fixed cheap models: /fix-pr-comments, " +
+  "/commit, /rebase, /check, /new-pr, /linear-task, /investigate; suggest them instead of " +
+  "doing that work on a reasoning model. " +
   "Sonnet build/edit executes defined work, integrates changes, runs checks " +
   "and handles user feedback. GLM explorer locates files; bulk-reader gathers broad context; " +
   "code-writer copies explicit reference patterns; doc-writer drafts prose. " +

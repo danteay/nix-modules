@@ -4,7 +4,16 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { begin, initialState, routeFor, settle, terminalOutcome } from "../lib/lifecycle"
 import { LifecycleManager } from "../lib/lifecycle-manager"
+import type { ClientLike, MessageLike, Transport } from "../lib/opencode-types"
 import { StateStore } from "../lib/state"
+
+/** Test double for the SDK client; `_client.post` is required so tests can replace it. */
+type TestClient = ClientLike & { _client: Transport }
+const stateOf = (store: StateStore, id: string) => {
+  const s = store.get(id)
+  if (!s) throw new Error(`no Desvio state for ${id}`)
+  return s
+}
 
 const cleanup: (() => void)[] = []
 afterEach(() => {
@@ -18,27 +27,31 @@ function fixture(mode: "observe" | "enforce" | "off" = "enforce") {
     store.close()
     rmSync(dir, { recursive: true, force: true })
   })
-  const selection: any = {
+  const selection: {
+    id: string
+    agent: string
+    model: { providerID: string; id: string; variant?: string }
+  } = {
     id: "root",
     agent: "bulk",
     model: { providerID: "opencode", id: "glm-5.3" },
   }
-  let messages: any[] = [],
+  let messages: MessageLike[] = [],
     status = "idle",
     calls = 0
-  const log: any[] = []
-  const client: any = {
+  const log: Record<string, unknown>[] = []
+  const client: TestClient = {
     session: {
-      get: async ({ path }: any) => ({
+      get: async ({ path }) => ({
         data: path.id === "child" ? { id: "child", parentID: "root" } : selection,
       }),
       messages: async () => ({ data: messages }),
       status: async () => ({ data: { root: { type: status } } }),
     },
     _client: {
-      post: async (request: any) => {
+      post: async (request) => {
         calls++
-        Object.assign(selection, request.body)
+        Object.assign(selection, request.body as object)
         return { response: { ok: true, status: 204 } }
       },
     },
@@ -77,7 +90,8 @@ function fixture(mode: "observe" | "enforce" | "off" = "enforce") {
     complete,
     idle,
     calls: () => calls,
-    messages: (m: any[]) => {
+    state: (id = "root") => stateOf(store, id),
+    messages: (m: MessageLike[]) => {
       messages = m
     },
     status: (s: string) => {
@@ -200,7 +214,7 @@ test("child, duplicate and stale idle events cannot reset a new root run", async
   await f.manager.incoming("root", "b", routeFor("build"))
   await f.idle()
   expect(f.store.get("root")?.run?.status).toBe("running")
-  expect(f.log.at(-1).kind).toBe("stale_reset_ignored")
+  expect(f.log.at(-1)?.kind).toBe("stale_reset_ignored")
 })
 test("tracked waits, running tools and busy sessions cannot be reset", async () => {
   const f = fixture()
@@ -257,7 +271,7 @@ test("terminal errors and aborts restore baseline without recording success", as
   for (const [name, outcome] of [
     ["MessageAbortedError", "aborted"],
     ["APIError", "failed"],
-  ]) {
+  ] as const) {
     const f = fixture()
     await f.manager.incoming("root", "a", routeFor("bulk"))
     f.complete("a", "stop", { error: { name } })
@@ -265,7 +279,7 @@ test("terminal errors and aborts restore baseline without recording success", as
     expect(f.store.get("root")?.run?.status).toBe(outcome)
     expect(f.selection.agent).toBe("build")
   }
-  expect(terminalOutcome({ finish: "length", time: { completed: 3 } })).toBe("failed")
+  expect(terminalOutcome({ id: "m", finish: "length", time: { completed: 3 } })).toBe("failed")
 })
 test("observe and off perform no API model changes", async () => {
   for (const mode of ["observe", "off"] as const) {
@@ -289,7 +303,7 @@ test("failed reset reconciliation stays pending and never emits success", async 
   await f.idle()
   expect(f.store.get("root")?.resetPending).toBe(true)
   expect(f.log.filter((r) => r.kind === "reset_success")).toHaveLength(0)
-  expect(f.log.at(-1).kind).toBe("reconciliation_failed")
+  expect(f.log.at(-1)?.kind).toBe("reconciliation_failed")
 })
 
 test("enforcement recovers stale bulk after an observed command, even without an idle reset", async () => {
@@ -327,7 +341,7 @@ test("unmanaged routes are preserved; child input is not rerouted", async () => 
 test("unavailable models fail before selection and a repaired admission can be retried", async () => {
   const f = fixture()
   f.client.provider = { list: async () => ({ data: { all: [] } }) }
-  await expect(f.manager.incoming("root", "a", routeFor("bulk"))).rejects.toThrow("unavailable")
+  await expect(f.manager.incoming("root", "a", routeFor("build"))).rejects.toThrow("unavailable")
   expect(f.calls()).toBe(0)
   expect(f.store.get("root")?.run?.status).toBe("failed")
   const recovered = new LifecycleManager(
@@ -337,7 +351,7 @@ test("unavailable models fail before selection and a repaired admission can be r
     routeFor("build"),
     async () => {},
   )
-  expect(await recovered.incoming("root", "a", routeFor("bulk"))).toEqual(routeFor("build"))
+  expect(await recovered.incoming("root", "a", routeFor("build"))).toEqual(routeFor("build"))
   expect(f.store.get("root")?.run?.status).toBe("running")
 })
 
@@ -377,7 +391,7 @@ test("store serializes multiple connections and preserves immutable attribution"
     await Promise.all(
       [f.store, second].map((s) =>
         s.locked("root", async () => {
-          const state = s.get("root")!
+          const state = stateOf(s, "root")
           await Bun.sleep(20)
           state.revision++
           s.put(state)
@@ -403,7 +417,7 @@ test("old session baselines migrate at admission while explicit pins and continu
   )
   f.complete("new")
   await f.idle()
-  const state = f.store.get("root")!
+  const state = f.state()
   state.pin = routeFor("coordinator")
   delete state.baselinePolicy
   f.store.put(state)
@@ -479,4 +493,129 @@ test("baseline configuration changes do not reroute an in-flight admission retry
   expect(await f.manager.incoming("root", "next", routeFor("coordinator"))).toEqual(
     routeFor("build"),
   )
+})
+
+test("a deliberately selected cheaper primary agent is honored; a stale command route and an upgrade are not", async () => {
+  const f = fixture()
+  // Fresh session, selector on bulk: honored as a manual selection.
+  expect(await f.manager.incoming("root", "a", routeFor("bulk"))).toEqual(routeFor("bulk"))
+  expect(f.store.get("root")?.run?.source).toBe("manual-selection")
+  expect(f.log.at(-1)).toMatchObject({ selection: "honored", requested_route: routeFor("bulk") })
+  f.complete("a")
+  await f.idle()
+  expect(f.selection.agent).toBe("build")
+  // Selector still on bulk after a command completed: stale, repaired to the baseline.
+  await f.manager.command("root", "new-pr")
+  expect(await f.manager.incoming("root", "pr", routeFor("bulk"))).toEqual(routeFor("bulk"))
+  f.complete("pr")
+  await f.idle()
+  expect(await f.manager.incoming("root", "after", routeFor("bulk"))).toEqual(routeFor("build"))
+  expect(f.store.get("root")?.run?.selection).toBe("stale")
+  f.complete("after")
+  await f.idle()
+  // Selector on coordinator: never upgraded silently.
+  expect(await f.manager.incoming("root", "up", routeFor("coordinator"))).toEqual(routeFor("build"))
+  expect(f.store.get("root")?.run?.selection).toBe("upgrade-ignored")
+  f.complete("up")
+  await f.idle()
+  // Consecutive manual bulk turns keep bulk (previous source is manual-selection, not a command).
+  expect(await f.manager.incoming("root", "b1", routeFor("bulk"))).toEqual(routeFor("bulk"))
+  f.complete("b1")
+  await f.idle()
+  expect(await f.manager.incoming("root", "b2", routeFor("bulk"))).toEqual(routeFor("bulk"))
+})
+
+test("a one-shot reasoning pin routes exactly one run, then completion and continuation return to build", async () => {
+  const f = fixture()
+  const s = initialState("root")
+  s.pin = routeFor("coordinator")
+  s.pinScope = "once"
+  f.store.put(s)
+  expect(await f.manager.incoming("root", "decide", routeFor("build"))).toEqual(
+    routeFor("coordinator"),
+  )
+  const state = f.state()
+  expect(state.pin).toBeUndefined()
+  expect(state.run?.pinScope).toBe("once")
+  expect(f.log.at(-1)).toMatchObject({ source: "manual-pin", pin_scope: "once" })
+  f.complete("decide")
+  await f.idle()
+  expect(f.selection.agent).toBe("build")
+  expect(f.log.at(-1)).toMatchObject({ kind: "reset_success", pin_scope: "once" })
+  // Free text after the decision executes on the baseline, even with coordinator selected.
+  expect(await f.manager.incoming("root", "go", routeFor("coordinator"))).toEqual(routeFor("build"))
+  f.complete("go")
+  await f.idle()
+  // An explicit continuation of the decision keeps its task identity but not the Opus route.
+  const cont = f.state()
+  cont.continueTask = "decide"
+  f.store.put(cont)
+  expect(await f.manager.incoming("root", "more", routeFor("build"))).toEqual(routeFor("build"))
+  expect(f.store.get("root")?.run?.taskID).toBe("decide")
+  expect(f.store.get("root")?.run?.source).toBe("continuation")
+})
+
+test("a sticky pin survives completion and beats the selector; auto re-reads the file baseline", async () => {
+  const f = fixture()
+  const s = initialState("root")
+  s.pin = routeFor("coordinator")
+  s.pinScope = "sticky"
+  f.store.put(s)
+  expect(await f.manager.incoming("root", "a", routeFor("build"))).toEqual(routeFor("coordinator"))
+  expect(f.log.at(-1)).toMatchObject({ source: "manual-pin", pin_scope: "sticky" })
+  f.complete("a")
+  await f.idle()
+  expect(f.selection.agent).toBe("coordinator")
+  expect(await f.manager.incoming("root", "b", routeFor("bulk"))).toEqual(routeFor("coordinator"))
+})
+
+test("a baseline provider is consulted at admission and at completion, so configuration changes apply without restart", async () => {
+  const f = fixture()
+  let baseline = routeFor("coordinator")
+  const manager = new LifecycleManager(
+    f.store,
+    f.client,
+    "enforce",
+    () => ({ route: baseline, source: "file", path: "/tmp/desvio.json" }),
+    async (r) => {
+      f.log.push(r)
+    },
+  )
+  // Selector on coordinator while the file says coordinator: the baseline applies as-is.
+  expect(await manager.incoming("root", "a", routeFor("coordinator"))).toEqual(
+    routeFor("coordinator"),
+  )
+  expect(f.log.at(-1)).toMatchObject({ baseline_source: "file", baseline: routeFor("coordinator") })
+  baseline = routeFor("build")
+  f.complete("a")
+  await manager.event({
+    type: "session.status",
+    properties: { sessionID: "root", status: { type: "idle" } },
+  })
+  expect(f.selection.agent).toBe("build")
+  expect(f.store.get("root")?.baseline).toEqual(routeFor("build"))
+  expect(await manager.incoming("root", "b", routeFor("coordinator"))).toEqual(routeFor("build"))
+  expect(f.log.at(-1)).toMatchObject({ baseline_changed: false, selection: "upgrade-ignored" })
+})
+
+test("CLI pin scopes: reasoning pins default to once, --sticky keeps them, cheap pins stay sticky", async () => {
+  const f = fixture()
+  f.store.put(initialState("root"))
+  const run = async (...args: string[]) => {
+    const proc = Bun.spawn(["bun", join(import.meta.dir, "../scripts/control.ts"), ...args], {
+      env: { ...process.env, DESVIO_LOG_DIR: join(f.path, "..") },
+      stdout: "pipe",
+      stderr: "pipe",
+    })
+    return { out: await new Response(proc.stdout).text(), exit: await proc.exited }
+  }
+  expect((await run("pin", "root", "coordinator")).out).toContain("(once)")
+  expect(f.store.get("root")?.pinScope).toBe("once")
+  expect((await run("pin", "root", "coordinator", "--sticky")).out).toContain("(sticky)")
+  expect(f.store.get("root")?.pinScope).toBe("sticky")
+  expect((await run("pin", "root", "build")).out).toContain("(sticky)")
+  expect((await run("pin", "root", "build", "--once", "--sticky")).exit).toBe(1)
+  expect((await run("auto", "root", "--sticky")).exit).toBe(1)
+  expect((await run("auto", "root")).exit).toBe(0)
+  expect(f.store.get("root")?.pinScope).toBeUndefined()
 })

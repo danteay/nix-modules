@@ -3,6 +3,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { join, resolve } from "node:path"
 import { parseJsonl } from "../lib/jsonl"
+import type { LogRecord } from "../lib/log-types"
 import { extractAnswer, type StreamEvent } from "../lib/opencode-events"
 import { summarize } from "../lib/report"
 import { saveResults } from "../lib/results-writer"
@@ -90,9 +91,9 @@ for (let repeat = 0; repeat < repeats; repeat++) {
       await writeFile(join(out, `${experiment}.stderr.txt`), stderr)
       const events = parseJsonl<StreamEvent>(stdout)
       const answer = extractAnswer(events)
-      let records: any[] = []
+      let records: LogRecord[] = []
       try {
-        records = parseJsonl(await readFile(join(out, "usage.jsonl"), "utf8")).filter(
+        records = parseJsonl<LogRecord>(await readFile(join(out, "usage.jsonl"), "utf8")).filter(
           (r) => r.experiment === experiment,
         )
       } catch {}

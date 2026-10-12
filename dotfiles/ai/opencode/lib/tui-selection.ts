@@ -17,24 +17,27 @@ export type LocalSelection = {
  * boundary isolated: the app slot shares the host's Solid LocalProvider context.
  * Never cycle agents blindly or rewrite conversation messages to change the UI.
  */
-export function localSelection(
-  owner: { context?: object | null; owner?: unknown } | null,
-  version: string,
-): LocalSelection {
+type OwnerNode = { context?: Record<PropertyKey, unknown> | null; owner?: unknown }
+const isSelection = (value: unknown): value is LocalSelection => {
+  const v = value as Partial<LocalSelection> | null | undefined
+  return (
+    typeof v?.agent?.current === "function" &&
+    typeof v?.agent?.list === "function" &&
+    typeof v?.agent?.set === "function" &&
+    typeof v?.model?.current === "function" &&
+    typeof v?.model?.set === "function" &&
+    typeof v?.model?.variant?.set === "function"
+  )
+}
+
+export function localSelection(owner: OwnerNode | null, version: string): LocalSelection {
   if (!["1.18.33", "1.18.34", "1.18.35"].includes(version))
     throw new Error(`Desvio TUI selection is unverified on OpenCode ${version}`)
-  for (let node: any = owner; node; node = node.owner) {
-    for (const key of Reflect.ownKeys(node.context ?? {})) {
-      const value = node.context[key]
-      if (
-        typeof value?.agent?.current === "function" &&
-        typeof value?.agent?.list === "function" &&
-        typeof value?.agent?.set === "function" &&
-        typeof value?.model?.current === "function" &&
-        typeof value?.model?.set === "function" &&
-        typeof value?.model?.variant?.set === "function"
-      )
-        return value
+  for (let node = owner; node; node = (node.owner ?? null) as OwnerNode | null) {
+    const context = node.context ?? {}
+    for (const key of Reflect.ownKeys(context)) {
+      const value = context[key]
+      if (isSelection(value)) return value
     }
   }
   throw new Error("Desvio could not access the terminal agent/model selection")

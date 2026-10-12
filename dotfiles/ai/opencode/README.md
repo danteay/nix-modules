@@ -18,15 +18,33 @@ for other Datadog sites.
 - Lifecycle routing ships in `DESVIO_LIFECYCLE=enforce` mode: commands use their configured
   agent and restore the configured baseline or explicit pin after completion. `observe` only records proposed
   routes and resets; `off` retains the original model-by-agent routing.
-  `DESVIO_BASELINE_AGENT=build` selects the Sonnet baseline; Home Manager tags usage with
-  `DESVIO_EXPERIMENT=sonnet-baseline-v4`. Restart the shell and OpenCode after applying.
-  Stored baselines reconcile with the running configuration on every new input, even when
-  the policy version is unchanged, preserving pins and continuation routes. A shell left open
-  across activation can still export `DESVIO_BASELINE_AGENT=coordinator`: source
-  `~/.envs/opencode.sh` in the launching shell and restart OpenCode after applying. Updating
-  files does not update the environment or loaded plugin of an existing process.
+- **The baseline lives in `~/.config/opencode/desvio.json`** (`{ "baseline": "build" }`, shipped
+  from `dotfiles/ai/opencode/desvio.json`). The plugin re-reads it on every incoming turn and at
+  every completion, so `hms` applies on the next message without restarting OpenCode or the
+  shell. `DESVIO_BASELINE_AGENT` is only a fallback when no file exists (isolated smoke and
+  benchmark runs); a file value always wins and a conflicting export is logged as
+  `baseline_env_ignored`. A reasoning agent (`coordinator`, `plan`) is rejected as baseline and
+  replaced by `build` unless the file sets `allow_reasoning_baseline: true` (or
+  `DESVIO_ALLOW_REASONING_BASELINE=1`); rejections are logged as `baseline_rejected`. Home
+  Manager tags usage with `DESVIO_EXPERIMENT=sonnet-baseline-v5`. Background: in October 2026
+  three OpenCode processes kept a stale `coordinator` export for a week and routed 88% of spend
+  to Opus; see [the October 12 audit](reports/routing-audit-2026-10-12.md).
   Logs include `configured_baseline` and `baseline_source`; the report warns about ordinary
-  runs using a reasoning-model baseline even when model-mismatch counts are zero.
+  runs using a reasoning-model baseline even when model-mismatch counts are zero, and its
+  `process check` section lists every running OpenCode process with the baseline in its
+  environment.
+- **Selector changes:** an explicit pin always wins. Without a pin, a primary agent you select
+  in the terminal is honored when it is cheaper than or equal to the baseline (`bulk`, `edit`,
+  `build`) and is not simply the route left behind by a completed command or skill; that run is
+  logged with `source: manual-selection`. A more expensive selection (`coordinator`, `plan`) is
+  never applied silently: the run stays on the baseline and is logged as `upgrade-ignored`. Use
+  `/desvio-reason` for Opus.
+- **Reasoning is one message at a time:** `/desvio-reason` (or `control.ts pin SESSION
+  coordinator`) pins `coordinator` for the next run only; completion returns to the baseline,
+  and ordinary free text after it runs on `build`. `/desvio-continue` of that decision keeps the
+  task identity but also executes on the baseline. `/desvio-reason-sticky` (or `pin ... --sticky`)
+  keeps Opus until `/desvio-auto`. `coordinator` itself can no longer edit or run checks; it
+  returns a decision and an execution checklist.
 - Every command, including slash skills, returns to the baseline or pin after a terminal response and
   an idle root. A skill loaded through the `skill` tool returns when the enclosing root run ends,
   not when the skill text loads. Ordinary runs return to their baseline or explicit pin.
@@ -81,9 +99,14 @@ Claude agents use Anthropic directly. The configured routes are:
 | Context, reference-based boilerplate, prose, utility commands | `bulk`, `explorer`, `explore`, `bulk-reader`, `code-writer`, `doc-writer` | `opencode/glm-5.3` |
 
 The default is Sonnet `build`; `small_model` is GLM 5.3. Utility commands explicitly choose
-`bulk`; feature, architecture-task and PR-review commands choose Sonnet `build`. Their hard
-decisions go to a bounded Opus task. Within those command runs, edits, formatting and checks stay
-on Sonnet. After a terminal response, ordinary free text returns to the baseline/pin; use an explicit task continuation to retain
+`bulk` (`/new-pr`, `/commit`, `/linear-task`, `/bulk-read`, `/scaffold`, `/outline`, `/usage`);
+feature, architecture-task, PR-review, PR-comment, rebase, check and investigation commands
+choose Sonnet `build` (`/new-feat`, `/new-arch-task`, `/review-pr`, `/fix-pr-comments`,
+`/rebase`, `/check`, `/investigate`). Their hard decisions go to a bounded Opus task
+(`architect` or `reasoner`). Within those command runs, edits, formatting and checks stay on
+Sonnet. The October 2026 audit found git/PR mechanics, approvals and check runs typed as free
+text on Opus; the recurring ones now have a command with a fixed cheap model, and the routing
+instructions tell the model to suggest them. After a terminal response, ordinary free text returns to the baseline/pin; use an explicit task continuation to retain
 the prior command route and task identity. `plan` is available for a
 session devoted to hard reasoning. `reasoner` resolves a
 single difficult correctness/security/debugging question; `architect` handles structural tradeoffs.
@@ -166,6 +189,25 @@ review checkpoints, and exact Linear task draft. When asked to reconcile current
 shows field-by-field proposed Linear changes. The user reviews the current draft before any
 Linear create or update; this command never implements the planned work.
 
+## Fixing review comments, committing, rebasing, checking
+
+```
+/fix-pr-comments [pr]            # Sonnet build: triage threads, verify claimed errors, fix, push, reply
+/commit [context|push]           # GLM bulk: group the working tree into conventional commits
+/rebase [base-branch]            # Sonnet build: fetch, rebase, resolve conflicts, rerun checks
+/check [command ...]             # Sonnet build: run build/lint/test with real exit codes, fix
+/linear-task <issue> <changes>   # GLM bulk: update an issue or add subtasks after confirmation
+/investigate <symptom> [svc env window]  # Sonnet build: Datadog + git evidence, ranked hypotheses
+```
+
+`/fix-pr-comments` uses two custom tools: `pr_unresolved_comments` (GraphQL listing of
+unresolved review threads) and `pr_reply_comment` (posts a public reply; `opencode.json` sets
+it to `ask` on every primary agent, and Desvio denies both tools to workers like every
+non-read tool). It confirms once with the question tool before editing or replying, and
+escalates at most one unclear correctness/security claim to `reasoner`. `/commit` and
+`/linear-task` confirm their plan before writing. `/rebase` and `/commit` push only when asked.
+`/investigate` never applies remediation.
+
 ## Creating a pull request
 
 ```
@@ -218,7 +260,20 @@ bash ~/.config/opencode/scripts/baseline.sh /path/to/repo
 bun ~/.config/opencode/scripts/report.ts --days 1
 bun ~/.config/opencode/scripts/report.ts --days 1 --json
 bun ~/.config/opencode/scripts/report.ts --days 10 --workflows
+bun ~/.config/opencode/scripts/report.ts --days 7 --turns
 ```
+
+`--turns` prints one row per root run: heuristic prompt class, cost until the next root prompt
+of the same workflow (child sessions included), call count, route source and selection
+(`manual-selection`, `stale`, `upgrade-ignored`), agent/model and an 80-character prompt
+preview. Rows marked `!` are approval/git-pr/checks/admin turns that ran on a reasoning model.
+The class comes from `prompt_class` on `model_route` records (plugin 0.5.0 and newer); it is a
+keyword heuristic for reporting and never influences routing. Older records show as
+`unlabeled`. The lifecycle block adds `manual_selections_honored`, `upgrades_ignored`,
+`reasoning_baselines_rejected` and `one_shot_pins`. Every text report ends with a `process
+check` that lists running OpenCode processes and the `DESVIO_BASELINE_AGENT` in their
+environment; `STALE` means that process would use a different baseline if it loaded a plugin
+older than 0.5.0.
 
 Logs use schema 4; reports also read legacy and schema 2/3 records. Successful read records retain canonical input paths and ranges;
 failed reads are not counted as successes. Parent/worker IDs group costs into one
@@ -298,7 +353,9 @@ control pin instead of relying on manual selector changes in enforcement mode.
 ```sh
 bun ~/.config/opencode/scripts/control.ts status SESSION_ID
 bun ~/.config/opencode/scripts/control.ts pin SESSION_ID build
-bun ~/.config/opencode/scripts/control.ts auto SESSION_ID
+bun ~/.config/opencode/scripts/control.ts pin SESSION_ID coordinator            # next run only
+bun ~/.config/opencode/scripts/control.ts pin SESSION_ID coordinator --sticky   # until auto
+bun ~/.config/opencode/scripts/control.ts auto SESSION_ID                       # re-reads desvio.json
 bun ~/.config/opencode/scripts/control.ts continue SESSION_ID TASK_ID
 bun ~/.config/opencode/scripts/control.ts correct SESSION_ID TASK_ID
 bun ~/.config/opencode/scripts/control.ts scope SESSION_ID TASK_ID
@@ -308,8 +365,8 @@ bun ~/.config/opencode/scripts/smoke.ts --tui
 ```
 
 The TUI exposes `/desvio-continue`, `/desvio-correct`, `/desvio-scope`, `/desvio-accept`,
-`/desvio-auto`, `/desvio-build`, `/desvio-reason`, and `/desvio-bulk`. Select the control, then send
-your follow-up normally. Controls require local Desvio state; remote-server attachment is not
+`/desvio-auto`, `/desvio-build`, `/desvio-reason` (next message only), `/desvio-reason-sticky`,
+and `/desvio-bulk`. Select the control, then send your follow-up normally. Controls require local Desvio state; remote-server attachment is not
 supported for controls. Missing state is an error and never silently creates a replacement.
 
 The smoke test starts an isolated OpenCode server and local mock providers, verifies actual GLM
