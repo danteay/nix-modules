@@ -1,7 +1,7 @@
 ---
 description: Analyze diagrams and documentation, design architecture work, and prepare a reviewed Linear task
 agent: build
-model: anthropic/claude-sonnet-5
+model: anthropic/claude-sonnet-5-5
 ---
 
 Plan an architecture or work-planning task for: $ARGUMENTS

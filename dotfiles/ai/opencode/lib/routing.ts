@@ -1,8 +1,8 @@
 /** Roles are explicit: routing never guesses task difficulty from prompt keywords. */
 export const models = {
-  reasoning: "anthropic/claude-opus-5",
-  execution: "anthropic/claude-sonnet-5",
-  bulk: "opencode/glm-5.3",
+  reasoning: "anthropic/claude-opus-5-5",
+  execution: "anthropic/claude-sonnet-5-5",
+  bulk: "anthropic/claude-haiku-5-5",
 } as const
 
 export type ModelRole = keyof typeof models
@@ -37,7 +37,7 @@ export function modelRole(model: string): ModelRole | "other" {
   // Include historical versions in descriptive reports, without inventing prices.
   if (/\/claude-opus-/.test(model)) return "reasoning"
   if (/\/claude-sonnet-/.test(model)) return "execution"
-  if (/\/glm-/.test(model)) return "bulk"
+  if (/\/glm-|\/claude-haiku-/.test(model)) return "bulk"
   return "other"
 }
 
@@ -50,7 +50,7 @@ export const routingInstructions =
   "/commit, /rebase, /check, /new-pr, /linear-task, /investigate; suggest them instead of " +
   "doing that work on a reasoning model. " +
   "Sonnet build/edit executes defined work, integrates changes, runs checks " +
-  "and handles user feedback. GLM explorer locates files; bulk-reader gathers broad context; " +
+  "and handles user feedback. Haiku explorer locates files; bulk-reader gathers broad context; " +
   "code-writer copies explicit reference patterns; doc-writer drafts prose. " +
   "Use architect (Opus) only for unresolved architecture/contracts/tradeoffs; use reasoner " +
   "(Opus) for a hard correctness, security or debugging question that remains unresolved after " +
@@ -58,7 +58,7 @@ export const routingInstructions =
   "then execute its returned plan with Sonnet. Do not send routine implementation, approvals, " +
   "formatting, test runs, PR mechanics or context collection to Opus. " +
   "Delegate only when the work warrants the extra call; perform a small targeted read directly. " +
-  "Pass eligible paths and focused questions to GLM, request concise source references, and " +
+  "Pass eligible paths and focused questions to Haiku, request concise source references, and " +
   "reuse its evidence across reviewers. Never repeat a whole review for a local correction. " +
   "Review agents are read-only; implementation belongs to build/edit or feature-builder. " +
   "Keep excluded paths with the primary agent. Do not paste excluded source into workers. " +

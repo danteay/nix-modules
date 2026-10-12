@@ -1,10 +1,10 @@
 ---
 description: Read a Linear issue and apply requested updates (subtasks, description, state, labels) after a field-by-field confirmation
 agent: bulk
-model: opencode/glm-5.3
+model: anthropic/claude-haiku-5-5
 ---
 
-Linear bookkeeping on GLM through the configured Linear MCP server. This command edits task
+Linear bookkeeping on Haiku through the configured Linear MCP server. This command edits task
 metadata from the user's instructions; it never designs the work (use `/new-arch-task` for
 that) and never implements anything.
 

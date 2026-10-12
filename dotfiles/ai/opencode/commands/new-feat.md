@@ -1,7 +1,7 @@
 ---
 description: Compile sourced feature context, run specialist analysis, write a reviewable plan, then build after approval
 agent: build
-model: anthropic/claude-sonnet-5
+model: anthropic/claude-sonnet-5-5
 ---
 
 Start a feature workflow for: $ARGUMENTS
@@ -57,7 +57,7 @@ approves the current plan. An earlier approval of an older plan is not approval 
 ## 2. Problem analysis
 
 - The coordinator and routine specialists use Sonnet. Gather reusable eligible source evidence
-  with GLM before specialist analysis. Send `architect` only an unresolved structural or contract
+  with Haiku before specialist analysis. Send `architect` only an unresolved structural or contract
   decision with alternatives and constraints; a feature touching several files does not by
   itself require Opus. Use `reasoner` only for a hard unresolved correctness/security/debugging
   question. Reuse each decision through subsequent implementation approvals.

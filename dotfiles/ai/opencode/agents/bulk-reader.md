@@ -1,7 +1,7 @@
 ---
 description: Reads large files and answers ONE specific question about them. Use instead of reading any file over the line threshold. Always pass the exact question and the file paths.
 mode: subagent
-model: opencode/glm-5.3
+model: anthropic/claude-haiku-5-5
 temperature: 0.2
 tools:
   read: true
