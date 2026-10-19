@@ -4,7 +4,7 @@
  */
 
 import { tool } from "@opencode-ai/plugin"
-import { $ } from "bun"
+import { paginatePr, resolvePr } from "../lib/github"
 
 const QUERY = `
 query($owner: String!, $repo: String!, $number: Int!, $cursor: String) {
@@ -44,13 +44,6 @@ type Thread = {
   comments: { nodes: Comment[] }
 }
 
-async function gh(args: string[]): Promise<string> {
-  const res = await $`gh ${args}`.nothrow().quiet()
-  if (res.exitCode !== 0)
-    throw new Error(res.stderr.toString().trim() || `gh exited ${res.exitCode}`)
-  return res.stdout.toString()
-}
-
 export default tool({
   description:
     "List UNRESOLVED review comment threads of a GitHub pull request (file, line, author, " +
@@ -76,41 +69,10 @@ export default tool({
   },
   async execute(args) {
     try {
-      const repo =
-        args.repo ??
-        (await gh(["repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"])).trim()
-      const [owner, name] = repo.split("/")
-      if (!owner || !name) return `Invalid repo "${repo}", expected owner/name.`
-
-      const number =
-        args.pr ??
-        Number(
-          (await gh(["pr", "view", "--repo", repo, "--json", "number", "-q", ".number"])).trim(),
-        )
-      if (!Number.isInteger(number))
-        return "Could not determine the pull request number. Pass `pr`."
-
-      const threads: Thread[] = []
-      let cursor: string | null = null
-      do {
-        const ghArgs = [
-          "api",
-          "graphql",
-          "-f",
-          `query=${QUERY}`,
-          "-F",
-          `owner=${owner}`,
-          "-F",
-          `repo=${name}`,
-          "-F",
-          `number=${number}`,
-        ]
-        if (cursor) ghArgs.push("-f", `cursor=${cursor}`)
-        const data = JSON.parse(await gh(ghArgs))
-        const page = data.data.repository.pullRequest.reviewThreads
-        threads.push(...page.nodes)
-        cursor = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null
-      } while (cursor)
+      const ref = await resolvePr(args.repo, args.pr)
+      if (typeof ref === "string") return ref
+      const { repo, number } = ref
+      const threads = await paginatePr<Thread>(ref, QUERY, "reviewThreads")
 
       const includeOutdated = args.includeOutdated ?? true
       const open = threads.filter((t) => !t.isResolved && (includeOutdated || !t.isOutdated))

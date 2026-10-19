@@ -13,6 +13,22 @@ in the configuration. Apply with `hms draftea`, restart OpenCode, then run
 `opencode mcp list`. See the [Datadog setup docs](https://docs.datadoghq.com/mcp_server/setup/)
 for other Datadog sites.
 
+## Vercel
+
+Follows [vercel.com/get-started.md](https://vercel.com/get-started.md), declared in Nix rather than
+through the imperative `opencode plugin add` / `opencode mcp add` commands (they would write to the
+read-only store link). Requires OpenCode 2 (`opencode-v2` formula in `nix-darwin/configuration.nix`):
+
+- **Plugin:** `opencode.json` lists `github:vercel/vercel-plugin` under `plugins` (OpenCode 2
+  key; 1.x used `plugin`). OpenCode fetches it into `~/.cache/opencode` on first start. It ships
+  the Vercel skills, the `/vercel:*` commands (check with `/vercel:status`) and the `vercel` MCP
+  server. `opencode plugin update` refreshes it.
+- **MCP:** `opencode.json` also registers `https://mcp.vercel.com` explicitly, so the server stays
+  configured even without the plugin. After `hms`, run `opencode mcp auth vercel` and check with
+  `opencode mcp list`.
+- **CLI:** the `vercel` Homebrew formula in `nix-darwin/configuration.nix` (not in nixpkgs).
+  Apply with `nds`, then `vercel login`.
+
 ## Behavior
 
 - Lifecycle routing ships in `DESVIO_LIFECYCLE=enforce` mode: commands use their configured
@@ -79,6 +95,9 @@ for other Datadog sites.
   and outlines check excluded paths, including symlink targets, before offset/limit.
 - Workers use repo_grep for search. It filters excluded paths before reading content.
   Raw grep, glob, shell and unreviewed inherited tools are denied for workers.
+- Primary agents send repo-wide location searches to Haiku `explorer` and use `repo_grep` for a
+  single narrow lookup. `rg *` is `ask` on every primary agent (`build`, `plan`, `bulk`,
+  `coordinator`); it remains for excluded paths that `repo_grep` filters out.
 - Delegation prompts naming excluded paths are rejected. Pass file paths and a
   question, never pasted source. These checks do not classify arbitrary pasted text
   or sanitize existing conversation history; they are not a general data-loss firewall.
@@ -168,8 +187,10 @@ confirmation before posting one consolidated GitHub review.
 Because subagents have no shell, the primary agent fetches all `gh` data and passes it in the
 prompt — the agents cannot run `gh`, `git`, tests, builds, `terraform plan` or `pkl eval`, and
 must never claim a result they could not produce. `opencode.json` allows the read-only calls the
-flow makes (`gh pr view|diff|list`, `gh api --paginate`); submitting the review with
-`gh api -X POST` still prompts, which is intended.
+flow makes (`gh pr view|diff|list`); submitting the review with `gh api -X POST` still
+prompts, which is intended. Prior feedback comes from `pr_review_history` (every review thread,
+resolved or not, plus review summaries and general comments in one call), Linear context from
+the `linear` MCP, and replies to existing threads go through `pr_reply_comment`.
 
 ## Developing a new feature
 
@@ -216,8 +237,10 @@ Linear create or update; this command never implements the planned work.
 
 `/fix-pr-comments` uses two custom tools: `pr_unresolved_comments` (GraphQL listing of
 unresolved review threads) and `pr_reply_comment` (posts a public reply; `opencode.json` sets
-it to `ask` on every primary agent, and Desvio denies both tools to workers like every
-non-read tool). It confirms once with the question tool before editing or replying, and
+it to `ask` on `build`, `edit` and `bulk` and `deny` on the read-only `plan` and `coordinator`,
+and Desvio denies both tools to workers like every non-read tool). `/rebase` uses
+`merge_conflicts` to list unmerged paths with each marker region's line range and read
+offset/limit, so conflicts are read region by region instead of searched for. It confirms once with the question tool before editing or replying, and
 escalates at most one unclear correctness/security claim to `reasoner`. `/commit` and
 `/linear-task` confirm their plan before writing. `/rebase` and `/commit` push only when asked.
 `/investigate` never applies remediation.
@@ -233,7 +256,9 @@ syncs with `origin/<base-branch>`, pushes the branch, checks for an existing ope
 against that base using the Draftea PR template when needed. The base defaults to `main`: use
 `/new-pr develop` to target `develop`, or `/new-pr main <context>` to add context with the default
 base. Existing stacks retain their configured bases; an explicit base must match the current
-layer's parent. It returns the PR URL.
+layer's parent. It returns the PR URL. It applies `/commit`'s staging rules (explicit paths,
+secret patterns never staged) and never resolves conflicts or hook failures on Haiku: it aborts
+and points to `/rebase` or `/check` instead.
 
 ### Shared knowledge base
 

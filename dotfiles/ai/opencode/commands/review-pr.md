@@ -53,17 +53,12 @@ You are the primary agent. The review agents (`code-reviewer`, `architect`, `ref
 
 - Search the PR title and body for a Linear task ID matching `[A-Z]+-[0-9]+` (e.g. `ENG-1234`,
   `DRAFT-42`).
-- If a task ID is found AND `LINEAR_API_KEY` is set, fetch the task:
-  ```bash
-  curl -s -X POST https://api.linear.app/graphql \
-    -H "Authorization: $LINEAR_API_KEY" \
-    -H "Content-Type: application/json" \
-    -d '{"query":"query { issue(id: \"<TASK_ID>\") { identifier title description priority state { name } labels { nodes { name } } } }"}'
-  ```
-  Pass the result to the **architect** agent as additional context.
-- If no task ID is found OR `LINEAR_API_KEY` is not set, note this and continue without Linear
-  context. Tell the architect explicitly that there is no task context so it does not invent
-  intent.
+- If a task ID is found, fetch it with the configured `linear` MCP (`linear_get_issue`):
+  identifier, title, description, priority, state and labels. Pass the result to the
+  **architect** agent as additional context. Do not call the Linear API with `curl`.
+- If no task ID is found, or the Linear MCP is unavailable or the call fails, note this (quote the
+  error) and continue without Linear context. Tell the architect explicitly that there is no task
+  context so it does not invent intent.
 
 ## Step 3: Classify the PR content (this drives which agents run)
 
@@ -115,27 +110,19 @@ Default to reviewing the diff plus targeted reads on the base branch.
 Gather every comment already on this PR and determine its current status, so the review does not
 re-raise something already fixed, answered or decided.
 
-- **Inline review comments** (file/line threads):
-  ```bash
-  gh api --paginate repos/<owner>/<repo>/pulls/<number>/comments \
-    -q '.[] | {id, path, line, original_line, body, user: .user.login, in_reply_to_id, created_at, commit_id}'
-  ```
-- **Review summaries**:
-  ```bash
-  gh api --paginate repos/<owner>/<repo>/pulls/<number>/reviews \
-    -q '.[] | {id, state, body, user: .user.login, submitted_at}'
-  ```
-- **Issue-level (general) comments**:
-  ```bash
-  gh api --paginate repos/<owner>/<repo>/issues/<number>/comments \
-    -q '.[] | {id, body, user: .user.login, created_at}'
-  ```
+- Call `pr_review_history` with `repo: "<owner>/<repo>"`, `pr: <number>` and
+  `includeDiffHunk: true`. One call returns every review thread (resolved and unresolved, with
+  the outdated flag, `original_line`, the root comment's commit and all replies in order), every
+  non-empty review summary, and every general (issue-level) comment. Threads are numbered `T<n>`,
+  summaries `R<n>`, general comments `C<n>`; use those IDs in the triage table.
+- Do not page `gh api` for comments yourself. If the tool reports a failure, quote it, continue
+  without prior-comment triage, and say so in Step 9.
 
-Reconstruct threads via `in_reply_to_id` so each root comment is paired with its replies. For
-every root comment, classify its status:
+For every thread and for every review summary or general comment that raises a concern, classify
+its status. GitHub's resolved flag is a hint, not proof:
 
 - **RESOLVED-FIXED** — the concern was addressed. Verify by checking the current file/line against
-  the comment's `original_line`/`commit_id`: the flagged code no longer exists or now does what
+  the thread's `original_line`/`commit`: the flagged code no longer exists or now does what
   the comment asked. Prefer objective evidence in the diff over trusting a "done" reply.
 - **RESPONDED-JUSTIFIED** — someone replied with a decision or justification for not changing it
   (intentional trade-off, out of scope, follow-up ticket). Treat it as settled.
@@ -394,8 +381,9 @@ the Step 7 file.
 - `event` maps from the Step 6 verdict: `request_changes` → `REQUEST_CHANGES`, `approve` →
   `APPROVE`, `comment` → `COMMENT`.
 - For findings marked **repeat** of an OPEN-UNADDRESSED thread, reply on the existing thread
-  instead of creating a new one:
-  `gh api -X POST repos/<owner>/<repo>/pulls/<number>/comments/<comment_id>/replies -f body="<comment>"`
+  instead of creating a new one: call `pr_reply_comment` with the thread's comment URL from
+  `pr_review_history` (`…/pull/<number>#discussion_r<id>`) and the comment body. It posts publicly
+  and prompts for permission; only call it after the Step 7 confirmation.
 - The overall `body` is a concise summary listing the top issues and which agents flagged them.
   Never dump raw agent output.
 - Findings without a specific line (architecture-wide concerns) go in the body, not inline.

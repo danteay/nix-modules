@@ -28,16 +28,20 @@ Usage: `/rebase [base-branch] [context]` — base defaults to `main`.
 
 ## Step 3: Resolve conflicts
 
-For each conflicted file (`git diff --name-only --diff-filter=U`):
+Call `merge_conflicts` to list the conflicted files and each region's line range, ours/theirs
+labels and read offset/limit. Do not search for markers with `rg` or `git diff`. For each file:
 
-- Read only the conflict regions (targeted `read` with offset/limit around the markers;
-  `go_outline` first for large Go files). Understand both sides from `git log -3 -- <file>` on
+- Read only the reported regions (targeted `read` with the given offset/limit, widened a few
+  lines for context; `go_outline` first for large Go files). A file reported with no text
+  markers is a delete/rename/binary conflict: decide keep or remove from `git log` evidence. Understand both sides from `git log -3 -- <file>` on
   each branch when intent is unclear.
 - Resolve keeping the intent of both changes; prefer the current branch's intent for the
   feature it introduces and the base's intent for everything it refactored. Never take a whole
   side blindly, never `git rebase --skip`, never leave markers.
 - Desvio-excluded paths are yours to read; do not delegate them.
-- `git add -- <file>` then `git rebase --continue`. Repeat until the rebase finishes.
+- Call `merge_conflicts` again; it must list the file with no marker regions before you
+  `git add -- <file>`. Then `git rebase --continue` (or `gh stack rebase --continue`). Repeat
+  until the rebase finishes.
 - If a conflict cannot be resolved from the evidence, `git rebase --abort`, explain which
   hunks conflict and why, and stop.
 

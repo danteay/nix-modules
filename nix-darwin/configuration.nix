@@ -29,7 +29,12 @@
       "cpulimit"
       "rtk"
       "jj"
-      "anomalyco/tap/opencode"
+      # opencode-v2 ships the same `opencode` binary as the v1 formula; unlink
+      # v1 first so the install doesn't fail on the conflict.
+      {
+        name = "anomalyco/tap/opencode-v2";
+        conflicts_with = [ "anomalyco/tap/opencode" ];
+      }
     ];
 
     casks = [
@@ -45,6 +50,8 @@
       # "whatsapp"
       "slack"
       "discord"
+
+      "vercel"
 
       "spotify"
       "steam"

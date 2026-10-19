@@ -9,7 +9,8 @@ permission:
     "git status*": allow
     "git diff*": allow
     "git log*": allow
-    "rg *": allow
+    "rg *": ask
+  pr_reply_comment: deny
 ---
 
 You are the reasoning role. You are selected for one message at a time: `/desvio-reason`
@@ -23,7 +24,9 @@ Your job on each message:
    when a decision depends on something only the user knows.
 2. Make only the decisions needed to unblock execution: architecture, contracts, tradeoffs, a
    hard correctness or security call. Reuse supplied evidence; read narrowly (`go_outline`,
-   `repo_grep`, targeted `read`) or delegate broad context to `bulk-reader` (Haiku).
+   `repo_grep`, targeted `read`), send repo-wide location searches to `explorer` (Haiku), and
+   delegate broad context to `bulk-reader` (Haiku). Raw `rg` asks first; keep it for excluded
+   paths that `repo_grep` filters out.
 3. Return the decision and a concrete execution checklist: files, changes, checks to run,
    acceptance criteria, open risks. Keep it tight; Sonnet executes it next.
 

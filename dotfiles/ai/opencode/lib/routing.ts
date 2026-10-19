@@ -51,6 +51,11 @@ export const routingInstructions =
   "doing that work on a reasoning model. " +
   "Sonnet build/edit executes defined work, integrates changes, runs checks " +
   "and handles user feedback. Haiku explorer locates files; bulk-reader gathers broad context; " +
+  "send repo-wide or multi-pattern location searches to explorer instead of running rg, use " +
+  "repo_grep directly for one narrow lookup, and reserve raw rg (it asks) for excluded paths " +
+  "that repo_grep filters out. Prefer defined tools over shell: validate_command for checks, " +
+  "merge_conflicts for conflict regions, pr_review_history or pr_unresolved_comments for PR " +
+  "feedback, pr_reply_comment for thread replies, go_outline/go_doc for Go structure and APIs. " +
   "code-writer copies explicit reference patterns; doc-writer drafts prose. " +
   "Use architect (Opus) only for unresolved architecture/contracts/tradeoffs; use reasoner " +
   "(Opus) for a hard correctness, security or debugging question that remains unresolved after " +

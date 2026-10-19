@@ -4,6 +4,9 @@
   "small_model": "anthropic/claude-haiku-5-5",
   "default_agent": "build",
   "subagent_depth": 2,
+  "plugins": [
+    "github:vercel/vercel-plugin"
+  ],
   "mcp": {
     "lucid": {
       "type": "remote",
@@ -15,8 +18,12 @@
     },
     "datadog": {
       "type": "remote",
-      "url": "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
+      "url": "https://mcp.datadoghq.com/v1/mcp",
       "enabled": true
+    },
+    "vercel": {
+      "type": "remote",
+      "url": "https://mcp.vercel.com"
     }
   },
   "permission": {
@@ -38,7 +45,7 @@
           "go build*": "allow",
           "go test*": "allow",
           "go vet*": "allow",
-          "rg *": "allow",
+          "rg *": "ask",
           "gh pr view*": "allow",
           "gh pr diff*": "allow",
           "gh pr list*": "allow",
@@ -57,8 +64,9 @@
           "git status*": "allow",
           "git diff*": "allow",
           "git log*": "allow",
-          "rg *": "allow"
-        }
+          "rg *": "ask"
+        },
+        "pr_reply_comment": "deny"
       }
     },
     "edit": {
@@ -86,7 +94,7 @@
           "go build*": "allow",
           "go test*": "allow",
           "go vet*": "allow",
-          "rg *": "allow",
+          "rg *": "ask",
           "gh pr view*": "allow",
           "gh pr diff*": "allow",
           "gh pr list*": "allow",
@@ -131,8 +139,9 @@
           "git status*": "allow",
           "git diff*": "allow",
           "git log*": "allow",
-          "rg *": "allow"
-        }
+          "rg *": "ask"
+        },
+        "pr_reply_comment": "deny"
       }
     }
   },

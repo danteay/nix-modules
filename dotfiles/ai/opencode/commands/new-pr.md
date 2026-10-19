@@ -33,10 +33,18 @@ Usage: `/new-pr [base-branch] [additional context]`
 
 ### Step A1: Commit all remaining changes
 
-- Run `git status` to see uncommitted changes.
-- If there are changes, stage all modified/new files and create a commit with a conventional commit message summarizing the work. Use a HEREDOC for the commit message. Include the Co-Authored-By trailer.
-- If there are no changes, skip this step.
-- IMPORTANT: Do NOT skip git hooks. If a pre-commit hook fails, fix the issue and retry the commit.
+This runs on Haiku `bulk`, so it follows `/commit`'s rules instead of improvising:
+
+- Run `git status --porcelain`. If nothing is modified, untracked or staged, skip this step.
+- Never stage files matching secrets/credentials patterns (`.env*`, `*.pem`, `*.p12`, `*.tfvars`,
+  `credentials*`). List them in the final output and leave them untouched.
+- Stage explicit paths with `git add -- <files>`; never `git add -A` or `git add .`.
+- Use the repo's commit convention (commitizen config or recent `git log --oneline -15`
+  subjects; default conventional commits). If the changes span unrelated concerns, make one
+  commit per concern, as `/commit` would.
+- Write the message with a HEREDOC and include the Co-Authored-By trailer.
+- IMPORTANT: Do NOT skip git hooks. If a pre-commit hook fails, report its output and stop. Suggest
+  `/check` to fix it on Sonnet, then rerun `/new-pr`. Do not change code here to satisfy a hook.
 
 ### Step A2: Sync with the selected base branch
 
@@ -44,8 +52,7 @@ Usage: `/new-pr [base-branch] [additional context]`
 - Check if there are new commits on `origin/$BASE_BRANCH` that are not in the current branch: `git log "HEAD..origin/$BASE_BRANCH" --oneline`
 - If there ARE new commits on `origin/$BASE_BRANCH`:
   - Run `git pull --rebase origin "$BASE_BRANCH"`
-  - If there are merge conflicts, resolve them sensibly (prefer keeping both changes when possible, prefer the current branch's intent for feature-specific code).
-  - After resolving conflicts, continue the rebase with `git rebase --continue`.
+  - If the rebase stops on conflicts, do NOT resolve them here: conflict resolution needs code understanding and belongs to Sonnet. Run `git rebase --abort`, list the conflicted files (`merge_conflicts` before aborting), tell the user to run `/rebase "$BASE_BRANCH"` and then rerun `/new-pr`, and stop.
   - Set a flag that rebase happened (you will need this for the push step).
 - If there are NO new commits, skip this step.
 
@@ -62,7 +69,7 @@ Usage: `/new-pr [base-branch] [additional context]`
   - If Go files DID change, push normally (let the hook run):
     - If rebase happened: `git push --force-with-lease`
     - If no rebase: `git push -u origin HEAD`
-- IMPORTANT: Do NOT skip git hooks on push. If the pre-push hook fails, fix the issue and retry.
+- IMPORTANT: Do NOT skip git hooks on push. If the pre-push hook fails, report its output and stop. Suggest `/check` to fix it, then rerun `/new-pr`.
 
 ### Step A4: Check for existing pull request
 
@@ -143,8 +150,7 @@ EOF
 ### Step B2: Sync the stack
 
 - Run `gh stack rebase` — this fetches `origin`, then cascades a rebase across every branch in the stack, starting from trunk, so each layer replays cleanly on top of the (possibly updated) layer below it.
-- If it pauses for a conflict: resolve the conflicted files, `git add` them, then run `gh stack rebase --continue`. Repeat until it finishes.
-- If you need to abandon the rebase entirely: `gh stack rebase --abort`.
+- If it pauses for a conflict, do NOT resolve it here. Capture the conflicted files with `merge_conflicts`, run `gh stack rebase --abort`, tell the user to run `/rebase` (it handles `gh stack` on Sonnet) and then rerun `/new-pr`, and stop.
 
 ### Step B3: Push the stack
 
@@ -154,7 +160,7 @@ EOF
 - If it IS a Go project, determine if any Go files changed anywhere in the stack: `git diff origin/main...HEAD --name-only | grep -E '\.go$|go\.(mod|sum)$'` (adjust `origin/main` if the stack's trunk is not `main`).
   - If NO Go files changed, push with the pre-push `go mod tidy` hook disabled: `MOD_TIDY=0 gh stack push`.
   - If Go files DID change, push normally so the hook runs: `gh stack push`.
-- IMPORTANT: Do NOT skip git hooks. If the pre-push hook fails on any branch, fix the issue and retry.
+- IMPORTANT: Do NOT skip git hooks. If the pre-push hook fails on any branch, report its output and stop. Suggest `/check` to fix it, then rerun `/new-pr`.
 
 ### Step B4: Check existing PRs in the stack
 
