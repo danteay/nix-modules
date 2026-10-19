@@ -1,7 +1,7 @@
 ---
 description: Resolves one difficult correctness, security or debugging decision from gathered evidence; returns a bounded plan for Sonnet to execute
 mode: subagent
-model: anthropic/claude-opus-5-5
+model: vercel/anthropic/claude-opus-5.5
 temperature: 0.1
 tools:
   read: true

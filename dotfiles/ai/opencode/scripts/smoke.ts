@@ -189,36 +189,37 @@ await mkdir(join(dir, "config/opencode"), { recursive: true })
 const config = {
   $schema: "https://opencode.ai/config.json",
   model: defaults.model,
-  small_model: "anthropic/claude-haiku-4-5",
+  small_model: "vercel/anthropic/claude-haiku-4.5",
   default_agent: defaults.default_agent,
   compaction: defaults.compaction,
-  enabled_providers: ["anthropic", "opencode"],
+  enabled_providers: ["vercel"],
   plugin: [pathToFileURL(join(source, "plugins/desvio.ts")).href],
   provider: {
-    anthropic: {
-      options: { apiKey: "local-mock", baseURL: `http://127.0.0.1:${provider.port}/v1` },
-    },
-    opencode: {
+    vercel: {
       npm: "@ai-sdk/openai-compatible",
       options: { apiKey: "local-mock", baseURL: `http://127.0.0.1:${provider.port}/v1` },
-      models: { "glm-5.3": { name: "Haiku mock", limit: { context: 200000, output: 4096 } } },
+      models: Object.fromEntries(
+        ["anthropic/claude-opus-5.5", "anthropic/claude-sonnet-5.5", "anthropic/claude-haiku-5.5", "anthropic/claude-haiku-4.5"].map(
+          (id) => [id, { name: `${id} mock`, limit: { context: 200000, output: 4096 } }],
+        ),
+      ),
     },
   },
   agent: {
-    build: { model: "anthropic/claude-sonnet-5-5" },
-    coordinator: { mode: "primary", model: "anthropic/claude-opus-5-5" },
-    bulk: { mode: "primary", model: "anthropic/claude-haiku-5-5" },
+    build: { model: "vercel/anthropic/claude-sonnet-5.5" },
+    coordinator: { mode: "primary", model: "vercel/anthropic/claude-opus-5.5" },
+    bulk: { mode: "primary", model: "vercel/anthropic/claude-haiku-5.5" },
   },
   permission: { "*": "allow" },
   command: {
     "probe-pr": {
       agent: "bulk",
-      model: "anthropic/claude-haiku-5-5",
+      model: "vercel/anthropic/claude-haiku-5.5",
       template: "Reply with the words Mock completed. Do not use tools.",
     },
     "probe-build": {
       agent: "build",
-      model: "anthropic/claude-sonnet-5-5",
+      model: "vercel/anthropic/claude-sonnet-5.5",
       template: "Reply with the words Mock completed. Do not use tools.",
     },
   },
@@ -343,11 +344,11 @@ try {
     command: "probe-pr",
     arguments: "",
   })
-  if (first.info.modelID !== "claude-haiku-5-5")
+  if (first.info.modelID !== "anthropic/claude-haiku-5.5")
     throw new Error("PR command did not execute on Haiku")
   await until(async () => {
     const s = await call<SessionState>(`/session/${session.id}`)
-    return s.agent === "build" && s.model?.id === "claude-sonnet-5-5"
+    return s.agent === "build" && s.model?.id === "anthropic/claude-sonnet-5.5"
   })
   if (checkTui)
     await until(async () => {
@@ -356,33 +357,33 @@ try {
         rows.some((r) => r.selected.agent === "bulk") &&
         rows.at(-1)?.kind === "settled" &&
         rows.at(-1)?.selected.agent === "build" &&
-        rows.at(-1)?.selected.modelID === "claude-sonnet-5-5"
+        rows.at(-1)?.selected.modelID === "anthropic/claude-sonnet-5.5"
       )
     })
   const second = await call<MessageResult>(`/session/${session.id}/message`, {
     agent: "bulk",
-    model: { providerID: "anthropic", modelID: "claude-haiku-5-5" },
+    model: { providerID: "vercel", modelID: "anthropic/claude-haiku-5.5" },
     parts: [{ type: "text", text: "Explain the interface design. Reply briefly without tools." }],
   })
-  if (second.info.agent !== "build" || second.info.modelID !== "claude-sonnet-5-5")
+  if (second.info.agent !== "build" || second.info.modelID !== "anthropic/claude-sonnet-5.5")
     throw new Error("Stale bulk selection captured the next design question")
-  const actual = requests.filter((m) => m !== "claude-haiku-4-5") // Title calls may use small_model.
-  if (actual.join(",") !== "claude-haiku-5-5,claude-sonnet-5-5")
+  const actual = requests.filter((m) => m !== "anthropic/claude-haiku-4.5") // Title calls may use small_model.
+  if (actual.join(",") !== "anthropic/claude-haiku-5.5,anthropic/claude-sonnet-5.5")
     throw new Error(`Unexpected model calls: ${actual}`)
   for (const [command, modelID] of [
-    ["probe-build", "claude-sonnet-5-5"],
-    ["probe-skill", "claude-haiku-5-5"],
+    ["probe-build", "anthropic/claude-sonnet-5.5"],
+    ["probe-skill", "anthropic/claude-haiku-5.5"],
   ]) {
     const result = await call<MessageResult>(`/session/${session.id}/command`, {
       command,
       arguments: "",
       agent: "bulk",
-      model: "anthropic/claude-haiku-5-5",
+      model: "vercel/anthropic/claude-haiku-5.5",
     })
     if (result.info.modelID !== modelID) throw new Error(`${command} used ${result.info.modelID}`)
     await until(async () => {
       const saved = await call<SessionState>(`/session/${session.id}`)
-      return saved.agent === "build" && saved.model?.id === "claude-sonnet-5-5"
+      return saved.agent === "build" && saved.model?.id === "anthropic/claude-sonnet-5.5"
     })
     if (checkTui)
       await until(async () =>
@@ -392,7 +393,7 @@ try {
             (r) =>
               r.kind === "settled" &&
               r.selected?.agent === "build" &&
-              r.selected.modelID === "claude-sonnet-5-5",
+              r.selected.modelID === "anthropic/claude-sonnet-5.5",
           ),
       )
   }
@@ -400,7 +401,7 @@ try {
     const other = await call<SessionRef>("/session", {
       title: "Unrelated session",
       agent: "build",
-      model: { providerID: "anthropic", id: "claude-sonnet-5-5" },
+      model: { providerID: "vercel", id: "anthropic/claude-sonnet-5.5" },
     })
     const before = (await trace()).length
     const pending = call<MessageResult>(`/session/${session.id}/command`, {
@@ -459,12 +460,12 @@ try {
     if (requests.length !== before) throw new Error("Continuation control invoked a model")
     const continued = await call<MessageResult>(`/session/${session.id}/message`, {
       agent: "build",
-      model: { providerID: "anthropic", modelID: "claude-sonnet-5-5" },
+      model: { providerID: "vercel", modelID: "anthropic/claude-sonnet-5.5" },
       parts: [
         { type: "text", text: "Continue the same utility task. Reply briefly without tools." },
       ],
     })
-    if (continued.info.modelID !== "claude-haiku-5-5" || state().run.taskID !== taskID)
+    if (continued.info.modelID !== "anthropic/claude-haiku-5.5" || state().run.taskID !== taskID)
       throw new Error("TUI continuation lost the task identity or Haiku route")
     await until(async () => state().run?.status === "completed")
     await call("/tui/publish", {
@@ -480,7 +481,7 @@ try {
   const writer = await call<SessionRef>("/session", { title: "Desvio actual delegated writer" })
   await call(`/session/${writer.id}/message`, {
     agent: "build",
-    model: { providerID: "anthropic", modelID: "claude-sonnet-5-5" },
+    model: { providerID: "vercel", modelID: "anthropic/claude-sonnet-5.5" },
     parts: [
       {
         type: "text",

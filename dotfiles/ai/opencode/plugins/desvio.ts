@@ -337,7 +337,10 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
       if (managed) selected = modelKey(managed)
       else if (MODEL_ROUTING) selected = modelForAgent(agent)
       if (!managed && selected && selected !== requestedModel) {
-        const [providerID, modelID] = selected.split("/")
+        // Split on the first slash only: gateway model IDs carry their own slash (vercel/anthropic/...).
+        const slash = selected.indexOf("/")
+        const providerID = selected.slice(0, slash)
+        const modelID = selected.slice(slash + 1)
         // Replace the model before OpenCode persists the user message and starts its loop.
         // Do not carry a provider-specific reasoning variant across a model change.
         output.message.model = { providerID, modelID }

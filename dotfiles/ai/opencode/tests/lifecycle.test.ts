@@ -148,7 +148,7 @@ test("all commands, including slash skills and custom agents, return to build", 
     f.complete("request")
     await f.idle()
     expect(f.selection.agent).toBe("build")
-    expect(f.selection.model.id).toBe("claude-sonnet-5-5")
+    expect(f.selection.model.id).toBe("anthropic/claude-sonnet-5.5")
   }
 })
 
@@ -325,7 +325,7 @@ test("enforcement recovers stale bulk after an observed command, even without an
     )
     expect(await enforced.incoming("root", "design", routeFor("bulk"))).toEqual(routeFor("build"))
     expect(f.selection.agent).toBe("build")
-    expect(f.selection.model.id).toBe("claude-sonnet-5-5")
+    expect(f.selection.model.id).toBe("anthropic/claude-sonnet-5.5")
   }
 })
 test("unmanaged routes are preserved; child input is not rerouted", async () => {

@@ -1,7 +1,7 @@
 ---
 description: Model-assisted Go outline shortcut (for zero model calls use desvio-outline in your shell)
 agent: bulk
-model: anthropic/claude-haiku-5-5
+model: vercel/anthropic/claude-haiku-5.5
 ---
 
 Call go_outline on: $ARGUMENTS

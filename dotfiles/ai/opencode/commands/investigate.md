@@ -1,7 +1,7 @@
 ---
 description: Evidence-first production investigation with Datadog and git history; escalates one bounded question to reasoner only if needed
 agent: build
-model: anthropic/claude-sonnet-5-5
+model: vercel/anthropic/claude-sonnet-5.5
 ---
 
 Investigate a symptom with evidence before hypotheses. This runs on Sonnet `build`. Opus is

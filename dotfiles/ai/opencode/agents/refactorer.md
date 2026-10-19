@@ -1,7 +1,7 @@
 ---
 description: Reviews a supplied diff for duplication, complexity, rigidity and poor naming, and proposes concrete refactors. Review-only — never edits.
 mode: subagent
-model: anthropic/claude-sonnet-5-5
+model: vercel/anthropic/claude-sonnet-5.5
 temperature: 0.1
 tools:
   read: true

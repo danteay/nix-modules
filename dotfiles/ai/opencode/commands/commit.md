@@ -1,7 +1,7 @@
 ---
 description: Group uncommitted work into conventional commits, confirm the plan, then commit (push only when asked)
 agent: bulk
-model: anthropic/claude-haiku-5-5
+model: vercel/anthropic/claude-haiku-5.5
 ---
 
 Turn the working tree into well-formed commits. This is utility work on Haiku; it never

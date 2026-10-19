@@ -1,7 +1,7 @@
 ---
 description: Generates boilerplate by copying the patterns of a reference file. REQUIRES an explicit reference file path plus a target path. Do not use for logic that does not already exist elsewhere in the repo.
 mode: subagent
-model: anthropic/claude-haiku-5-5
+model: vercel/anthropic/claude-haiku-5.5
 temperature: 0
 permission:
   "*": deny

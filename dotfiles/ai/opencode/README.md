@@ -113,10 +113,10 @@ Claude agents use Anthropic directly. The configured routes are:
 
 | Work | Agents | Model |
 |---|---|---|
-| Explicit bounded reasoning | `coordinator` | `anthropic/claude-opus-5-5` |
-| Defined execution, integration, routine review | `build`, `edit`, `general`, `feature-builder`, `code-reviewer`, `tester`, `refactorer`, `devops`, `documentor` | `anthropic/claude-sonnet-5-5` |
-| Hard decisions | `plan`, `architect`, `reasoner` | `anthropic/claude-opus-5-5` |
-| Context, reference-based boilerplate, prose, utility commands | `bulk`, `explorer`, `explore`, `bulk-reader`, `code-writer`, `doc-writer` | `anthropic/claude-haiku-5-5` |
+| Explicit bounded reasoning | `coordinator` | `vercel/anthropic/claude-opus-5.5` |
+| Defined execution, integration, routine review | `build`, `edit`, `general`, `feature-builder`, `code-reviewer`, `tester`, `refactorer`, `devops`, `documentor` | `vercel/anthropic/claude-sonnet-5.5` |
+| Hard decisions | `plan`, `architect`, `reasoner` | `vercel/anthropic/claude-opus-5.5` |
+| Context, reference-based boilerplate, prose, utility commands | `bulk`, `explorer`, `explore`, `bulk-reader`, `code-writer`, `doc-writer` | `vercel/anthropic/claude-haiku-5.5` |
 
 Model versions (October 12, 2026): Opus 5.5 replaced Opus 5 for the reasoning role (same tier,
 $4/$20 per MTok, cache reads $0.20 instead of $0.50) and Sonnet 5.5 replaced Sonnet 5 for
@@ -251,7 +251,7 @@ escalates at most one unclear correctness/security claim to `reasoner`. `/commit
 /new-pr [base-branch] [additional context for the commit and PR description]
 ```
 
-The command runs with `anthropic/claude-haiku-5-5` on the `bulk` agent. It commits remaining changes,
+The command runs with `vercel/anthropic/claude-haiku-5.5` on the `bulk` agent. It commits remaining changes,
 syncs with `origin/<base-branch>`, pushes the branch, checks for an existing open PR, and creates one
 against that base using the Draftea PR template when needed. The base defaults to `main`: use
 `/new-pr develop` to target `develop`, or `/new-pr main <context>` to add context with the default

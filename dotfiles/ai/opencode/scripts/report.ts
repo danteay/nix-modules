@@ -114,7 +114,7 @@ else {
       const flag = t.cheap_on_reasoning ? "!" : " "
       const src = `${t.source.replace("command:", "cmd:")}${t.selection && t.selection !== "same" ? `/${t.selection}` : ""}`
       console.log(
-        `${flag} ${(t.prompt_class ?? "-").padEnd(12)} ${t.cost.toFixed(2).padStart(6)} ${String(t.calls).padStart(5)}  ${src.padEnd(18)} ${`${t.agent}/${t.model.split("/")[1]}`.padEnd(31)} ${when} ${t.prompt_preview ?? ""}`,
+        `${flag} ${(t.prompt_class ?? "-").padEnd(12)} ${t.cost.toFixed(2).padStart(6)} ${String(t.calls).padStart(5)}  ${src.padEnd(18)} ${`${t.agent}/${t.model.slice(t.model.indexOf("/") + 1)}`.padEnd(31)} ${when} ${t.prompt_preview ?? ""}`,
       )
     }
     console.log("\nturn classes (heuristic labels; never used for routing)")

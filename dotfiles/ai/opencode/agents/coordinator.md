@@ -1,7 +1,7 @@
 ---
 description: Resolves one bounded hard decision on Opus and hands execution back to Sonnet build; never implements
 mode: primary
-model: anthropic/claude-opus-5-5
+model: vercel/anthropic/claude-opus-5.5
 permission:
   edit: deny
   bash:

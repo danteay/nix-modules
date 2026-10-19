@@ -1,7 +1,7 @@
 ---
 description: Triage unresolved PR review comments, verify claimed errors, fix what is valid, push, and reply on each thread
 agent: build
-model: anthropic/claude-sonnet-5-5
+model: vercel/anthropic/claude-sonnet-5.5
 ---
 
 Work through the unresolved review threads of a pull request. This runs on Sonnet `build`;

@@ -1,7 +1,7 @@
 ---
 description: Compile sourced feature context, run specialist analysis, write a reviewable plan, then build after approval
 agent: build
-model: anthropic/claude-sonnet-5-5
+model: vercel/anthropic/claude-sonnet-5.5
 ---
 
 Start a feature workflow for: $ARGUMENTS

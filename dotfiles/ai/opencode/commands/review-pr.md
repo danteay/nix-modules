@@ -1,7 +1,7 @@
 ---
 description: Multi-agent code review over a pull request — writes full findings to .review-<pr>.md, then posts one consolidated GitHub review
 agent: build
-model: anthropic/claude-sonnet-5-5
+model: vercel/anthropic/claude-sonnet-5.5
 ---
 
 Conduct a multi-agent code review over a pull request, write the full findings to a local

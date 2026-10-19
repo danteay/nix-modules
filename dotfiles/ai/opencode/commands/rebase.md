@@ -1,7 +1,7 @@
 ---
 description: Fetch a base branch, rebase the current branch onto it, resolve conflicts with evidence, and rerun checks
 agent: build
-model: anthropic/claude-sonnet-5-5
+model: vercel/anthropic/claude-sonnet-5.5
 ---
 
 Rebase the current branch onto an updated base. Conflict resolution needs code understanding,

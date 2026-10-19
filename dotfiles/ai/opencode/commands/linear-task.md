@@ -1,7 +1,7 @@
 ---
 description: Read a Linear issue and apply requested updates (subtasks, description, state, labels) after a field-by-field confirmation
 agent: bulk
-model: anthropic/claude-haiku-5-5
+model: vercel/anthropic/claude-haiku-5.5
 ---
 
 Linear bookkeeping on Haiku through the configured Linear MCP server. This command edits task

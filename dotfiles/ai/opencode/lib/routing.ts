@@ -1,8 +1,8 @@
 /** Roles are explicit: routing never guesses task difficulty from prompt keywords. */
 export const models = {
-  reasoning: "anthropic/claude-opus-5-5",
-  execution: "anthropic/claude-sonnet-5-5",
-  bulk: "anthropic/claude-haiku-5-5",
+  reasoning: "vercel/anthropic/claude-opus-5.5",
+  execution: "vercel/anthropic/claude-sonnet-5.5",
+  bulk: "vercel/anthropic/claude-haiku-5.5",
 } as const
 
 export type ModelRole = keyof typeof models

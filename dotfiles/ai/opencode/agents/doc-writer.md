@@ -1,7 +1,7 @@
 ---
 description: Writes or updates prose documentation (READMEs, ADRs, changelogs, runbook sections) from source material it is given. Not for code.
 mode: subagent
-model: anthropic/claude-haiku-5-5
+model: vercel/anthropic/claude-haiku-5.5
 temperature: 0.3
 permission:
   "*": deny
