@@ -11,10 +11,10 @@ Follow every step in order — do NOT skip any.
 ## How dispatch works here
 
 You are the primary agent. The review agents (`code-reviewer`, `architect`, `refactorer`,
-`tester`, `devops`, `documentor`) run as desvio review agents via the `task` tool, which means:
+`tester`, `devops`, `documentor`) run as desvio review agents via the `subagent` tool, which means:
 
-- **Review agents have no `bash`, no `grep`, and no `glob`.** They can use `read`, `go_outline`,
-  `repo_grep`, and `task` only to delegate to the cheap `bulk-reader`, `code-writer`, and
+- **Review agents have no `shell`, no `grep`, and no `glob`.** They can use `read`, `go_outline`,
+  `repo_grep`, and `subagent` only to delegate to the cheap `bulk-reader`, `code-writer`, and
   `doc-writer` agents. They cannot run `gh`, `git`, tests, builds, `terraform plan` or `pkl eval`.
   Everything they need from git or GitHub, **you** must fetch and pass in the prompt.
 - **Review agents own the judgment.** They use `bulk-reader` for broad large-file context,
@@ -27,7 +27,7 @@ You are the primary agent. The review agents (`code-reviewer`, `architect`, `ref
   `{ file, line, severity, category, summary, why_it_matters, recommendation, current_code,
   suggested_change, assumptions[] }`. If an agent returns prose instead, re-prompt it once for
   JSON only; if it fails again, treat its text as findings and note the degradation in Step 9.
-- Issue the `task` calls for all selected agents **in one assistant turn** so they run
+- Issue the `subagent` calls for all selected agents **in one assistant turn** so they run
   concurrently. If the runtime serialises them, that is acceptable — do not switch to sequential
   dispatch to compensate.
 - Do NOT modify any source file. This is a review-only flow; the only file you write is
@@ -136,7 +136,7 @@ into every dispatched agent's prompt so they do not re-derive answered concerns.
 
 ## Step 5: Dispatch the review agents
 
-Use the `task` tool once per selected agent, all calls in a single turn. Do NOT dispatch every
+Use the `subagent` tool once per selected agent, all calls in a single turn. Do NOT dispatch every
 agent unconditionally — use the Step 3 matrix. Dispatching an agent for a bucket it has nothing to
 review wastes money and produces noise findings.
 
@@ -168,7 +168,7 @@ reviewers, with source references and relevant diff slices; avoid rediscovering 
 4. The condensed prior-comment triage from Step 4
 5. Whether `documentor` is in this run (`refactorer` and `documentor` both need to know — it
    decides who owns comment-quality findings)
-6. The reminder that it has no `bash`/`grep`/`glob`; it may delegate only to `bulk-reader`,
+6. The reminder that it has no `shell`/`grep`/`glob`; it may delegate only to `bulk-reader`,
    `code-writer`, and `doc-writer`, and excluded paths must be reported in `notes` rather than
    read or delegated
 7. The JSON output contract, restated

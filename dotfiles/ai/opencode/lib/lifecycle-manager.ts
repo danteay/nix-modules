@@ -173,8 +173,7 @@ export class LifecycleManager {
       return
     }
     if (WAIT_EVENTS.includes(e.type)) return this.onWait(id, e.type, p)
-    if (e.type === "session.idle" || (e.type === "session.status" && p.status?.type === "idle"))
-      return this.onIdle(id)
+    if (e.type === "session.idle") return this.onIdle(id)
   }
 
   private async onDeleted(id: string) {

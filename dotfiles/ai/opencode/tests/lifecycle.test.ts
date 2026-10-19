@@ -4,11 +4,11 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { begin, initialState, routeFor, settle, terminalOutcome } from "../lib/lifecycle"
 import { LifecycleManager } from "../lib/lifecycle-manager"
-import type { ClientLike, MessageLike, Transport } from "../lib/opencode-types"
+import type { ClientLike, MessageLike } from "../lib/opencode-types"
 import { StateStore } from "../lib/state"
 
-/** Test double for the SDK client; `_client.post` is required so tests can replace it. */
-type TestClient = ClientLike & { _client: Transport }
+/** Test double for the host client; `selectRoute` is required so tests can replace it. */
+type TestClient = ClientLike & Required<Pick<ClientLike, "selectRoute">>
 const stateOf = (store: StateStore, id: string) => {
   const s = store.get(id)
   if (!s) throw new Error(`no Desvio state for ${id}`)
@@ -48,12 +48,15 @@ function fixture(mode: "observe" | "enforce" | "off" = "enforce") {
       messages: async () => ({ data: messages }),
       status: async () => ({ data: { root: { type: status } } }),
     },
-    _client: {
-      post: async (request) => {
-        calls++
-        Object.assign(selection, request.body as object)
-        return { response: { ok: true, status: 204 } }
-      },
+    selectRoute: async (_id, route) => {
+      calls++
+      selection.agent = route.agent
+      selection.model = {
+        providerID: route.providerID,
+        id: route.modelID,
+        variant: route.variant ?? "default",
+      }
+      return route
     },
   }
   const manager = new LifecycleManager(store, client, mode, routeFor("build"), async (r) => {
@@ -77,8 +80,8 @@ function fixture(mode: "observe" | "enforce" | "off" = "enforce") {
   }
   const idle = () =>
     manager.event({
-      type: "session.status",
-      properties: { sessionID: "root", status: { type: "idle" } },
+      type: "session.idle",
+      properties: { sessionID: "root" },
     })
   return {
     store,
@@ -110,7 +113,7 @@ test("PR completes on GLM then restores Sonnet for the next ordinary design ques
   expect(f.store.get("root")?.run?.status).toBe("completed")
   expect(await f.manager.incoming("root", "design", routeFor("bulk"))).toEqual(routeFor("build"))
   expect(f.log.filter((r) => r.kind === "reset_success")).toHaveLength(1)
-  expect(f.calls()).toBe(6) // Only agent/model selection; no prompt endpoint exists in fixture.
+  expect(f.calls()).toBe(3) // Only route selections; no prompt endpoint exists in fixture.
 })
 test("commands return to build after restart while retaining the next-turn pin", async () => {
   const f = fixture(),
@@ -299,7 +302,9 @@ test("failed reset reconciliation stays pending and never emits success", async 
   const f = fixture()
   await f.manager.incoming("root", "a", routeFor("build"))
   f.complete("a")
-  f.client._client.post = async () => ({ response: { ok: false, status: 503 } })
+  f.client.selectRoute = async () => {
+    throw new Error("OpenCode model selection failed")
+  }
   await f.idle()
   expect(f.store.get("root")?.resetPending).toBe(true)
   expect(f.log.filter((r) => r.kind === "reset_success")).toHaveLength(0)
@@ -338,15 +343,18 @@ test("unmanaged routes are preserved; child input is not rerouted", async () => 
   expect(f.selection.agent).toBe("custom")
 })
 
-test("unavailable models fail before selection and a repaired admission can be retried", async () => {
+test("a failed selection refuses the admission and a repaired admission can be retried", async () => {
   const f = fixture()
-  f.client.provider = { list: async () => ({ data: { all: [] } }) }
+  f.client.selectRoute = async () => {
+    throw new Error("Configured model unavailable")
+  }
   await expect(f.manager.incoming("root", "a", routeFor("build"))).rejects.toThrow("unavailable")
   expect(f.calls()).toBe(0)
   expect(f.store.get("root")?.run?.status).toBe("failed")
+  expect(f.log.at(-1)?.kind).toBe("reconciliation_failed")
   const recovered = new LifecycleManager(
     f.store,
-    { ...f.client, provider: undefined },
+    { ...f.client, selectRoute: async (_id, route) => route },
     "enforce",
     routeFor("build"),
     async () => {},
@@ -589,8 +597,8 @@ test("a baseline provider is consulted at admission and at completion, so config
   baseline = routeFor("build")
   f.complete("a")
   await manager.event({
-    type: "session.status",
-    properties: { sessionID: "root", status: { type: "idle" } },
+    type: "session.idle",
+    properties: { sessionID: "root" },
   })
   expect(f.selection.agent).toBe("build")
   expect(f.store.get("root")?.baseline).toEqual(routeFor("build"))

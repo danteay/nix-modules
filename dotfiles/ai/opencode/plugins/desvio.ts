@@ -10,18 +10,19 @@
  *   3. Append every assistant message's token + cost data to a local JSONL log so the
  *      experiment can be measured instead of vibed.
  *
- * Routing switch: DESVIO_ENABLED=0 (logging and worker path protection stay active)
- * Debug:        DESVIO_DEBUG=1   (dumps raw hook payloads to events.debug.jsonl)
+ * Host: OpenCode 2 loads the default export below, which adapts this core (written against the
+ * v1 hook shape, `Desvio`, exported for the tests) through lib/v2-bridge.ts. Payload changes in a
+ * new OpenCode release belong in the bridge; see docs/opencode-v2.md.
  *
- * IMPORTANT: hook payload shapes differ between OpenCode versions. If the log shows
- * null tokens, run once with DESVIO_DEBUG=1, look at events.debug.jsonl, and fix
- * extractAssistant() below. That is a five-minute job, not a redesign.
+ * Routing switch: DESVIO_ENABLED=0 (logging and worker path protection stay active)
+ * Debug:        DESVIO_DEBUG=1   (logs every tool call record to events.debug.jsonl)
  */
 
 import { createReadStream } from "node:fs"
 import { appendFile, mkdir, stat } from "node:fs/promises"
 import { extname, join } from "node:path"
 import { createInterface } from "node:readline"
+import { fileURLToPath } from "node:url"
 import type { Plugin } from "@opencode-ai/plugin"
 import { classifyPrompt, preview } from "../lib/classify"
 import { currentBaseline, resolveBaseline } from "../lib/config"
@@ -45,6 +46,10 @@ import {
   workerInstructions,
 } from "../lib/routing"
 import { StateStore } from "../lib/state"
+import { bridge, type V2Api } from "../lib/v2-bridge"
+import { loadCommands } from "../lib/v2-commands"
+import { registerControls } from "../lib/v2-controls"
+import { registerTools } from "../lib/v2-tools"
 
 // ---------------------------------------------------------------- configuration
 
@@ -156,36 +161,25 @@ function isBlockedFullRead(opts: {
   )
 }
 
-/**
- * Pull token/cost fields out of an assistant message, tolerating schema drift.
- * OpenCode assistant messages carry modelID/providerID plus tokens and cost;
- * exact nesting has changed across versions, hence the defensive walk.
- */
-function extractAssistant(event: unknown) {
-  const e = event as {
-    properties?: { info?: MessageInfoLike; message?: MessageInfoLike }
-    info?: MessageInfoLike
-  }
-  const info =
-    e?.properties?.info ?? e?.properties?.message ?? e?.info ?? (event as MessageInfoLike)
+/** Token/cost fields of an assistant message for the usage log. */
+function extractAssistant(info: MessageInfoLike | undefined) {
   if (info?.role !== "assistant") return null
-  const tokens = info.tokens ?? info.usage ?? {}
-  const cache = tokens.cache ?? {}
+  const tokens = info.tokens ?? {}
   return {
     messageID: info.id ?? null,
     parentMessageID: info.parentID ?? null,
-    sessionID: info.sessionID ?? info.sessionId ?? null,
-    providerID: info.providerID ?? info.providerId ?? null,
-    modelID: info.modelID ?? info.modelId ?? null,
+    sessionID: info.sessionID ?? null,
+    providerID: info.providerID ?? null,
+    modelID: info.modelID ?? null,
     cost: typeof info.cost === "number" ? info.cost : null,
     input: tokens.input ?? null,
     output: tokens.output ?? null,
     reasoning: tokens.reasoning ?? null,
-    cache_read: cache.read ?? tokens.cache_read ?? null,
-    cache_write: cache.write ?? tokens.cache_write ?? null,
+    cache_read: tokens.cache?.read ?? null,
+    cache_write: tokens.cache?.write ?? null,
     started: info.time?.created ?? null,
     completed: info.time?.completed ?? null,
-    finished: Boolean(info.time?.completed ?? info.completed ?? false),
+    finished: Boolean(info.time?.completed),
   }
 }
 
@@ -208,7 +202,6 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
       eventID: crypto.randomUUID(),
       policy_version: POLICY_VERSION,
       plugin_version: "0.5.0",
-      sdk_version: "1.18.31",
       lifecycle_mode: MODEL_ROUTING ? lifecycleMode : "off",
       ts: new Date().toISOString(),
       project: project?.id ?? "unknown",
@@ -246,7 +239,7 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
       const messages = (result.data ?? []) as MessageLike[]
       agent = [...messages]
         .reverse()
-        .map((m) => m.info?.agent ?? m.info?.mode)
+        .map((m) => m.info?.agent)
         .find(Boolean)
       if (agent) agents.set(id, agent)
     }
@@ -292,7 +285,7 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
         "Record blockers or readiness with task_status before returning: awaiting_input, capability_gap, " +
           "validation_failed, ready_for_review. Never mark human acceptance yourself or invoke control accept. " +
           "Use validate_command for checks with executable/argv and their real exit status; classify deliberate " +
-          "negative tests with expected_failure. Never infer check success from a piped bash exit code. " +
+          "negative tests with expected_failure. Never infer check success from a piped shell exit code. " +
           "Keep handoffs concise: decisions, changed paths, source revisions, checks and gaps. " +
           "For unrelated work prefer a fresh session with a bounded handoff; baseline resets do not shrink context.",
       )
@@ -301,7 +294,7 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
           "section with offset/limit. For other languages use repo_grep then a bounded read; go_outline only supports .go. For broad context, delegate " +
           "to bulk-reader with exact paths and one specific question. Pass paths, not pasted source. " +
           "Keep excluded paths (wallet, kyc, aml, payments, payouts, secrets, credentials and key/env files) " +
-          "with the primary agent. Do not use bash or search output to bypass a blocked full read. " +
+          "with the primary agent. Do not use shell or search output to bypass a blocked full read. " +
           "If the user explicitly requests a guard smoke test, attempt that read once and report its error.",
       )
     },
@@ -477,7 +470,7 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
             [
               `desvio: ${path} is ${lines} lines (threshold ${threshold}). Full read blocked.`,
               "Pick one:",
-              '  1. Delegate — task with subagent "bulk-reader", this path and ONE specific question.',
+              '  1. Delegate — subagent tool with agent "bulk-reader", this path and ONE specific question.',
               `  2. Target — ${extname(path) === ".go" ? "go_outline" : "repo_grep for relevant symbols"}, then read with offset and a positive limit <= ${threshold}.`,
               "Do not retry an unbounded expensive-agent read.",
             ].join("\n"),
@@ -490,7 +483,7 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
       const record = pending.get(key(input))
       pending.delete(key(input))
       if (!record) return
-      const childID = output.metadata?.sessionId ?? output.metadata?.sessionID
+      const childID = output.metadata?.sessionId
       if (input.tool === "task_status") {
         await write(USAGE_LOG, {
           ...record,
@@ -557,10 +550,10 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
         sessionModels.delete(info.id)
         return
       }
-      if (e.type === "session.created" || e.type === "session.updated") {
+      if (e.type === "session.created") {
         if (info?.id) {
           sessions.set(info.id, info)
-          if (e.type === "session.created" && info.parentID) {
+          if (info.parentID) {
             const parent =
               store.get(info.parentID)?.run ?? store.route(info.parentID, "__session__")
             if (parent?.taskID)
@@ -592,7 +585,7 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
         if (record) await write(USAGE_LOG, { ...record, kind: "tool_error", completed: Date.now() })
       }
       if (e.type !== "message.updated") return
-      const a = extractAssistant(event)
+      const a = extractAssistant(info)
       if (!a?.finished || !a.messageID || !a.sessionID || logged.has(a.messageID)) return
       logged.add(a.messageID)
       const who = await identity(a.sessionID)
@@ -613,4 +606,28 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
       })
     },
   }
+}
+
+// ---------------------------------------------------------------- OpenCode 2 entry
+
+/** Tools whose `ask`/`deny` agent rules OpenCode 2 leaves to the tool (see lib/v2-tools.ts). */
+const GATED_TOOLS = new Set(["pr_reply_comment"])
+
+export default {
+  id: "desvio",
+  async setup(api: V2Api) {
+    const onError = (where: string, error: unknown) =>
+      write(USAGE_LOG, {
+        ts: new Date().toISOString(),
+        kind: "bridge_error",
+        where,
+        reason: String(error),
+      })
+    // OpenCode 2 no longer discovers tools/*.ts; desvio's policy and agents depend on them.
+    await registerTools(api, fileURLToPath(new URL("../tools/", import.meta.url)), GATED_TOOLS)
+    // Controls edit lifecycle state, which only exists when routing is enforced.
+    if (MODEL_ROUTING && lifecycleMode === "enforce") await registerControls(api)
+    const commands = loadCommands(api.location.directory)
+    await bridge(api, Desvio, { commands: () => commands, onError })
+  },
 }

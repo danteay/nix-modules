@@ -68,7 +68,7 @@ approves the current plan. An earlier approval of an older plan is not approval 
 - From that matrix select only useful specialist agents: `architect` for structure/contracts,
   `code-reviewer` for behavior and safety, `refactorer` for existing-code shape, `tester` for test
   strategy, `devops` for environment/deployment/configuration, `documentor` for docs/contracts.
-  Explain the selected and skipped agents. For each selected agent, issue a `task` call in the
+  Explain the selected and skipped agents. For each selected agent, issue a `subagent` call in the
   same assistant turn so independent analyses can run in parallel.
 - Start every task prompt with `FEATURE ANALYSIS`. Supply the outcome, source ledger, exact
   non-excluded paths or relevant excerpts, the assigned dimension, and unresolved questions.

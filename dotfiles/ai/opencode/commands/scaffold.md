@@ -4,7 +4,7 @@ agent: bulk
 model: vercel/anthropic/claude-haiku-5.5
 ---
 
-Use the task tool with subagent `code-writer`. Pass it:
+Use the subagent tool with agent `code-writer`. Pass it:
 
 - the reference file path whose patterns to copy
 - the target file path to write

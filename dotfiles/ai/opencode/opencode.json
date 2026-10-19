@@ -126,7 +126,7 @@
         "go_doc": false,
         "tf_plan_summary": false
       },
-      "prompt": "Gather repository context with repo_grep, go_outline and read. Do not use bash, grep or glob. Return concise file:line evidence. Excluded paths must stay with the primary agent."
+      "prompt": "Gather repository context with repo_grep, go_outline and read. Do not use shell, grep or glob. Return concise file:line evidence. Excluded paths must stay with the primary agent."
     },
     "coordinator": {
       "description": "Resolves one bounded hard decision on Opus and hands execution back to Sonnet build; never implements",

@@ -61,8 +61,9 @@ for (let repeat = 0; repeat < repeats; repeat++) {
         [
           "opencode",
           "run",
-          "--dir",
-          repo,
+          // A private server inherits this process's DESVIO_* environment; the shared
+          // background service would keep its own and ignore the experiment settings.
+          "--standalone",
           "--format",
           "json",
           "--title",
@@ -73,6 +74,8 @@ for (let repeat = 0; repeat < repeats; repeat++) {
           cwd: repo,
           env: {
             ...process.env,
+            // OpenCode takes the project directory from PWD, not the spawn cwd.
+            PWD: repo,
             DESVIO_ENABLED: String(enabled),
             DESVIO_EXPERIMENT: experiment,
             DESVIO_LOG_DIR: out,

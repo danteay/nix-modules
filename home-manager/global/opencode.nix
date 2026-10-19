@@ -32,7 +32,6 @@ in
     # only place to change it; an environment export would outlive the shell in any running
     # OpenCode process (see reports/routing-audit-2026-10-12.md).
     ".config/opencode/desvio.json".source = ../../dotfiles/ai/opencode/desvio.json;
-    ".config/opencode/tui.json".source = ../../dotfiles/ai/opencode/tui.json;
     ".config/opencode/agents".source = withDocsPath "agents" ../../dotfiles/ai/opencode/agents;
     ".config/opencode/commands".source = withDocsPath "commands" ../../dotfiles/ai/opencode/commands;
 
@@ -57,7 +56,9 @@ in
       alias desvio-report="bun run ~/.config/opencode/scripts/report.ts"
       alias desvio-control="bun run ~/.config/opencode/scripts/control.ts"
       alias desvio-baseline="bash ~/.config/opencode/scripts/baseline.sh"
-      alias desvio-off="export DESVIO_ENABLED=0 && echo 'desvio routing disabled; usage logging and worker exclusions remain active'"
+      # OpenCode 2 runs plugins in the background service, which keeps the environment it was
+      # started with; restart it so the change reaches desvio (interrupts running sessions).
+      alias desvio-off="export DESVIO_ENABLED=0 && opencode service restart && echo 'desvio routing disabled; usage logging and worker exclusions remain active'"
     '';
   };
 

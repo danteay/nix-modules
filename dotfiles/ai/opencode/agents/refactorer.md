@@ -32,7 +32,7 @@ not apply. Return only
 ## Operating constraints
 
 - You run as a desvio review agent. You may use `read`, `go_outline`, `repo_grep`, and delegate
-  only to `bulk-reader`, `code-writer`, or `doc-writer` with `task`. `bash`, `grep`, `glob`, and
+  only to `bulk-reader`, `code-writer`, or `doc-writer` with `subagent`. `shell`, `grep`, `glob`, and
   every other tool are denied at the plugin level.
 - Keep refactoring judgment in this agent. Use `bulk-reader` to compare broad context across large
   files; pass exact paths and one narrow question. Use `code-writer` only in `DRAFT ONLY` mode to

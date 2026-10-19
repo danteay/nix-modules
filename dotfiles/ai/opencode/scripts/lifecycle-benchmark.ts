@@ -36,7 +36,20 @@ if (
     "Usage: bun lifecycle-benchmark.ts OUTPUT_DIR --budget-usd NUMBER [--repeats NUMBER]",
   )
 const repo = join(out, "fixture")
-await mkdir(repo, { recursive: true })
+await mkdir(join(repo, ".opencode/commands"), { recursive: true })
+/** OpenCode 2 runs a markdown command as switchAgent + switchModel + prompt(expanded template),
+ * and `opencode run` has no `--command`. Turns replay exactly that; desvio recognizes the
+ * command from the template's static prefix (lib/v2-commands.ts). */
+const COMMAND = {
+  name: "benchmark-bulk",
+  agent: "bulk",
+  model: models.bulk,
+  prefix: "Benchmark bulk command (read-only utility work). Task:",
+}
+await writeFile(
+  join(repo, ".opencode/commands", `${COMMAND.name}.md`),
+  `---\nagent: ${COMMAND.agent}\nmodel: ${COMMAND.model}\n---\n${COMMAND.prefix} $ARGUMENTS\n`,
+)
 await writeFile(
   join(repo, "README.md"),
   "# Fixture\nProviders return any so alternate implementations can satisfy a registry contract.\nThe caller must validate the returned value before use.\n",
@@ -81,7 +94,7 @@ for (let repeat = 0; repeat < repeats; repeat++) {
       previousCost = 0
     const turns = [
       {
-        command: "benchmark-bulk",
+        command: true,
         prompt: "Read README.md and summarize its provider contract in one sentence.",
       },
       {
@@ -91,18 +104,23 @@ for (let repeat = 0; repeat < repeats; repeat++) {
     ]
     for (const [turn, input] of turns.entries()) {
       if (spend >= budget) throw new Error("Benchmark budget reached; partial results saved")
-      const argv = ["opencode", "run", "--dir", repo, "--format", "json", "--title", experiment]
+      // A private server per turn inherits this turn's DESVIO_* environment and restarts
+      // between turns, which also exercises durable lifecycle recovery.
+      const argv = ["opencode", "run", "--standalone", "--format", "json", "--title", experiment]
       if (sessionID) argv.push("--session", sessionID)
-      if (input.command) argv.push("--command", input.command)
-      argv.push(
+      const prompt =
         input.prompt +
-          "\nRead-only benchmark. No shell, edits or external services. Answer concisely with evidence.",
-      )
+        "\nRead-only benchmark. No shell, edits or external services. Answer concisely with evidence."
+      if (input.command)
+        argv.push("--agent", COMMAND.agent, "--model", COMMAND.model, `${COMMAND.prefix} ${prompt}`)
+      else argv.push(prompt)
       const start = performance.now()
       const proc = Bun.spawn(argv, {
         cwd: repo,
         env: {
           ...process.env,
+          // OpenCode takes the project directory from PWD, not the spawn cwd.
+          PWD: repo,
           DESVIO_EXPERIMENT: experiment,
           DESVIO_LOG_DIR: logDir,
           DESVIO_ENABLED: "1",
@@ -120,9 +138,6 @@ for (let repeat = 0; repeat < repeats; repeat++) {
               task: "allow",
               go_outline: "allow",
               repo_grep: "allow",
-            },
-            command: {
-              "benchmark-bulk": { agent: "bulk", model: models.bulk, template: "$ARGUMENTS" },
             },
           }),
         },

@@ -1,7 +1,7 @@
 # desvio routing
 
 Home Manager installs this directory's config, agents, commands, scripts and bin.
-`bootstrap.sh` materializes plugins, tui, tools, lib, scripts, tests and bin together so Bun resolves the
+`bootstrap.sh` materializes plugins, tools, lib, scripts, tests and bin together so Bun resolves the
 installed config's node_modules rather than trying to resolve dependencies in the Nix store.
 
 ## Datadog MCP
@@ -37,8 +37,8 @@ read-only store link). Requires OpenCode 2 (`opencode-v2` formula in `nix-darwin
 - **The baseline lives in `~/.config/opencode/desvio.json`** (`{ "baseline": "build" }`, shipped
   from `dotfiles/ai/opencode/desvio.json`). The plugin re-reads it on every incoming turn and at
   every completion, so `hms` applies on the next message without restarting OpenCode or the
-  shell. `DESVIO_BASELINE_AGENT` is only a fallback when no file exists (isolated smoke and
-  benchmark runs); a file value always wins and a conflicting export is logged as
+  shell. `DESVIO_BASELINE_AGENT` is only a fallback when no file exists (isolated benchmark
+  runs); a file value always wins and a conflicting export is logged as
   `baseline_env_ignored`. A reasoning agent (`coordinator`, `plan`) is rejected as baseline and
   replaced by `build` unless the file sets `allow_reasoning_baseline: true` (or
   `DESVIO_ALLOW_REASONING_BASELINE=1`); rejections are logged as `baseline_rejected`. Home
@@ -69,20 +69,19 @@ read-only store link). Requires OpenCode 2 (`opencode-v2` formula in `nix-darwin
   the active run. Ordinary free text is a new task; it is never classified as an approval by
   keyword. Use `/desvio-continue` for a completed task's follow-up. Unknown agents stay
   unmanaged unless they invoke a command or skill. Commands temporarily override managed pins.
-- `tui.json` loads the Desvio terminal bridge. OpenCode 1.18.33–1.19.0 keep its prompt selector separate
-  from saved session selection; the bridge synchronizes the visible primary agent/model/variant
-  and restores them when reopening a completed session. Background sessions cannot change the
-  active session's selector. This uses a version-checked internal LocalProvider adapter because
-  the public TUI plugin API has no selection setter. Other CLI versions show a compatibility
-  error instead of guessing. Revalidate `bun scripts/smoke.ts --tui` before upgrading OpenCode.
-- Verified on OpenCode 1.19.0 (also 1.18.33–1.18.35; the list is `VERIFIED_TUI_VERSIONS` in
-  `lib/tui-selection.ts`) with plugin/SDK 1.18.31. Completion/next-turn restoration works;
-  **automatic model handoff within a running legacy loop is unavailable**. That limitation
-  does not prevent restoration between completed tasks. Selection changes alone cannot establish
-  that a running model changed; the smoke test verifies the next actual provider request too.
+- **OpenCode 2 (verified on 2.0.32):** the plugin's default export adapts the v1-shaped core
+  through `lib/v2-bridge.ts`, registers `tools/*.ts` (OpenCode 2 no longer discovers them) and
+  the `/desvio-*` controls, and recovers markdown command names from their expanded templates. Hook/event mapping, the
+  synthesized message history and known gaps are in
+  [docs/opencode-v2.md](docs/opencode-v2.md); re-probe it before upgrading OpenCode.
+- Agent/model selection is server-side session state on OpenCode 2; the prompt line follows
+  desvio's `switchAgent`/`switchModel` calls, so no terminal-side bridge is needed.
+- **Automatic model handoff within a running loop is unavailable**; restoration happens between
+  completed tasks. Selection changes alone cannot establish that a running model changed.
 
-- Desvio selects a model by agent role in `chat.message` before OpenCode saves the incoming
-  turn. This also corrects a previously selected Opus model when a build session resumes.
+- Desvio selects a model by agent role when a turn is admitted (v1 `chat.message`, OpenCode 2
+  `prompt` hook), before the turn's first model request. This also corrects a previously selected
+  Opus model when a build session resumes.
   The policy is in `lib/routing.ts`; routing decisions record requested/selected models and reason.
   It does not classify arbitrary prompts by keywords or silently fall back to Opus on errors.
 
@@ -104,8 +103,10 @@ read-only store link). Requires OpenCode 2 (`opencode-v2` formula in `nix-darwin
 - `DESVIO_ENABLED=0` disables model selection, size routing and routing instructions. Usage logging
   and worker path restrictions remain active. Static agent/command models still apply.
 - `DESVIO_MODEL_ROUTING=0` disables only model selection so manual model choices are respected;
-  the read guard and path restrictions remain active. Restart OpenCode after changing these
-  environment variables. Normally choose the agent role instead of changing its model manually.
+  the read guard and path restrictions remain active. On OpenCode 2 the plugin runs inside the
+  background service, so these variables come from the service's environment, not the shell
+  running `opencode`: after changing them, run `opencode service restart` from that shell
+  (`desvio-off` does this). Normally choose the agent role instead of changing its model manually.
 
 ## Agents
 
@@ -381,13 +382,13 @@ For unrelated work, start a fresh session with decisions, source revisions, chan
 checks and gaps. Baseline resets preserve context. Pruning reduces stale tool-output retention;
 it is not a guarantee that every new task starts with a small context.
 
-## Lifecycle controls and smoke test
+## Lifecycle controls
 
 State is in `$DESVIO_LOG_DIR/state.sqlite` (default `~/.local/share/desvio/state.sqlite`), separate
 from OpenCode's database. Controls operate on an existing managed root session and apply on its
 next incoming turn without a model call. Finish/abort the run before changing these controls.
-The UI selector does not expose reliable selection provenance to this legacy plugin; use a
-control pin instead of relying on manual selector changes in enforcement mode.
+Prefer a control pin to manual selector changes in enforcement mode: a more expensive selection
+is never applied silently (see Behavior).
 
 ```sh
 bun ~/.config/opencode/scripts/control.ts status SESSION_ID
@@ -399,23 +400,17 @@ bun ~/.config/opencode/scripts/control.ts continue SESSION_ID TASK_ID
 bun ~/.config/opencode/scripts/control.ts correct SESSION_ID TASK_ID
 bun ~/.config/opencode/scripts/control.ts scope SESSION_ID TASK_ID
 bun ~/.config/opencode/scripts/control.ts accept SESSION_ID TASK_ID
-bun ~/.config/opencode/scripts/smoke.ts
-bun ~/.config/opencode/scripts/smoke.ts --tui
 ```
 
-The TUI exposes `/desvio-continue`, `/desvio-correct`, `/desvio-scope`, `/desvio-accept`,
+The plugin registers `/desvio-continue`, `/desvio-correct`, `/desvio-scope`, `/desvio-accept`,
 `/desvio-auto`, `/desvio-build`, `/desvio-reason` (next message only), `/desvio-reason-sticky`,
-and `/desvio-bulk`. Select the control, then send your follow-up normally. Controls require local Desvio state; remote-server attachment is not
-supported for controls. Missing state is an error and never silently creates a replacement.
+and `/desvio-bulk` as OpenCode commands (`lib/v2-controls.ts`; enforce mode only). Run the control,
+then send your follow-up normally; task controls accept an optional task ID argument. Controls
+require local Desvio state; remote-server attachment is not supported for controls. Missing state
+is an error and never silently creates a replacement.
 
-The smoke test starts an isolated OpenCode server and local mock providers, verifies actual Haiku
-command execution, saved Sonnet restoration and Sonnet execution on a stale bulk follow-up, then stops
-the server. It also delegates a real write/edit using the shipped worker permissions. It uses no paid APIs or existing sessions. Artifacts remain in a printed temporary
-directory. `--tui` also starts a disposable terminal through Python 3's PTY module, checks the
-actual selector after rendering settles, covers Sonnet commands and a real slash skill, and checks
-background completion plus reopening a session. It never attaches to a user's terminal.
-Explicit variant pins are disabled
-until a control can validate the runtime catalog; provider defaults are used for new pins.
+Variant pins are disabled: OpenCode 2 persists any variant without validating it (see
+[docs/opencode-v2.md](docs/opencode-v2.md)), so new pins use the provider default.
 
 CLI processes may exit before asynchronous idle handlers finish. The next-turn guard remains
 authoritative after restart; a missing reset event is not reported as a successful restoration.
