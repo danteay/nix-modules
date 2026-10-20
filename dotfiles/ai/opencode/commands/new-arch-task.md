@@ -34,9 +34,11 @@ draft and its proposed Linear changes. Approval of an older draft does not appro
 - Read named local and remote documents, including linked documents needed to understand the
   described flow. For technology behavior, consult current official maintainer documentation
   when available and record the version and access date. Separate external product facts from
-  this project's requirements. For large repository files, use Desvio's `bulk-reader` for broad
-  questions with exact eligible paths; use targeted reads for narrow questions. Keep excluded
-  paths with the primary agent.
+  this project's requirements. For repository-backed questions build evidence packs with
+  Haiku: one `bulk-reader` task per package with exact eligible paths and one question
+  (symbols, callers, tests, invariants), `explorer` for locations; keep the packs verbatim for
+  `designer`. Use targeted reads only for a narrow known section. Keep excluded paths with the
+  primary agent.
 - Read the explicitly supplied Linear issue, project, and relevant parent/child or dependency
   records. Search nearby current work only as needed to identify overlap, blockers, owners, or
   duplicates, and state the search scope. Record issue IDs, titles, states, assignees, links,
@@ -56,10 +58,15 @@ draft and its proposed Linear changes. Approval of an older draft does not appro
 ## 2. Reasoning
 
 - The Sonnet coordinator owns source retrieval, ledger maintenance, drafting and publication.
-  Send the compiled ledger, constraints, alternatives and one unresolved architecture decision
-  to `architect` with a `FEATURE ANALYSIS` prompt. Opus owns that difficult decision. Reuse its
-  recommendation and evidence while drafting; request another pass only when material evidence
-  or constraints change. Keep routine task wording and field updates on Sonnet.
+  **Opus owns the reasoning.** Once the ledger and evidence packs exist, dispatch exactly one
+  `designer` task with a `DESIGN REQUEST` prompt: the outcome, the context ledger, the evidence
+  packs, the current and desired flows as reconstructed from the sources, the mismatches,
+  constraints, the user's decisions and the open questions. It returns the decision, the
+  design, rejected alternatives, ordered work slices, risks and questions. If it returns
+  `MISSING_INPUT`, gather the items and re-dispatch once. Write the problem frame, options and
+  recommendation below from its answer, checked against the ledger; do not redo the design on
+  Sonnet. On feedback that changes the decision, dispatch a `DESIGN DELTA`; keep routine task
+  wording and field updates on Sonnet. `architect` is not used here; it reviews diffs.
 
 - Start from the context ledger. Write a concise **problem frame**: the decision to make, why
   now, stakeholders, boundaries, and what is known versus unknown. Reconstruct the current flow
@@ -76,9 +83,9 @@ draft and its proposed Linear changes. Approval of an older draft does not appro
 - Recommend one approach only when the evidence supports it. Show the reasoning chain from
   sources to constraints to choice, with assumptions, confidence, risks, and open decisions.
   If a missing answer could change the recommendation, mark the decision blocked and seek that
-  answer before writing a definitive task. Check the architect's claims against the ledger;
-  do not commission a duplicate architecture review of the same decision. Do not pass it MCP
-  access it does not have.
+  answer before writing a definitive task. Check the designer's claims against the ledger;
+  do not commission a duplicate design pass on the same input. Workers have no MCP access:
+  fetch Lucid and Linear content yourself and pass the relevant text.
 - Before drafting, run a **reasoning review**: can a reader trace each important claim to a
   source, understand the depicted versus actual state, see why the chosen approach wins, and
   identify unresolved decisions? Revise the analysis or ask for missing evidence if not.

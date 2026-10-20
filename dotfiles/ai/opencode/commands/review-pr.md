@@ -14,10 +14,12 @@ You are the primary agent. The review agents (`code-reviewer`, `architect`, `ref
 `tester`, `devops`, `documentor`) run as desvio review agents via the `subagent` tool, which means:
 
 - **Review agents have no `shell`, no `grep`, and no `glob`.** They can use `read`, `go_outline`,
-  `repo_grep`, and `subagent` only to delegate to the cheap `bulk-reader`, `code-writer`, and
-  `doc-writer` agents. They cannot run `gh`, `git`, tests, builds, `terraform plan` or `pkl eval`.
+  `repo_grep`, and `subagent` only to delegate to the cheap `bulk-reader`, `explorer`,
+  `code-writer`, and `doc-writer` agents. They cannot run `gh`, `git`, tests, builds, `terraform plan` or `pkl eval`.
   Everything they need from git or GitHub, **you** must fetch and pass in the prompt.
-- **Review agents own the judgment.** They use `bulk-reader` for broad large-file context,
+- **Haiku gathers, reviewers judge.** Before dispatch you build one evidence pack per changed
+  package with `bulk-reader` (Step 5a) and pass it to every reviewer; reviewers must not re-read
+  files a pack covers. They use `bulk-reader` for further broad large-file context,
   `code-writer` for reference-backed draft snippets, and `doc-writer` for draft prose. Writer
   tasks must start with `DRAFT ONLY`; nested workers cannot edit files. `subagent_depth` is 2.
 - **Workers cannot read desvio-excluded paths** (wallet, kyc, aml, payments, payouts, secrets,
@@ -61,6 +63,15 @@ You are the primary agent. The review agents (`code-reviewer`, `architect`, `ref
   context so it does not invent intent.
 
 ## Step 3: Classify the PR content (this drives which agents run)
+
+Classify with `decide` (Jev) rather than by reading the diff into your own reasoning: state =
+the changed-file list with status, the diff stat, and the first 200 lines of each hunk;
+questions = one `boolean` per bucket below (`source_code`, `tests`, `infrastructure`,
+`documentation`, `config_values`, `trivial`), a `boolean` `public_surface` (adds or changes a
+public API, event, contract or user-visible behaviour), and a `score` `risk` over
+`["cosmetic", "local logic", "cross-boundary or data", "security or money path"]`. A bucket is
+present at probability ≥ 0.5. Where Jev's confidence is below 0.6, decide that bucket yourself
+from the diff and say so. Record the answers in the Step 9 output.
 
 Determine the language(s) of the changed files from their extensions — the **tester** agent needs
 this to pick the right test patterns.
@@ -107,6 +118,14 @@ Default to reviewing the diff plus targeted reads on the base branch.
 
 ## Step 4: Fetch and triage prior review comments (avoid duplicate findings)
 
+Triage each prior thread with one `decide` call per thread (dispatch them in one turn): state =
+the thread text plus the current code region it points at (targeted read); question `status`
+as a `choice` over `resolved_fixed` ("the current code no longer has the problem the thread
+describes"), `responded_justified` ("the author answered and the thread accepts or does not
+contest it"), `outdated` ("the code moved; the thread no longer applies as written"),
+`open_unaddressed` ("the concern still applies and nobody addressed it"). Use the choice at
+confidence ≥ 0.6; below that, read the thread and decide yourself.
+
 Gather every comment already on this PR and determine its current status, so the review does not
 re-raise something already fixed, answered or decided.
 
@@ -134,6 +153,15 @@ Record this triage as a table (`comment → author → status → evidence`). St
 suppress duplicates. Pass a condensed form (OPEN-UNADDRESSED and RESPONDED-JUSTIFIED items only)
 into every dispatched agent's prompt so they do not re-derive answered concerns.
 
+## Step 5a: Build the evidence packs (Haiku)
+
+For each package or directory with non-trivial changed source files, dispatch one `bulk-reader`
+task in the same turn (all packs in parallel): the exact eligible paths of the changed files and
+their immediate neighbours (callers found with `repo_grep`, the package's tests), and one
+question — "public symbols, callers, existing tests and invariants relevant to this diff:
+<short summary of the hunks>". Skip packs for docs-only, config-value-only and excluded paths
+(review those hunks from the diff text yourself). Record the pack index: pack → paths covered.
+
 ## Step 5: Dispatch the review agents
 
 Use the `subagent` tool once per selected agent, all calls in a single turn. Do NOT dispatch every
@@ -154,11 +182,13 @@ review wastes money and produces noise findings.
 Record which agents were selected and why (one line each). Report the skipped agents and the reason
 in the final output so the gating is transparent — never silently drop an agent.
 
-The coordinator and routine reviewers use Sonnet. Architect uses Opus only for its bounded
-decision. For a difficult unresolved correctness/security question, gather evidence first and
-send that question to `reasoner`; do not restart every reviewer on Opus. User corrections to
-severity, formatting and posting remain on Sonnet. Reuse eligible Haiku context summaries across
-reviewers, with source references and relevant diff slices; avoid rediscovering the same files.
+The coordinator and routine reviewers use Sonnet; `architect` reviews on Opus. Reviewers never
+settle an open design, contract, correctness or tradeoff question; they return it in `notes` as
+`DECISION_NEEDED`. Collect those in Step 6 and send each distinct one to `designer` as a
+`DECISION REQUEST` with the evidence; do not restart every reviewer on Opus. User corrections to
+severity, formatting and posting remain on Sonnet. The Step 5a packs are the shared context:
+every reviewer gets the same packs with source references and its diff slice, so the same files
+are read once by Haiku instead of once per reviewer.
 
 ### Prompt payload — every dispatched agent gets
 
@@ -169,9 +199,10 @@ reviewers, with source references and relevant diff slices; avoid rediscovering 
 5. Whether `documentor` is in this run (`refactorer` and `documentor` both need to know — it
    decides who owns comment-quality findings)
 6. The reminder that it has no `shell`/`grep`/`glob`; it may delegate only to `bulk-reader`,
-   `code-writer`, and `doc-writer`, and excluded paths must be reported in `notes` rather than
-   read or delegated
+   `explorer`, `code-writer`, and `doc-writer`, and excluded paths must be reported in `notes`
+   rather than read or delegated
 7. The JSON output contract, restated
+8. The Step 5a evidence packs verbatim, with the instruction not to re-read files they cover
 
 Only the **architect** additionally gets the Linear task context (or an explicit "no task context
 available").
@@ -238,11 +269,20 @@ Once all dispatched agents return (1 to 6 of them):
    - **OPEN-UNADDRESSED** → keep, mark it a **repeat** of the existing thread, and do NOT open a
      new inline comment on that line (reply in place or fold into the summary).
    Record which findings were suppressed and why, so the dedup is auditable in Step 9.
-3. Sanity-check each surviving finding before you keep it. An agent that could not read a file
+3. Classify every surviving finding with one `decide` call for the batch (state = the findings
+   as a numbered list with their `current_code`; per finding a `choice` `severity_<n>` over
+   `critical`/`major`/`minor` using the definitions below, and a `boolean` `duplicate_<n>`
+   "restates an earlier finding in the list"). Collapse duplicates at ≥ 0.7; take Jev's
+   severity at confidence ≥ 0.6 and judge the rest yourself.
+4. Resolve `DECISION_NEEDED` notes. Merge duplicates, then dispatch one `designer` task per
+   distinct question with a `DECISION REQUEST` (the question, the diff slice, the evidence pack,
+   the reviewers' options). Turn its decision into a finding with the designer credited, or drop
+   the finding it invalidates. Never answer such a question on Sonnet.
+5. Sanity-check each surviving finding before you keep it. An agent that could not read a file
    (excluded path, or it said so in `notes`) may have guessed. Verify the quoted `current_code`
    actually appears in the diff or the file; drop or downgrade findings whose quote does not
    match, and record that in Step 9.
-4. Classify severity:
+6. Classify severity (definitions used by the Jev question above):
    - **critical** — bug, security issue, race condition, memory leak, destructive infra change,
      production-readiness blocker
    - **major** — architectural smell, missing coverage of a non-trivial path, scalability concern,

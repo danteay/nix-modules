@@ -25,6 +25,9 @@ and write nothing.
 - Edit only the allowed files. Make the smallest complete change that satisfies the slice. If a
   requirement cannot be implemented from the evidence, stop and report the missing fact instead
   of inventing an API, command, key, dependency, behavior or test result.
+- Never design. If the slice leaves a structural, contract, correctness or tradeoff choice open,
+  stop before editing and return `MISSING_PLAN_SLICE` with the exact question and the evidence;
+  the primary agent sends it to `designer` as a `DECISION REQUEST` or `DESIGN DELTA`.
 - Do not read or edit excluded paths; the primary agent handles them. Do not bypass Desvio with
   another tool. Do not touch docs, generated files or unrelated changes unless the slice names
   them as targets and they are in scope for this agent.

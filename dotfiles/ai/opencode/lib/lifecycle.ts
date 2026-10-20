@@ -1,7 +1,7 @@
 import type { MessageInfoLike } from "./opencode-types"
 import { agentRoles, type ModelRole, modelForAgent } from "./routing"
 
-export const POLICY_VERSION = "desvio-lifecycle-5"
+export const POLICY_VERSION = "desvio-lifecycle-6"
 export type Route = { agent: string; providerID: string; modelID: string; variant?: string }
 export type Outcome = "completed" | "failed" | "aborted" | "superseded"
 export type PinScope = "sticky" | "once"
@@ -38,8 +38,11 @@ export type State = {
   previous?: Run
   resetPending?: boolean
   restoredRunID?: string
+  /** Baseline replaced by reconciliation before this admission. A selector still showing its
+   * agent is the old configuration, not a user choice (the October 2026 coordinator leak). */
+  previousBaseline?: Route
 }
-export type Selection = "honored" | "stale" | "upgrade-ignored" | "same"
+export type Selection = "honored" | "stale" | "upgrade-once" | "upgrade-ignored" | "same"
 export function routeFor(agent: string): Route {
   const model = modelForAgent(agent)
   if (!model) throw new Error(`Unknown managed agent: ${agent}`)
@@ -65,10 +68,14 @@ export const roleCost = (agent: string) => roleRank[agentRoles[agent] ?? "execut
 /**
  * Whether a requested managed primary agent should be honored as a deliberate user choice.
  * `stale`: the selector still shows the previous run's command route (OpenCode keeps the last
- * selection; after a command the reset may not have reached the UI yet). `upgrade-ignored`:
- * the user picked a more expensive role than the return route; Desvio never upgrades silently —
- * use an explicit pin. `honored`: a cheaper or equal primary agent that differs from the return
- * route.
+ * selection; after a command the reset may not have reached the UI yet). `honored`: a cheaper
+ * or equal primary agent that differs from the return route. `upgrade-once`: a reasoning
+ * primary (`plan`, `coordinator`) the user switched to deliberately — there is no previous run,
+ * the previous run was on another agent, or the previous run's completion already restored the
+ * selector, so the agent shown now was picked again. It runs once and returns to the baseline,
+ * like `/desvio-reason`. `upgrade-ignored`: the selector still shows a reasoning route whose
+ * reset has not landed; Desvio never upgrades on a possibly stale selection — use an explicit
+ * pin.
  */
 export function classifySelection(s: State, requested: Route, returnTo: Route): Selection {
   if (requested.agent === returnTo.agent) return "same"
@@ -80,14 +87,19 @@ export function classifySelection(s: State, requested: Route, returnTo: Route): 
     (previous.source.startsWith("command:") || previous.skill)
   )
     return "stale"
-  return roleCost(requested.agent) <= roleCost(returnTo.agent) ? "honored" : "upgrade-ignored"
+  if (!previous && s.previousBaseline?.agent === requested.agent) return "stale"
+  if (roleCost(requested.agent) <= roleCost(returnTo.agent)) return "honored"
+  if (!previous || previous.route.agent !== requested.agent || s.restoredRunID === previous.id)
+    return "upgrade-once"
+  return "upgrade-ignored"
 }
 
 /**
  * Route/source priority, highest first: an explicit command overrides everything; a
  * continuation resumes the task's prior route (unless that route came from a one-shot
- * reasoning pin); an unmanaged agent always keeps the caller's requested route; a deliberate
- * cheaper selection is honored; otherwise fall back to the session's pin or baseline.
+ * reasoning pin or selection); an unmanaged agent always keeps the caller's requested route; a
+ * deliberate cheaper selection is honored, and a deliberate reasoning selection is honored for
+ * one run; otherwise fall back to the session's pin or baseline.
  */
 function resolveRoute(
   s: State,
@@ -110,7 +122,7 @@ function resolveRoute(
   // An explicit pin is a stronger signal than the selector; change it with auto/build/bulk.
   if (s.pin) return { route: s.pin, source: "manual-pin", selection: "same" }
   const selection = classifySelection(s, requested, s.baseline)
-  if (selection === "honored")
+  if (selection === "honored" || selection === "upgrade-once")
     return { route: routeFor(requested.agent), source: "manual-selection", selection }
   return { route: s.baseline, source: "baseline", selection }
 }
@@ -136,6 +148,8 @@ export function begin(s: State, messageID: string, requested: Route, now = Date.
   const { route, source, selection } = resolveRoute(s, requested, command, continuation, unmanaged)
   const previous = s.run ? supersede(s.run) : s.previous
   const consumedPin = source === "manual-pin" && s.pinScope === "once"
+  // A one-shot route (consumed pin or deliberate reasoning selection) returns to the baseline.
+  const once = consumedPin || selection === "upgrade-once"
   return {
     ...s,
     revision: s.revision + 1,
@@ -143,6 +157,7 @@ export function begin(s: State, messageID: string, requested: Route, now = Date.
     continueTask: undefined,
     continuationKind: undefined,
     resetPending: false,
+    previousBaseline: undefined,
     previous,
     ...(consumedPin ? { pin: undefined, pinScope: undefined } : {}),
     run: {
@@ -154,7 +169,7 @@ export function begin(s: State, messageID: string, requested: Route, now = Date.
       continuationKind: continuation ? (s.continuationKind ?? "feedback") : undefined,
       status: "running",
       waits: [],
-      ...(consumedPin ? { pinScope: "once" as const } : {}),
+      ...(once ? { pinScope: "once" as const } : {}),
       ...(selection !== "same" ? { selection } : {}),
     },
   }

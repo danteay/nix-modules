@@ -17,14 +17,14 @@ export const workerAgents = new Set([
 ])
 export const reviewAgents = new Set([
   "architect",
-  "reasoner",
+  "designer",
   "code-reviewer",
   "devops",
   "documentor",
   "tester",
   "refactorer",
 ])
-export const reviewWorkerAgents = new Set(["bulk-reader", "code-writer", "doc-writer"])
+export const reviewWorkerAgents = new Set(["bulk-reader", "explorer", "code-writer", "doc-writer"])
 const excluded = (
   process.env.DESVIO_EXCLUDE ??
   "/wallet/,/kyc/,/aml/,/payments/,/payouts/,/secrets/,\\.env,\\.tfvars,\\.pem$,\\.p12$,credentials"

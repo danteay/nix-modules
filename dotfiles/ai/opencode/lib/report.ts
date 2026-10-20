@@ -1,7 +1,7 @@
 import { cheapClasses, type PromptClass } from "./classify"
 import type { LogRecord } from "./log-types"
 import { reportQuality } from "./report-quality"
-import { modelRole } from "./routing"
+import { agentRoles, modelRole } from "./routing"
 
 type Rec = LogRecord
 /** One `pricing.json` entry (USD per million tokens). */
@@ -67,6 +67,8 @@ type WorkflowAgg = {
   primary_context: number
   worker_input: number
   messages: number
+  /** `task` calls to a reasoning-role agent (designer, architect). */
+  reasoning_delegations: number
   models: Record<string, Bucket>
   duration_ms: number | null
   experiment: string | null
@@ -281,6 +283,7 @@ function aggregate(
       primary_context: 0,
       worker_input: 0,
       messages: 0,
+      reasoning_delegations: 0,
       models: {},
       duration_ms: null,
       experiment: r.experiment ?? null,
@@ -307,6 +310,8 @@ function aggregate(
         for (const path of paths) delegated.set(`${session}:${path}`, `${session}:${r.callID}`)
       }
     }
+    if (r.kind === "delegation" && r.subagent_type && agentRoles[r.subagent_type] === "reasoning")
+      w.reasoning_delegations++
     if (r.kind === "worker_denied")
       denialReasons[r.reason ?? "unknown"] = (denialReasons[r.reason ?? "unknown"] ?? 0) + 1
     const taskID = r.taskID ?? (r.runID && taskForRun.get(`${session}:${r.runID}`))
@@ -428,8 +433,17 @@ export type Turn = {
   calls: number
   cost: number
   reasoning_cost: number
+  /** Messages on a reasoning model inside the turn (root or child sessions). */
+  reasoning_calls: number
+  /** Largest root-session context (input + cache) observed in the turn, or null. */
+  max_context: number | null
   cheap_on_reasoning: boolean
+  /** A design/investigation-class turn whose workflow made no reasoning-model call. */
+  design_without_reasoning: boolean
 }
+
+/** Classes whose turns are expected to involve a reasoning-model call. */
+const reasoningClasses = new Set<PromptClass>(["design", "investigation"])
 
 /**
  * One row per root run: what was asked (preview + heuristic class), how it was routed, and
@@ -469,13 +483,26 @@ function turnsView(modern: Rec[], parents: Map<string, string>): Turn[] {
     let calls = 0
     let cost = 0
     let reasoning = 0
+    let reasoningCalls = 0
+    let maxContext: number | null = null
     for (const m of byWorkflow.get(wf) ?? []) {
       const t = at(m)
       if (t < start || t >= end) continue
       calls++
       const c = measured(m.cost) ? m.cost : 0
       cost += c
-      if (modelRole(`${m.providerID}/${m.modelID}`) === "reasoning") reasoning += c
+      if (modelRole(`${m.providerID}/${m.modelID}`) === "reasoning") {
+        reasoning += c
+        reasoningCalls++
+      }
+      if (!(m.worker ?? parents.has(sid(m)))) {
+        const context = ["input", "cache_read", "cache_write"].reduce(
+          (n, f) => n + (measured(m[f]) ? (m[f] as number) : 0),
+          0,
+        )
+        if (["input", "cache_read", "cache_write"].some((f) => measured(m[f])))
+          maxContext = Math.max(maxContext ?? 0, context)
+      }
     }
     const model = `${b.selected_route?.providerID}/${b.selected_route?.modelID}`
     const role = modelRole(model)
@@ -496,7 +523,11 @@ function turnsView(modern: Rec[], parents: Map<string, string>): Turn[] {
       calls,
       cost,
       reasoning_cost: reasoning,
+      reasoning_calls: reasoningCalls,
+      max_context: maxContext,
       cheap_on_reasoning: role === "reasoning" && cls != null && cheapClasses.has(cls),
+      design_without_reasoning:
+        cls != null && reasoningClasses.has(cls) && reasoningCalls === 0 && calls > 0,
     }
   })
 }
@@ -562,8 +593,19 @@ function buildReport(
   )
   const turns = turnsView(modern, parents)
   const cheapOnReasoning = turns.filter((t) => t.cheap_on_reasoning)
+  const designWithoutReasoning = turns.filter((t) => t.design_without_reasoning)
   const ignoredUpgrades = begins.filter((r) => r.selection === "upgrade-ignored").length
+  const honoredUpgrades = begins.filter((r) => r.selection === "upgrade-once").length
   const honoredSelections = begins.filter((r) => r.selection === "honored").length
+  // A reasoning-capable model that never reports reasoning tokens: thinking is folded into
+  // output (the Vercel gateway does this), so the breakdown is unknown, not zero.
+  const noReasoningCoverage = Object.entries(models).filter(
+    ([model, m]) => /\/claude-/.test(model) && m.calls >= 20 && m.reasoning === 0,
+  )
+  const reasoningDelegations = Object.values(workflows).reduce(
+    (n, w) => n + w.reasoning_delegations,
+    0,
+  )
   const rejectedBaselines = begins.filter((r) => r.baseline_rejected).length
   return {
     workflows: n,
@@ -599,6 +641,9 @@ function buildReport(
       post_delegation_reread_rate_pct: comparableDelegations
         ? (reworked.size / comparableDelegations) * 100
         : null,
+      reasoning_delegations: reasoningDelegations,
+      decision_calls: modern.filter((r) => r.kind === "message" && r.decision).length,
+      prompt_decisions: count("prompt_decision"),
       // Deprecated aliases retained for historical consumers.
       rework_reads: reworkReads,
       delegations_reworked: reworked.size,
@@ -638,6 +683,8 @@ function buildReport(
       stale_resets: hasLifecycle ? count("stale_reset_ignored") : null,
       manual_selections_honored: hasLifecycle ? honoredSelections : null,
       upgrades_ignored: hasLifecycle ? ignoredUpgrades : null,
+      upgrades_honored_once: hasLifecycle ? honoredUpgrades : null,
+      design_turns_without_reasoning: hasLifecycle ? designWithoutReasoning.length : null,
       reasoning_baselines_rejected: hasLifecycle ? rejectedBaselines : null,
       one_shot_pins: hasLifecycle ? begins.filter((r) => r.pin_scope === "once").length : null,
       completed_tasks: hasLifecycle ? completed.length : null,
@@ -683,6 +730,15 @@ function buildReport(
             `WARNING: ${cheapOnReasoning.length} turns labeled approval/git-pr/checks/admin ran on a reasoning model ($${cheapOnReasoning.reduce((n, t) => n + t.cost, 0).toFixed(2)}). Labels are heuristic; see --turns.`,
           ]
         : []),
+      ...(designWithoutReasoning.length
+        ? [
+            `WARNING: ${designWithoutReasoning.length} turns labeled design/investigation ran without any reasoning-model call ($${designWithoutReasoning.reduce((n, t) => n + t.cost, 0).toFixed(2)}). Opus owns design in /new-feat and /new-arch-task (designer); see --turns.`,
+          ]
+        : []),
+      ...noReasoningCoverage.map(
+        ([model, m]) =>
+          `${model}: 0 reasoning tokens over ${m.calls} calls; the provider folds thinking into output, so reasoning share and effort are not observable here. Reconcile logged cost with the provider bill.`,
+      ),
       ...(rejectedBaselines
         ? [
             `${rejectedBaselines} runs had a configured reasoning baseline rejected in favour of build (set allow_reasoning_baseline in desvio.json to opt in).`,

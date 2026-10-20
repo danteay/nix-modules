@@ -52,9 +52,13 @@ read-only store link). Requires OpenCode 2 (`opencode-v2` formula in `nix-darwin
 - **Selector changes:** an explicit pin always wins. Without a pin, a primary agent you select
   in the terminal is honored when it is cheaper than or equal to the baseline (`bulk`, `edit`,
   `build`) and is not simply the route left behind by a completed command or skill; that run is
-  logged with `source: manual-selection`. A more expensive selection (`coordinator`, `plan`) is
-  never applied silently: the run stays on the baseline and is logged as `upgrade-ignored`. Use
-  `/desvio-reason` for Opus.
+  logged with `source: manual-selection`. A reasoning selection (`coordinator`, `plan`) is
+  honored **for one run** when it is deliberate — you switched the selector since the previous
+  run, or the previous run's reset already moved it back to `build` — and is logged as
+  `upgrade-once`; completion returns to the baseline exactly like `/desvio-reason`. A reasoning
+  selection that merely matches the previous run's route (its reset has not landed) or the
+  baseline that reconciliation just replaced is logged as `upgrade-ignored` or `stale` and stays
+  on the baseline. For a sustained Opus session use `/desvio-reason-sticky`.
 - **Reasoning is one message at a time:** `/desvio-reason` (or `control.ts pin SESSION
   coordinator`) pins `coordinator` for the next run only; completion returns to the baseline,
   and ordinary free text after it runs on `build`. `/desvio-continue` of that decision keeps the
@@ -115,9 +119,11 @@ Claude agents use Anthropic directly. The configured routes are:
 | Work | Agents | Model |
 |---|---|---|
 | Explicit bounded reasoning | `coordinator` | `vercel/anthropic/claude-opus-5.5` |
+| Design of a feature or architecture task (`/new-feat`, `/new-arch-task`) | `designer` | `vercel/anthropic/claude-opus-5.5` |
 | Defined execution, integration, routine review | `build`, `edit`, `general`, `feature-builder`, `code-reviewer`, `tester`, `refactorer`, `devops`, `documentor` | `vercel/anthropic/claude-sonnet-5.5` |
-| Hard decisions | `plan`, `architect`, `reasoner` | `vercel/anthropic/claude-opus-5.5` |
+| Hard decisions (`DECISION REQUEST`) and diff review | `designer`, `plan`, `architect` | `vercel/anthropic/claude-opus-5.5` |
 | Context, reference-based boilerplate, prose, utility commands | `bulk`, `explorer`, `explore`, `bulk-reader`, `code-writer`, `doc-writer` | `vercel/anthropic/claude-haiku-5.5` |
+| Typed decisions: classification, triage, gating, scoring (`decide` tool, turn labels) | Jev (not an agent) | `vercel/typesafe-ai/jev-1.14.0` |
 
 Model versions (October 12, 2026): Opus 5.5 replaced Opus 5 for the reasoning role (same tier,
 $4/$20 per MTok, cache reads $0.20 instead of $0.50) and Sonnet 5.5 replaced Sonnet 5 for
@@ -136,15 +142,20 @@ The default is Sonnet `build`; `small_model` is Haiku 5.5. Utility commands expl
 `bulk` (`/new-pr`, `/commit`, `/linear-task`, `/bulk-read`, `/scaffold`, `/outline`, `/usage`);
 feature, architecture-task, PR-review, PR-comment, rebase, check and investigation commands
 choose Sonnet `build` (`/new-feat`, `/new-arch-task`, `/review-pr`, `/fix-pr-comments`,
-`/rebase`, `/check`, `/investigate`). Their hard decisions go to a bounded Opus task
-(`architect` or `reasoner`). Within those command runs, edits, formatting and checks stay on
-Sonnet. The October 2026 audit found git/PR mechanics, approvals and check runs typed as free
+`/rebase`, `/check`, `/investigate`). Their design step is a bounded Opus task by
+construction: `/new-feat` and `/new-arch-task` always dispatch `designer` once with the source
+ledger and Haiku evidence packs, and again with a `DESIGN DELTA` when feedback changes the
+design. Every other command sends its thinking to the same agent as a `DECISION REQUEST`
+(`/fix-pr-comments` for a disputed claim, `/investigate` for the root cause, `/check` for a
+failure whose cause is not evident, `/rebase` for a semantic conflict, `/review-pr` for the
+`DECISION_NEEDED` notes its reviewers return); `architect` reviews diffs. Within those command
+runs, edits, formatting and checks stay on Sonnet. The October 2026 audit found git/PR mechanics, approvals and check runs typed as free
 text on Opus; the recurring ones now have a command with a fixed cheap model, and the routing
 instructions tell the model to suggest them. After a terminal response, ordinary free text returns to the baseline/pin; use an explicit task continuation to retain
 the prior command route and task identity. `plan` is available for a
-session devoted to hard reasoning. `reasoner` resolves a
-single difficult correctness/security/debugging question; `architect` handles structural tradeoffs.
-The model decides when such a task is warranted from the routing instructions and command gates;
+session devoted to hard reasoning; `coordinator` (`/desvio-reason`) is the interactive form of
+`designer` and answers in the same schema. Review agents and `feature-builder` never decide: they
+return `DECISION_NEEDED` / `MISSING_PLAN_SLICE` and the primary sends one `DECISION REQUEST`.
 Desvio enforces the model for the selected role, not the correctness of that difficulty judgment.
 The built-in `explore` also has an explicit Haiku model and permitted search/read tools;
 `explorer` remains the narrower location-only worker.
@@ -160,13 +171,14 @@ Worker path restrictions apply to `bulk-reader`, `explorer`, `explore`, `general
 `doc-writer`, `feature-builder`, and all child sessions. Raw shell/search and unreviewed inherited
 tools are denied. `general` therefore cannot replace the primary agent for running checks.
 
-The six specialist review agents and `reasoner` are read-only, with one constrained delegation
-layer: `read`, `go_outline`, `repo_grep`, and `task` only for `bulk-reader`, `code-writer` or
-`doc-writer`. Nested writers run in `DRAFT ONLY` mode and their writes/edits are blocked. The
+The six specialist review agents and `designer` are read-only, with one constrained delegation
+layer: `read`, `go_outline`, `repo_grep`, and `task` only for `bulk-reader`, `explorer`,
+`code-writer` or `doc-writer`. Nested writers run in `DRAFT ONLY` mode and their writes/edits are blocked. The
 review agents are listed separately in `reviewAgents`: they may assess supplied diff hunks that
 mention excluded paths, but cannot open those files or delegate them. Report those gaps to the
-primary agent. `reasoner` returns a decision and execution checklist; it does not use the review
-JSON contract below.
+primary agent. `designer` returns markdown in its request shape (`DESIGN REQUEST`,
+`DESIGN DELTA`, `DECISION REQUEST`; see `agents/designer.md`); it does not use the review JSON
+contract below.
 
 Every review agent returns one JSON object — `{ verdict, findings[], notes }`, each finding
 carrying `current_code`, `suggested_change` and `assumptions[]`. The primary agent needs those
@@ -193,22 +205,57 @@ prompts, which is intended. Prior feedback comes from `pr_review_history` (every
 resolved or not, plus review summaries and general comments in one call), Linear context from
 the `linear` MCP, and replies to existing threads go through `pr_reply_comment`.
 
+## Jev decisions (`decide`)
+
+[Jev](https://vercel.com/changelog/typesafe-ais-jev-1-14-is-now-available-on-ai-gateway) is
+TypeSafe AI's decision-only model on the Vercel AI Gateway: it returns a probability, a choice
+with probabilities or a score for each typed question about a supplied `state`, generates no
+text, and bills only input at about $0.042 per million tokens. It cannot run an agent, so desvio
+uses it where a Sonnet agent would otherwise spend prose on classification:
+
+- The `decide` tool (`tools/decide.ts`, `lib/jev.ts`) is available to primaries and workers.
+  `/review-pr` classifies the change buckets, triages prior threads and scores severity and
+  duplicates with it; `/fix-pr-comments` classifies threads and claim validity; `/new-feat`
+  fills the classification matrix, gates `DESIGN DELTA`s and blocking findings; `/investigate`
+  scores hypotheses; `/check` decides pre-existing versus evident failures; `/rebase` flags
+  semantic conflicts; `/commit` groups files. Each command states the questions and the
+  confidence threshold below which the agent judges for itself.
+- Every free-text root turn is classified by Jev (`kind`, `needs_design`, `mechanics`). The
+  label replaces the keyword heuristic in `prompt_class` (`prompt_class_source: jev`), and an
+  advisory is added to the primary's system prompt when `needs_design` ≥ 0.7 (dispatch
+  `designer` first) or the turn matches a mechanics command ≥ 0.7. Routing never changes on a
+  Jev answer. The call is logged as a `prompt_decision` record.
+- Every call is also logged as a `message` on `vercel/typesafe-ai/jev-1.14.0` with role
+  `decision`, so the report's model, role and daily tables include its cost;
+  `routing.decision_calls` and `routing.prompt_decisions` count them.
+- Credential: `AI_GATEWAY_API_KEY` in the service environment, otherwise the "Vercel AI Gateway"
+  entry OpenCode stores after `opencode auth login` (read from its credential table, never
+  logged). Turn Jev off with `DESVIO_JEV=0` or `"jev": false` in `desvio.json`; after an error
+  the plugin mutes it for a minute and logs `jev_error`. A state that names an excluded path is
+  refused.
+
 ## Developing a new feature
 
 ```
 /new-feat <feature description and local paths, project roots, or remote source links>
 ```
 
-`/new-feat` compiles only supplied context, checks for `devenv.nix` or `flake.nix`, classifies
-the problem, then dispatches the relevant specialist agents in parallel for prospective analysis.
+`/new-feat` compiles only supplied context, checks for `devenv.nix` or `flake.nix`, builds one
+Haiku `bulk-reader` evidence pack per touched package, classifies the problem, then dispatches
+the relevant specialist agents in parallel for prospective analysis.
 It searches and reads official technology documentation when needed, and asks for missing
 project-specific context whenever the sources or authorized inference leave the work unclear.
 Those agents use a `FEATURE ANALYSIS` mode and return evidence, risks and questions without
-requiring a diff. The command writes `plan-<proj-name>.md` for review, iterates on feedback, and
-starts implementation only after explicit approval of the current plan. Build components run in
-plan order with a user review gate after each one. `feature-builder` handles approved source or
-configuration slices, `/scaffold`'s `code-writer` handles reference-backed boilerplate, and
-`doc-writer` handles prose. The primary agent runs checks and handles Desvio-excluded files.
+requiring a diff. The design itself is made by `designer` (Opus) from the ledger, the packs
+and the specialist findings; Sonnet writes `plan-<proj-name>.md` from its answer, iterates on
+feedback (a `DESIGN DELTA` to `designer` when the design changes, Sonnet alone for wording),
+and starts implementation only after explicit approval of the current plan. Build components
+run in plan order with a user review gate after each one. Every approved source or configuration
+slice is dispatched to `feature-builder` with a fresh context (the primary's context stays
+small over a day-long build); `/scaffold`'s `code-writer` handles reference-backed boilerplate
+and `doc-writer` handles prose. The primary agent runs checks, integrates, and handles
+Desvio-excluded files. Reviewers of a finished component receive the evidence packs and do not
+re-read files they cover.
 
 The existing large-file helper is `/bulk-read` (`bulk-reader`), not `/build-read`.
 
@@ -219,8 +266,8 @@ The existing large-file helper is `/bulk-read` (`bulk-reader`), not `/build-read
 ```
 
 `/new-arch-task` reads Lucid diagrams and Linear context through the configured MCP servers,
-combines them with supplied documentation, and records sources and uncertainties before choosing
-an architecture approach. It writes `architecture-task-<slug>.md` with the reasoning, work plan,
+combines them with supplied documentation and Haiku evidence packs, records sources and
+uncertainties, and sends that ledger to `designer` (Opus), which owns the architecture decision. It writes `architecture-task-<slug>.md` with the reasoning, work plan,
 review checkpoints, and exact Linear task draft. When asked to reconcile current work, it also
 shows field-by-field proposed Linear changes. The user reviews the current draft before any
 Linear create or update; this command never implements the planned work.
@@ -242,7 +289,8 @@ it to `ask` on `build`, `edit` and `bulk` and `deny` on the read-only `plan` and
 and Desvio denies both tools to workers like every non-read tool). `/rebase` uses
 `merge_conflicts` to list unmerged paths with each marker region's line range and read
 offset/limit, so conflicts are read region by region instead of searched for. It confirms once with the question tool before editing or replying, and
-escalates at most one unclear correctness/security claim to `reasoner`. `/commit` and
+sends each unclear correctness/security claim to `designer` as a `DECISION REQUEST` and a
+structural change request as a `DESIGN DELTA`. `/commit` and
 `/linear-task` confirm their plan before writing. `/rebase` and `/commit` push only when asked.
 `/investigate` never applies remediation.
 
@@ -304,13 +352,19 @@ bun ~/.config/opencode/scripts/report.ts --days 7 --turns
 ```
 
 `--turns` prints one row per root run: heuristic prompt class, cost until the next root prompt
-of the same workflow (child sessions included), call count, route source and selection
-(`manual-selection`, `stale`, `upgrade-ignored`), agent/model and an 80-character prompt
-preview. Rows marked `!` are approval/git-pr/checks/admin turns that ran on a reasoning model.
+of the same workflow (child sessions included), call count, reasoning-model calls in the turn
+(`opus`), the largest root context seen in the turn (`ctx`), route source and selection
+(`manual-selection`, `stale`, `upgrade-once`, `upgrade-ignored`), agent/model and an
+80-character prompt preview. Rows marked `!` are approval/git-pr/checks/admin turns that ran on
+a reasoning model; rows marked `d` are design/investigation turns with no reasoning-model call.
 The class comes from `prompt_class` on `model_route` records (plugin 0.5.0 and newer); it is a
 keyword heuristic for reporting and never influences routing. Older records show as
 `unlabeled`. The lifecycle block adds `manual_selections_honored`, `upgrades_ignored`,
-`reasoning_baselines_rejected` and `one_shot_pins`. Every text report ends with a `process
+`reasoning_baselines_rejected`, `one_shot_pins`, `upgrades_honored_once` and
+`design_turns_without_reasoning`; the routing block adds `reasoning_delegations` (`task` calls
+to `designer` or `architect`). A reasoning-capable model that reports zero
+reasoning tokens (the Vercel gateway folds thinking into output) gets a note: effort and
+reasoning share are not observable from the log, so reconcile cost with the provider bill. Every text report ends with a `process
 check` that lists running OpenCode processes and the `DESVIO_BASELINE_AGENT` in their
 environment; `STALE` means that process would use a different baseline if it loaded a plugin
 older than 0.5.0.
@@ -414,8 +468,14 @@ Variant pins are disabled: OpenCode 2 persists any variant without validating it
 
 CLI processes may exit before asynchronous idle handlers finish. The next-turn guard remains
 authoritative after restart; a missing reset event is not reported as a successful restoration.
-OpenCode automatic compaction and tool-output pruning are enabled; Desvio does not force
-compaction on every task or change reasoning effort. Worker handoffs now request concise
+OpenCode automatic compaction is enabled (`compaction.prune` was dropped: OpenCode 2 reports it
+as an unsupported legacy setting). With 1M-token models automatic compaction effectively never
+triggers, so `/new-feat` keeps the primary's context small structurally: every approved
+component is built by `feature-builder` in a fresh context. Reasoning effort is set per
+subagent in its frontmatter (`variant: high` on `designer`, `architect`;
+`variant: low` on `explorer`); the names are the gateway's `reasoning_options` effort values.
+Primary agents keep the default effort because desvio restores the default variant on every
+admission (see docs/opencode-v2.md). Desvio does not force compaction on every task. Worker handoffs now request concise
 evidence and capabilities; output size telemetry measures characters/bytes, not estimated tokens.
 
 The lifecycle benchmark is an explicit paid operation with a disposable read-only fixture:

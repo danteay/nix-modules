@@ -62,6 +62,7 @@ export type LogRecord = {
   reason?: string
   // Tools
   tool?: string
+  subagent_type?: string
   path?: string | null
   targeted?: boolean
   delegation_completed?: boolean
@@ -73,4 +74,8 @@ export type LogRecord = {
   // Prompt labels (plugin 0.5.0+)
   prompt_class?: string | null
   prompt_preview?: string | null
+  // Jev decisions (plugin 0.6.0+)
+  prompt_class_source?: string
+  decision?: boolean
+  needs_design?: number | null
 }

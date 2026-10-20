@@ -83,7 +83,12 @@ export class LifecycleManager {
         before.run?.messageID !== messageID &&
         (before.baselinePolicy !== POLICY_VERSION || !sameRoute(before.baseline, configured.route))
       if (baselineChanged)
-        before = { ...before, baseline: configured.route, baselinePolicy: POLICY_VERSION }
+        before = {
+          ...before,
+          baseline: configured.route,
+          baselinePolicy: POLICY_VERSION,
+          previousBaseline,
+        }
       const s = begin(before, messageID, requested)
       const run = runOf(s)
       if (s === before) {

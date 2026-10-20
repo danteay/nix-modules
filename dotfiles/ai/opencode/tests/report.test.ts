@@ -358,7 +358,17 @@ test("turns view attributes cost per root run, labels prompts, and flags cheap w
     cheap_on_reasoning: true,
     selection: "upgrade-ignored",
   })
-  expect(s.turns[1]).toMatchObject({ runID: "b", cost: 4, cheap_on_reasoning: false })
+  expect(s.turns[0]).toMatchObject({ reasoning_calls: 2, design_without_reasoning: false })
+  expect(s.turns[0].max_context).toBe(100) // root messages only: 10 + 40 + 50
+  expect(s.turns[1]).toMatchObject({
+    runID: "b",
+    cost: 4,
+    cheap_on_reasoning: false,
+    reasoning_calls: 0,
+    design_without_reasoning: true,
+  })
+  expect(s.lifecycle.design_turns_without_reasoning).toBe(1)
+  expect(s.notes.some((n) => n.includes("1 turns labeled design/investigation"))).toBe(true)
   expect(s.turn_classes["git-pr"]).toEqual({ turns: 1, cost: 6, reasoning_cost: 5 })
   expect(s.lifecycle.upgrades_ignored).toBe(1)
   expect(s.lifecycle.manual_selections_honored).toBe(1)

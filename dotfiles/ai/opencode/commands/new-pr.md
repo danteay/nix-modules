@@ -4,6 +4,10 @@ agent: bulk
 model: vercel/anthropic/claude-haiku-5.5
 ---
 
+This is mechanics on Haiku `bulk`: it makes no design or correctness decisions. If one is needed,
+stop and tell the user which Sonnet command sends it to `designer` (`/new-feat`, `/check`,
+`/fix-pr-comments`, `/rebase`, `/investigate`).
+
 Create a pull request from the current branch. This command supports two workflows and automatically detects which one applies — do NOT ask the user to choose unless detection is inconclusive.
 
 - **Path A — Standalone PR**: the branch is not tracked by `gh stack`. Normal PR against the selected base branch (`main` by default).

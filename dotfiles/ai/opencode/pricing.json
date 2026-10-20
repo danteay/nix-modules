@@ -182,6 +182,15 @@
       "source": "https://vercel.com/ai-gateway/models",
       "usage_normalization": "OpenCode getUsage subtracts reasoning from output, and bills both at output rate.",
       "assumptions": "Vercel AI Gateway passes through Anthropic list price with no markup (per OpenCode models.dev catalog). Prompts over 100K bill 5x (input 0.5, output 2.5, cache_read 0.05, cache_write 0.625); the fallback estimator cannot express that tier, so reported cost stays authoritative."
+    },
+    "vercel/typesafe-ai/jev-1.14.0": {
+      "input": 0.042,
+      "output": 0,
+      "cache_read": 0,
+      "cache_write": 0,
+      "reasoning_billing": "included",
+      "verified": "2026-10-20",
+      "note": "TypeSafe Jev decision model: input only; the plugin records cost from usage.input_tokens"
     }
   },
   "denied_models": {

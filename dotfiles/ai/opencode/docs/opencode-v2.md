@@ -96,6 +96,29 @@ these (probed on 2.0.32):
   already supplied, and `control.ts` refuses variant pins;
 - an unknown agent is accepted — desvio only selects agents from `lib/routing.ts`.
 
+## Variants and compaction (2.0.32)
+
+- OpenCode 2 derives a model's variants from the catalogue's `reasoning_options`
+  (`~/.cache/opencode/models.json`): for `vercel/anthropic/claude-{opus,sonnet,haiku}-5.5` the
+  variant ids are the effort values `low`, `medium`, `high`, `xhigh`, `max`. A variant that is
+  not in the list fails at request time (`l.variants.find(p => p.id === a.variant)`), so only
+  these names are safe. The TUI exposes them as `/variants` (aliases `/thinking`, `/effort`).
+- The agent schema has `variant` ("Default model variant for this agent"); it works in markdown
+  frontmatter. desvio applies it for subagents only: a child session is never admitted by the
+  lifecycle, and the agent-policy path rewrites the message only when the model differs. For
+  primaries `selectRoute` switches the model with `variant: "default"` on every admission and
+  reset, so a primary's configured variant does not survive; carrying a per-role variant through
+  `routeFor` is a follow-up that needs a live probe.
+- The gateway reports no `reasoningTokens`; OpenCode computes visible output as
+  `output − reasoningTokens`, so thinking tokens land in `output`. Effort changes are therefore
+  not observable in `usage.jsonl`; compare provider dashboards.
+- Compaction config keys accepted by the 2.0.32 normalizer: `auto`, `buffer`, `keep`,
+  `preserve_recent_tokens`, `reserved`, `tail_turns`; `prune` is rejected as a legacy setting
+  (warning on every turn). Only `auto`, `prune` and `reserved` ("token buffer for compaction")
+  are documented; none is a trigger threshold, and with a 1M context automatic compaction did
+  not fire once in a 556K-token session. Keep contexts small structurally (fresh subagent
+  context per build slice) rather than relying on compaction.
+
 ## Lifecycle controls
 
 `/desvio-continue`, `/desvio-correct`, `/desvio-scope`, `/desvio-accept`, `/desvio-auto`,

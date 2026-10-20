@@ -22,7 +22,7 @@ import { agentRoles } from "./routing"
  * `allow_reasoning_baseline: true` or `DESVIO_ALLOW_REASONING_BASELINE=1`, because every
  * ordinary free-text turn goes to the baseline and Opus is reserved for bounded decisions.
  */
-export type DesvioConfig = { baseline?: string; allow_reasoning_baseline?: boolean }
+export type DesvioConfig = { baseline?: string; allow_reasoning_baseline?: boolean; jev?: boolean }
 export type BaselineSource = "file" | "environment" | "default"
 export type BaselineResolution = {
   route: Route

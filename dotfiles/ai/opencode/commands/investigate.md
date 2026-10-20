@@ -1,12 +1,12 @@
 ---
-description: Evidence-first production investigation with Datadog and git history; escalates one bounded question to reasoner only if needed
+description: Evidence-first production investigation with Datadog and git history; sends the root-cause decision to designer as a bounded DECISION REQUEST
 agent: build
 model: vercel/anthropic/claude-sonnet-5.5
 ---
 
-Investigate a symptom with evidence before hypotheses. This runs on Sonnet `build`. Opus is
-involved only through a single bounded `reasoner` task, and only when the evidence is in and
-the cause is still unresolved.
+Investigate a symptom with evidence before hypotheses. This runs on Sonnet `build`: Sonnet
+collects, Opus decides. Once the evidence is in, the root-cause decision goes to `designer` as
+one bounded `DECISION REQUEST`; Sonnet does not rank hypotheses into a conclusion on its own.
 
 Usage: `/investigate <symptom> [service] [environment] [time window]` — e.g.
 `/investigate websocket publish errors draft-relay prod last 2h`.
@@ -30,16 +30,21 @@ Usage: `/investigate <symptom> [service] [environment] [time window]` — e.g.
 
 ## Step 3: Analyse
 
-- List hypotheses ranked by how much of the evidence each explains, with the contradicting
-  evidence for each. Distinguish load, dependency, deploy and configuration causes.
-- If a correctness or concurrency question remains that the evidence cannot settle, dispatch
-  exactly one `reasoner` task containing the evidence tables, the candidate hypotheses and the
-  precise question. Execute no remediation on Opus; bring its answer back here.
+- List the candidate hypotheses with the evidence for and against each. Distinguish load,
+  dependency, deploy and configuration causes. Do not conclude.
+- Score them with one `decide` call: state = the evidence tables and the candidate list;
+  `cause` as a `choice` over the candidates (plus `other: null`), and `evidence_sufficient` as a
+  `boolean` ("the evidence in `state` proves the cause outright, without further analysis").
+  Record the probabilities in the report.
+- Dispatch exactly one `designer` task with a `DECISION REQUEST`: the evidence tables, the
+  candidates with Jev's probabilities, what was already ruled out, and the precise question
+  (root cause, or the correctness/concurrency question the evidence leaves open). Skip it only
+  when `evidence_sufficient` ≥ 0.9 and the `cause` confidence ≥ 0.9; say so. Execute no
+  remediation on Opus; bring its decision and checklist back here.
 
 ## Step 4: Report
 
-- Timeline, evidence tables, ranked hypotheses, the one escalated question (if any) and its
-  answer, and the next concrete checks or mitigations for the user to decide on. Do not apply
+- Timeline, evidence tables, candidate hypotheses, the designer's decision with its reasoning, and the next concrete checks or mitigations for the user to decide on. Do not apply
   remediation, restart services or change configuration; propose it.
 
 ## Argument: $ARGUMENTS

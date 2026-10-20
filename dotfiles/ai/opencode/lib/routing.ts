@@ -19,7 +19,7 @@ export const agentRoles: Record<string, ModelRole> = {
   documentor: "execution",
   plan: "reasoning",
   architect: "reasoning",
-  reasoner: "reasoning",
+  designer: "reasoning",
   bulk: "bulk",
   explore: "bulk",
   explorer: "bulk",
@@ -33,8 +33,9 @@ export function modelForAgent(agent: string | null | undefined): string | undefi
   return role ? models[role] : undefined
 }
 
-export function modelRole(model: string): ModelRole | "other" {
+export function modelRole(model: string): ModelRole | "decision" | "other" {
   // Include historical versions in descriptive reports, without inventing prices.
+  if (/\/typesafe-ai\/jev/.test(model)) return "decision"
   if (/\/claude-opus-/.test(model)) return "reasoning"
   if (/\/claude-sonnet-/.test(model)) return "execution"
   if (/\/glm-|\/claude-haiku-/.test(model)) return "bulk"
@@ -43,8 +44,10 @@ export function modelRole(model: string): ModelRole | "other" {
 
 export const routingInstructions =
   "desvio model roles: Sonnet build is the ordinary baseline and executes defined work. " +
-  "Opus coordinator/architect/reasoner resolve bounded hard decisions; coordinator is read-only " +
-  "and selected per message with /desvio-reason, returning to build afterwards. Completed " +
+  "All thinking work goes to Opus designer in one of three shapes: DESIGN REQUEST, DESIGN " +
+  "DELTA, DECISION REQUEST (one bounded correctness, security, debugging, contract or tradeoff " +
+  "question with evidence). coordinator is the pinned interactive form of the same role " +
+  "(/desvio-reason, one message, then back to build) and architect reviews diffs. Completed " +
   "commands and runs return to the configured baseline or pin; this does not switch a running " +
   "loop's model. Recurring mechanics have commands with fixed cheap models: /fix-pr-comments, " +
   "/commit, /rebase, /check, /new-pr, /linear-task, /investigate; suggest them instead of " +
@@ -57,11 +60,25 @@ export const routingInstructions =
   "merge_conflicts for conflict regions, pr_review_history or pr_unresolved_comments for PR " +
   "feedback, pr_reply_comment for thread replies, go_outline/go_doc for Go structure and APIs. " +
   "code-writer copies explicit reference patterns; doc-writer drafts prose. " +
-  "Use architect (Opus) only for unresolved architecture/contracts/tradeoffs; use reasoner " +
-  "(Opus) for a hard correctness, security or debugging question that remains unresolved after " +
-  "gathering evidence. Give Opus one bounded decision, constraints, evidence and failed attempts, " +
-  "then execute its returned plan with Sonnet. Do not send routine implementation, approvals, " +
+  "designer (Opus) owns the design step of /new-feat and /new-arch-task: always dispatch it " +
+  "once with the ledger, Haiku evidence packs and constraints before writing a plan, and again " +
+  "with a DESIGN DELTA when feedback changes the design; wording-only feedback stays on Sonnet. " +
+  "Use architect (Opus) to review a diff for architectural fit; send a hard correctness, " +
+  "security or debugging question that remains unresolved after gathering evidence to designer " +
+  "as a DECISION REQUEST. Give Opus bounded input: the question, constraints, evidence and " +
+  "failed attempts, then execute its returned checklist with Sonnet. Never decide a design, " +
+  "contract or root cause on Sonnet when evidence leaves it open. Do not send routine " +
+  "implementation, approvals, " +
   "formatting, test runs, PR mechanics or context collection to Opus. " +
+  "The decide tool (Jev, about $0.04 per million input tokens, no output cost) answers typed " +
+  "questions about supplied text: use it for classification, triage, gating and scoring steps " +
+  "(thread class, change buckets, severity, duplicate, blocking, design-changing, pre-existing) " +
+  "instead of reasoning them out here; pass the evidence as state, never excluded-path " +
+  "contents, and apply your own judgment when its confidence is below 0.6. " +
+  "Before a review fan-out, dispatch one bulk-reader evidence pack per changed package " +
+  "(symbols, callers, tests, invariants) and pass it to every reviewer so they do not re-read " +
+  "the same files. After a blocked read, a targeted read is for one known section only; " +
+  "two or more sections, or an unknown location, go to bulk-reader or explorer. " +
   "Delegate only when the work warrants the extra call; perform a small targeted read directly. " +
   "Pass eligible paths and focused questions to Haiku, request concise source references, and " +
   "reuse its evidence across reviewers. Never repeat a whole review for a local correction. " +
@@ -78,8 +95,9 @@ export const reviewRoutingInstructions =
   "desvio review routing: Stay within the assigned review or decision. Reuse supplied source " +
   "evidence; ask bulk-reader for broad eligible context, or verify a small bounded section " +
   "directly. Only bulk-reader, code-writer and doc-writer are permitted nested targets, and " +
-  "writers must return DRAFT ONLY output. Return unresolved hard decisions to the primary " +
-  "agent for an architect/reasoner task; do not dispatch those agents yourself. " +
+  "writers must return DRAFT ONLY output. Return unresolved design, contract, correctness or " +
+  "tradeoff questions to the primary agent as DECISION_NEEDED notes for a designer task; do not " +
+  "decide them in findings and do not dispatch designer yourself. " +
   "Do not implement changes or run checks. Return concise findings with source references."
 
 export const workerInstructions =

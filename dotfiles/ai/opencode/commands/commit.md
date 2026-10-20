@@ -4,11 +4,21 @@ agent: bulk
 model: vercel/anthropic/claude-haiku-5.5
 ---
 
+This is mechanics on Haiku `bulk`: it makes no design or correctness decisions. If one is needed,
+stop and tell the user which Sonnet command sends it to `designer` (`/new-feat`, `/check`,
+`/fix-pr-comments`, `/rebase`, `/investigate`).
+
 Turn the working tree into well-formed commits. This is utility work on Haiku; it never
 decides what the code should do. If a change looks wrong or incomplete, say so and let the user
 decide; do not "fix" it here.
 
 Usage: `/commit [context, e.g. "push" or "this is the pitaco db fix"]`
+
+Use `decide` (Jev) for the grouping instead of reasoning it out: state = `git status --porcelain`
+plus `git diff --stat` and the first 60 lines of each file's diff; per file a `choice`
+`type_<n>` over `feat`, `fix`, `refactor`, `chore`, `docs`, `test`, `ci`, `build`, and a
+`choice` `group_<n>` naming the logical change it belongs to (you supply the candidate group
+names from the diff headers). Use the answers at confidence ≥ 0.6; otherwise group by hand.
 
 ## Step 1: Inspect
 

@@ -33,8 +33,15 @@ detect the project's checks.
 
 ## Step 3: Fix
 
-- For each failure, find the root cause with `repo_grep` and targeted reads. Fix the code or
-  test that this branch changed. If the failure predates the branch (`git stash`-free check:
+- For each failure, gather the evidence with `repo_grep` and targeted reads: the failing
+  assertion or error, the code this branch changed around it, the relevant test, `git log`/blame
+  for the touched lines. Then one `decide` call per failure: state = that evidence;
+  `preexisting` as a `boolean` ("the failure exists without this branch's changes") and
+  `cause_evident` as a `boolean` ("the evidence in `state` shows the exact cause and fix"). At
+  `preexisting` ≥ 0.7 report it instead of fixing it silently. At `cause_evident` ≥ 0.7 fix the
+  code or test that this branch changed (a typo, a missed call site, a stale expectation the
+  branch intentionally changed). Otherwise dispatch one `designer` task with a `DECISION REQUEST` (the failure output, the evidence, the
+  candidate causes) and apply its checklist; do not try fixes on Sonnet until one passes. If the failure predates the branch (`git stash`-free check:
   compare with `git log`/blame evidence), report it instead of fixing it silently.
 - Re-run only the failed commands, then the full set once more if anything changed.
 

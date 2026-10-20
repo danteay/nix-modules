@@ -4,9 +4,7 @@
   "small_model": "vercel/anthropic/claude-haiku-5.5",
   "default_agent": "build",
   "subagent_depth": 2,
-  "plugins": [
-    "github:vercel/vercel-plugin"
-  ],
+  "plugins": ["github:vercel/vercel-plugin"],
   "mcp": {
     "lucid": {
       "type": "remote",
@@ -81,7 +79,7 @@
       }
     },
     "bulk": {
-      "description": "Run defined bulk operations and utility commands with GLM; escalate unresolved decisions to the appropriate specialist.",
+      "description": "Run defined bulk operations and utility commands on Haiku; makes no design or correctness decisions (those go to designer through a Sonnet command).",
       "mode": "primary",
       "model": "vercel/anthropic/claude-haiku-5.5",
       "permission": {
@@ -129,7 +127,7 @@
       "prompt": "Gather repository context with repo_grep, go_outline and read. Do not use shell, grep or glob. Return concise file:line evidence. Excluded paths must stay with the primary agent."
     },
     "coordinator": {
-      "description": "Resolves one bounded hard decision on Opus and hands execution back to Sonnet build; never implements",
+      "description": "Interactive form of designer: resolves one bounded design or hard decision on Opus in the designer schema and hands execution back to Sonnet build; never implements",
       "mode": "primary",
       "model": "vercel/anthropic/claude-opus-5.5",
       "permission": {
@@ -146,7 +144,6 @@
     }
   },
   "compaction": {
-    "auto": true,
-    "prune": true
+    "auto": true
   }
 }

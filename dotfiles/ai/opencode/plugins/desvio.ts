@@ -14,6 +14,7 @@
  * v1 hook shape, `Desvio`, exported for the tests) through lib/v2-bridge.ts. Payload changes in a
  * new OpenCode release belong in the bridge; see docs/opencode-v2.md.
  *
+ * Jev:          DESVIO_JEV=0 or "jev": false in desvio.json (no decision calls; heuristic labels)
  * Routing switch: DESVIO_ENABLED=0 (logging and worker path protection stay active)
  * Debug:        DESVIO_DEBUG=1   (logs every tool call record to events.debug.jsonl)
  */
@@ -26,6 +27,14 @@ import { fileURLToPath } from "node:url"
 import type { Plugin } from "@opencode-ai/plugin"
 import { classifyPrompt, preview } from "../lib/classify"
 import { currentBaseline, resolveBaseline } from "../lib/config"
+import {
+  advisory,
+  classifyTurn,
+  JEV_MODEL,
+  JEV_PROVIDER,
+  jevEnabled,
+  type TurnDecision,
+} from "../lib/jev"
 import { modelKey, POLICY_VERSION } from "../lib/lifecycle"
 import { LifecycleManager } from "../lib/lifecycle-manager"
 import type { EventLike, MessageInfoLike, MessageLike } from "../lib/opencode-types"
@@ -192,6 +201,9 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
   const sessionModels = new Map<string, string>()
   const pending = new Map<string, Record<string, unknown>>()
   const logged = new Set<string>()
+  /** Jev advisory for the turn in progress, injected into the primary's system prompt. */
+  const advisories = new Map<string, string>()
+  let jevMutedUntil = 0
   const store = new StateStore(join(LOG_DIR, "state.sqlite"))
   // The baseline is resolved from desvio.json on every admission (lib/config.ts), never
   // captured once at load: a process outlives the shell environment it was launched from.
@@ -201,7 +213,7 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
       schema: 4,
       eventID: crypto.randomUUID(),
       policy_version: POLICY_VERSION,
-      plugin_version: "0.5.0",
+      plugin_version: "0.6.0",
       lifecycle_mode: MODEL_ROUTING ? lifecycleMode : "off",
       ts: new Date().toISOString(),
       project: project?.id ?? "unknown",
@@ -269,6 +281,46 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
     }
   }
   const key = (input: { sessionID: string; callID: string }) => `${input.sessionID}:${input.callID}`
+  /** Log a Jev call as a message so model/role/day cost tables include it. */
+  const logDecision = async (
+    who: Record<string, unknown>,
+    id: string,
+    parent: string | null,
+    usage: { input_tokens: number; cost: number },
+    started: number,
+  ) =>
+    write(USAGE_LOG, {
+      ...base(),
+      ...who,
+      kind: "message",
+      decision: true,
+      messageID: id,
+      parentMessageID: parent,
+      providerID: JEV_PROVIDER,
+      modelID: JEV_MODEL,
+      cost: usage.cost,
+      input: usage.input_tokens,
+      output: 0,
+      reasoning: 0,
+      cache_read: 0,
+      cache_write: 0,
+      started,
+      completed: Date.now(),
+      finished: true,
+      model_role: "decision",
+      expected_model: null,
+    })
+  /** Classify a root prompt with Jev; never throws, and backs off for a minute after an error. */
+  const classifyWithJev = async (text: string): Promise<TurnDecision | undefined> => {
+    if (!jevEnabled() || Date.now() < jevMutedUntil) return undefined
+    try {
+      return await classifyTurn(text)
+    } catch (error) {
+      jevMutedUntil = Date.now() + 60_000
+      await write(USAGE_LOG, { ...base(), kind: "jev_error", reason: String(error).slice(0, 300) })
+      return undefined
+    }
+  }
 
   return {
     "command.execute.before": async (input) => {
@@ -281,6 +333,8 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
       if (MODEL_ROUTING && (!who.worker || who.reviewAgent))
         output.system.push(who.reviewAgent ? reviewRoutingInstructions : routingInstructions)
       if (who.worker && !who.reviewAgent) return
+      const advice = advisories.get(input.sessionID)
+      if (advice) output.system.push(advice)
       output.system.push(
         "Record blockers or readiness with task_status before returning: awaiting_input, capability_gap, " +
           "validation_failed, ready_for_review. Never mark human acceptance yourself or invoke control accept. " +
@@ -365,9 +419,43 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
           return p.type === "text" && typeof text === "string" ? [text] : []
         })
         .join("\n")
+      const who = await identity(input.sessionID)
+      const isCommand = Boolean(state?.run?.source.startsWith("command:"))
+      // Jev labels free-text root turns for the report and leaves an advisory for the primary.
+      // Labels and advisories never change the route: routing stays by role, command and pin.
+      const jevStarted = Date.now()
+      const jev = text && !isCommand && !who.worker ? await classifyWithJev(text) : undefined
+      advisories.delete(input.sessionID)
+      if (jev) {
+        const advice = advisory(jev)
+        if (advice) advisories.set(input.sessionID, advice)
+        await logDecision(
+          who,
+          `jev_${output.message.id}`,
+          output.message.id,
+          jev.decision,
+          jevStarted,
+        )
+        await write(USAGE_LOG, {
+          ...base(),
+          ...who,
+          kind: "prompt_decision",
+          messageID: output.message.id,
+          runID: output.message.id,
+          prompt_class: jev.class,
+          class_confidence: jev.class_confidence,
+          class_probabilities: jev.class_probabilities,
+          needs_design: jev.needs_design,
+          mechanics: jev.mechanics,
+          mechanics_probability: jev.mechanics_probability,
+          advisory: advice ?? null,
+          input: jev.decision.usage.input_tokens,
+          cost: jev.decision.cost,
+        })
+      }
       await write(USAGE_LOG, {
         ...base(),
-        ...(await identity(input.sessionID)),
+        ...who,
         kind: "model_route",
         messageID: output.message.id,
         requested_agent: requestedAgent,
@@ -380,9 +468,9 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
         changed: actual !== requestedModel,
         prompt_preview: text ? preview(text) : null,
         prompt_length: text.length,
-        prompt_class: text
-          ? classifyPrompt(text, { command: state?.run?.source.startsWith("command:") })
-          : null,
+        prompt_class: jev ? jev.class : text ? classifyPrompt(text, { command: isCommand }) : null,
+        prompt_class_source: jev ? "jev" : "heuristic",
+        needs_design: jev?.needs_design ?? null,
       })
     },
     "tool.execute.before": async (input, output) => {
@@ -440,17 +528,23 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
       if (who.worker) {
         // Content-producing tools must have a checked path or filter paths before reading.
         // Deny inherited tools (including bash/grep/go_doc/MCP) that could bypass this check.
-        if (!["read", "go_outline", "repo_grep", "write", "edit"].includes(input.tool))
+        if (!["read", "go_outline", "repo_grep", "decide", "write", "edit"].includes(input.tool))
           return deny(
-            `worker tool ${input.tool} is not permitted; use read, go_outline or repo_grep`,
+            `worker tool ${input.tool} is not permitted; use read, go_outline, repo_grep or decide`,
           )
         if (who.reviewChild && ["write", "edit"].includes(input.tool))
           return deny(
             `nested review worker cannot ${input.tool}; return a draft to the review agent`,
           )
-        if (input.tool !== "repo_grep" && (!path || (await protectedPath(rawPath, directory))))
+        if (
+          !["repo_grep", "decide"].includes(input.tool) &&
+          (!path || (await protectedPath(rawPath, directory)))
+        )
           return deny(`worker access to ${rawPath ?? "an unspecified path"} is excluded`)
       }
+      // Jev sees only what the caller pastes: refuse a state that names an excluded path.
+      if (input.tool === "decide" && protectedPrompt(String(args.state ?? "")))
+        return deny("decide state names an excluded path")
       if (input.tool === "task" && workerAgents.has(args.subagent_type)) {
         if (protectedPrompt(args.prompt ?? ""))
           return deny("delegation prompt names an excluded path")
@@ -493,6 +587,19 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
           ts: new Date().toISOString(),
         })
         return
+      }
+      if (input.tool === "decide" && typeof output.metadata?.cost === "number") {
+        const who = await identity(input.sessionID)
+        await logDecision(
+          who,
+          `jev_${input.callID}`,
+          null,
+          {
+            input_tokens: Number(output.metadata.input_tokens ?? 0),
+            cost: Number(output.metadata.cost),
+          },
+          Number(record.started ?? Date.now()),
+        )
       }
       if (input.tool === "validate_command") {
         await write(USAGE_LOG, {

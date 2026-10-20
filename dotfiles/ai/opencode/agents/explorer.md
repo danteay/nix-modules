@@ -2,6 +2,7 @@
 description: Answers repo-wide "where is X" questions using structural search only. Cheapest first stop before any file read. Returns file:line locations, never explanations.
 mode: subagent
 model: vercel/anthropic/claude-haiku-5.5
+variant: low
 temperature: 0
 tools:
   grep: false

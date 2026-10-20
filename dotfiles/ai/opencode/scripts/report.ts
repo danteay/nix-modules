@@ -100,7 +100,7 @@ else {
       "\nturns (root runs; cost until the next root prompt of the workflow, children included)",
     )
     console.log(
-      "  class        $cost  calls  src/sel            agent/model                     prompt",
+      "  class        $cost  calls opus   ctx  src/sel            agent/model                     prompt",
     )
     for (const t of summary.turns) {
       const when = new Intl.DateTimeFormat("en-CA", {
@@ -111,12 +111,16 @@ else {
         minute: "2-digit",
         hour12: false,
       }).format(new Date(t.ts))
-      const flag = t.cheap_on_reasoning ? "!" : " "
+      const flag = t.cheap_on_reasoning ? "!" : t.design_without_reasoning ? "d" : " "
       const src = `${t.source.replace("command:", "cmd:")}${t.selection && t.selection !== "same" ? `/${t.selection}` : ""}`
+      const ctx = t.max_context == null ? "n/a" : `${Math.round(t.max_context / 1000)}K`
       console.log(
-        `${flag} ${(t.prompt_class ?? "-").padEnd(12)} ${t.cost.toFixed(2).padStart(6)} ${String(t.calls).padStart(5)}  ${src.padEnd(18)} ${`${t.agent}/${t.model.slice(t.model.indexOf("/") + 1)}`.padEnd(31)} ${when} ${t.prompt_preview ?? ""}`,
+        `${flag} ${(t.prompt_class ?? "-").padEnd(12)} ${t.cost.toFixed(2).padStart(6)} ${String(t.calls).padStart(5)} ${String(t.reasoning_calls).padStart(4)} ${ctx.padStart(5)}  ${src.padEnd(18)} ${`${t.agent}/${t.model.slice(t.model.indexOf("/") + 1)}`.padEnd(31)} ${when} ${t.prompt_preview ?? ""}`,
       )
     }
+    console.log(
+      "  flags: ! cheap work on a reasoning model; d design/investigation without a reasoning call. opus = reasoning-model calls in the turn; ctx = largest root context.",
+    )
     console.log("\nturn classes (heuristic labels; never used for routing)")
     for (const [cls, b] of Object.entries(summary.turn_classes).sort(
       (a, b) => b[1].cost - a[1].cost,

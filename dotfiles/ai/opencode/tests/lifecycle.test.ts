@@ -503,7 +503,7 @@ test("baseline configuration changes do not reroute an in-flight admission retry
   )
 })
 
-test("a deliberately selected cheaper primary agent is honored; a stale command route and an upgrade are not", async () => {
+test("a deliberately selected primary agent is honored (reasoning for one run); a stale command route is not", async () => {
   const f = fixture()
   // Fresh session, selector on bulk: honored as a manual selection.
   expect(await f.manager.incoming("root", "a", routeFor("bulk"))).toEqual(routeFor("bulk"))
@@ -521,16 +521,66 @@ test("a deliberately selected cheaper primary agent is honored; a stale command 
   expect(f.store.get("root")?.run?.selection).toBe("stale")
   f.complete("after")
   await f.idle()
-  // Selector on coordinator: never upgraded silently.
-  expect(await f.manager.incoming("root", "up", routeFor("coordinator"))).toEqual(routeFor("build"))
-  expect(f.store.get("root")?.run?.selection).toBe("upgrade-ignored")
+  // Selector changed to coordinator after a build run: deliberate, honored for one run.
+  expect(await f.manager.incoming("root", "up", routeFor("coordinator"))).toEqual(
+    routeFor("coordinator"),
+  )
+  expect(f.store.get("root")?.run).toMatchObject({
+    source: "manual-selection",
+    selection: "upgrade-once",
+    pinScope: "once",
+  })
+  expect(f.log.at(-1)).toMatchObject({ selection: "upgrade-once", pin_scope: "once" })
   f.complete("up")
+  await f.idle()
+  // Completion restores build; the selector showing coordinator again means it was re-picked.
+  expect(f.selection.agent).toBe("build")
+  expect(await f.manager.incoming("root", "up2", routeFor("coordinator"))).toEqual(
+    routeFor("coordinator"),
+  )
+  expect(f.store.get("root")?.run?.selection).toBe("upgrade-once")
+  f.complete("up2")
+  await f.idle()
+  // A continuation of a one-shot reasoning selection executes on the baseline.
+  f.store.put({ ...f.state(), continueTask: "up2", continuationKind: "feedback" })
+  expect(await f.manager.incoming("root", "exec", routeFor("build"))).toEqual(routeFor("build"))
+  expect(f.store.get("root")?.run).toMatchObject({ source: "continuation", taskID: "up2" })
+  f.complete("exec")
+  await f.idle()
+  // Without a completed reset for the previous coordinator run, the selection may be stale.
+  f.store.put({ ...f.state(), restoredRunID: undefined })
+  await f.manager.incoming("root", "c1", routeFor("coordinator"))
+  f.store.put({ ...f.state(), restoredRunID: undefined })
+  expect(await f.manager.incoming("root", "c2", routeFor("coordinator"))).toEqual(routeFor("build"))
+  expect(f.store.get("root")?.run?.selection).toBe("upgrade-ignored")
+  f.complete("c2")
   await f.idle()
   // Consecutive manual bulk turns keep bulk (previous source is manual-selection, not a command).
   expect(await f.manager.incoming("root", "b1", routeFor("bulk"))).toEqual(routeFor("bulk"))
   f.complete("b1")
   await f.idle()
   expect(await f.manager.incoming("root", "b2", routeFor("bulk"))).toEqual(routeFor("bulk"))
+})
+
+test("a fresh session whose selector is on plan runs it once; a selector left on a replaced baseline is stale", async () => {
+  const f = fixture()
+  // No stored state at all: the selector on plan is a choice the user just made.
+  expect(await f.manager.incoming("root", "a", routeFor("plan"))).toEqual(routeFor("plan"))
+  expect(f.store.get("root")?.run).toMatchObject({
+    source: "manual-selection",
+    selection: "upgrade-once",
+    pinScope: "once",
+  })
+  f.complete("a")
+  await f.idle()
+  expect(f.selection.agent).toBe("build")
+  // Stored state carrying a stale coordinator baseline and no run: the selector still shows
+  // that baseline, so the first admission repairs it instead of honoring it.
+  const g = fixture()
+  g.store.put(initialState("other", routeFor("coordinator")))
+  expect(await g.manager.incoming("other", "a", routeFor("coordinator"))).toEqual(routeFor("build"))
+  expect(g.log.at(-1)).toMatchObject({ selection: "stale", baseline_changed: true })
+  expect(g.store.get("other")?.previousBaseline).toBeUndefined()
 })
 
 test("a one-shot reasoning pin routes exactly one run, then completion and continuation return to build", async () => {
@@ -550,8 +600,10 @@ test("a one-shot reasoning pin routes exactly one run, then completion and conti
   await f.idle()
   expect(f.selection.agent).toBe("build")
   expect(f.log.at(-1)).toMatchObject({ kind: "reset_success", pin_scope: "once" })
-  // Free text after the decision executes on the baseline, even with coordinator selected.
-  expect(await f.manager.incoming("root", "go", routeFor("coordinator"))).toEqual(routeFor("build"))
+  // Free text after the decision executes on the baseline: the reset moved the selector to
+  // build, so the same `build` request arrives unless the user picks coordinator again.
+  expect(await f.manager.incoming("root", "go", routeFor("build"))).toEqual(routeFor("build"))
+  expect(f.store.get("root")?.run?.source).toBe("baseline")
   f.complete("go")
   await f.idle()
   // An explicit continuation of the decision keeps its task identity but not the Opus route.
@@ -602,8 +654,11 @@ test("a baseline provider is consulted at admission and at completion, so config
   })
   expect(f.selection.agent).toBe("build")
   expect(f.store.get("root")?.baseline).toEqual(routeFor("build"))
-  expect(await manager.incoming("root", "b", routeFor("coordinator"))).toEqual(routeFor("build"))
-  expect(f.log.at(-1)).toMatchObject({ baseline_changed: false, selection: "upgrade-ignored" })
+  // The reset moved the selector to build; coordinator shown again is a deliberate one-shot pick.
+  expect(await manager.incoming("root", "b", routeFor("coordinator"))).toEqual(
+    routeFor("coordinator"),
+  )
+  expect(f.log.at(-1)).toMatchObject({ baseline_changed: false, selection: "upgrade-once" })
 })
 
 test("CLI pin scopes: reasoning pins default to once, --sticky keeps them, cheap pins stay sticky", async () => {

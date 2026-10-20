@@ -5,8 +5,9 @@ model: vercel/anthropic/claude-sonnet-5.5
 ---
 
 Work through the unresolved review threads of a pull request. This runs on Sonnet `build`;
-escalate at most one disputed correctness or security claim to `reasoner` (Opus) as a bounded
-task with the evidence attached. Never do the triage itself on a reasoning model.
+thinking work goes to `designer` (Opus) as bounded requests with the evidence attached: a
+`DECISION REQUEST` per disputed correctness or security claim, a `DESIGN DELTA` when a thread
+asks for a structural or contract change. Never do the triage itself on a reasoning model.
 
 Usage: `/fix-pr-comments [pr-number-or-url] [extra context]`
 
@@ -27,18 +28,28 @@ Usage: `/fix-pr-comments [pr-number-or-url] [extra context]`
 
 ## Step 3: Triage each thread with evidence
 
-Classify every thread as one of: `error` (reviewer claims incorrect behaviour), `suggestion`
-(style, naming, structure, optional improvement), `question` (needs an answer, not a change),
-`already-addressed` (the current code no longer matches the hunk), `out-of-scope`.
+Classify every thread with `decide` (Jev), one call per thread dispatched in the same turn:
+state = the thread text, its diff hunk and the current code region (targeted read);
+questions = `class` as a `choice` over `error` (reviewer claims incorrect behaviour),
+`suggestion` (style, naming, structure, optional improvement), `question` (needs an answer, not
+a change), `already_addressed` (the current code no longer matches the hunk), `out_of_scope`;
+`claim_valid` as a `boolean` ("the reviewer's claim holds against the current code in `state`");
+`structural` as a `boolean` ("asks for a new boundary, interface, contract, data shape or error
+contract rather than a local fix"). Use the class at confidence ≥ 0.6; otherwise classify it
+yourself. `claim_valid` ≥ 0.85 or ≤ 0.15 settles an `error`; anything between is `unclear`.
 
 - For every `error`, verify the claim against the current code: `repo_grep` for the symbols,
   then a targeted `read` of the relevant region (respect the Desvio size guard; use
   `go_outline` for large Go files). Record the evidence (`file:line`) and a verdict:
   valid / invalid / unclear.
-- If exactly one `error` remains `unclear` after evidence gathering and it concerns
-  correctness, concurrency or security, dispatch one `reasoner` task with the thread text, the
-  diff hunk, the gathered evidence and the specific question. Execute its answer here. Do not
-  send suggestions, questions or already-decided threads to `reasoner`.
+- For every `error` still `unclear` after evidence gathering that concerns correctness,
+  concurrency or security, dispatch one `designer` task per thread with a `DECISION REQUEST`:
+  the thread text, the diff hunk, the gathered evidence and the specific question. Execute its
+  checklist here. For a `suggestion` that asks for a structural or contract change (new
+  boundary, interface, data shape, error contract), dispatch `designer` with a `DESIGN DELTA`
+  carrying the thread, the current design evidence and constraints, and implement its slices
+  or reply with its reasoning. Do not send style nits, questions or already-decided threads to
+  `designer`; never decide an unclear claim on Sonnet.
 - Present a compact table: `#`, `file:line`, class, verdict, planned action (fix / reply only /
   skip), one-line rationale.
 

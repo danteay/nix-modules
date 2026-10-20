@@ -15,6 +15,8 @@ process.env.DESVIO_MIN_LINES = "200"
 process.env.DESVIO_ENABLED = "1"
 // These tests exercise role routing; enforced lifecycle routing has separate integration tests.
 process.env.DESVIO_LIFECYCLE = "observe"
+// Jev turn classification is a network call; the client has its own tests (jev.test.ts).
+process.env.DESVIO_JEV = "0"
 const { Desvio } = await import("../plugins/desvio")
 type Hooks = Required<Awaited<ReturnType<typeof Desvio>>>
 type ChatOutput = Parameters<Hooks["chat.message"]>[1]
@@ -96,7 +98,7 @@ test("resumed build turns use Sonnet, bulk uses GLM, and explicit reasoning agen
     explorer: models.bulk,
     explore: models.bulk,
     plan: models.reasoning,
-    reasoner: models.reasoning,
+    designer: models.reasoning,
   })) {
     const output = {
       message: {
@@ -190,6 +192,53 @@ test("offset alone and oversized limits cannot bypass the read guard, including 
     "Full read blocked",
   )
 })
+test("decide calls are logged as decision-role messages with their cost, for primaries and workers", async () => {
+  const h = await plugin()
+  const questions = [{ name: "blocking", type: "boolean", instructions: "Is `state` blocking?" }]
+  await run(
+    h,
+    "primary",
+    "decide",
+    { state: "finding text", questions },
+    {
+      model: "jev-1.14.0",
+      input_tokens: 500,
+      cost: 0.000021,
+      decision: true,
+    },
+  )
+  await run(
+    h,
+    "reviewer",
+    "decide",
+    { state: "finding text", questions },
+    {
+      model: "jev-1.14.0",
+      input_tokens: 100,
+      cost: 0.0000042,
+      decision: true,
+    },
+  )
+  await expect(
+    run(h, "reviewer", "decide", { state: "see wallet/private.go", questions }),
+  ).rejects.toThrow("excluded path")
+  const r = (await logs()).filter((x) => x.kind === "message" && x.decision)
+  expect(r).toHaveLength(2)
+  expect(r[0]).toMatchObject({
+    providerID: "vercel",
+    modelID: "typesafe-ai/jev-1.14.0",
+    model_role: "decision",
+    input: 500,
+    output: 0,
+    cost: 0.000021,
+    worker: false,
+  })
+  expect(r[1]).toMatchObject({ agent: "code-reviewer", worker: true, input: 100 })
+  const s = summarize(await logs())
+  expect(s.roles.decision?.calls).toBe(2)
+  expect(s.routing.decision_calls).toBe(2)
+  expect(s.models["vercel/typesafe-ai/jev-1.14.0"]?.cost).toBeCloseTo(0.0000252, 9)
+})
 test("installed agent and command models agree with the routing policy", async () => {
   const source = join(import.meta.dir, "..")
   const config = JSON.parse(await readFile(join(source, "opencode.json"), "utf8"))
@@ -253,10 +302,11 @@ test("review agents delegate only to cheap internal workers and nested writers c
   })
   await expect(
     run(h, "reviewer", "task", {
-      subagent_type: "explorer",
-      prompt: "Explore visible.go",
+      subagent_type: "feature-builder",
+      prompt: "Implement the fix in visible.go",
     }),
   ).rejects.toThrow("may delegate only")
+  await run(h, "reviewer", "task", { subagent_type: "explorer", prompt: "Locate ProcessRound" })
   await expect(
     run(h, "reviewer", "task", {
       subagent_type: "bulk-reader",
