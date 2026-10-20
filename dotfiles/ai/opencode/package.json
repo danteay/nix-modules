@@ -11,12 +11,12 @@
     "benchmark": "bun scripts/benchmark.ts",
     "control": "bun scripts/control.ts",
     "benchmark:lifecycle": "bun scripts/lifecycle-benchmark.ts",
-    "lint": "biome lint .",
-    "lint:fix": "biome lint --write .",
-    "format": "biome format --write .",
-    "format:check": "biome format .",
-    "check": "biome check .",
-    "check:fix": "biome check --write ."
+    "lint": "bun --bun node_modules/@biomejs/biome/bin/biome lint .",
+    "lint:fix": "bun --bun node_modules/@biomejs/biome/bin/biome lint --write .",
+    "format": "bun --bun node_modules/@biomejs/biome/bin/biome format --write .",
+    "format:check": "bun --bun node_modules/@biomejs/biome/bin/biome format .",
+    "check": "bun --bun node_modules/@biomejs/biome/bin/biome check .",
+    "check:fix": "bun --bun node_modules/@biomejs/biome/bin/biome check --write ."
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14"
