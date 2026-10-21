@@ -142,7 +142,7 @@ The default is Sonnet `build`; `small_model` is Haiku 5.5. Utility commands expl
 `bulk` (`/new-pr`, `/commit`, `/linear-task`, `/bulk-read`, `/scaffold`, `/outline`, `/usage`);
 feature, architecture-task, PR-review, PR-comment, rebase, check and investigation commands
 choose Sonnet `build` (`/new-feat`, `/new-arch-task`, `/review-pr`, `/fix-pr-comments`,
-`/rebase`, `/check`, `/investigate`). Their design step is a bounded Opus task by
+`/rebase`, `/check`, `/investigate`, `/next-linear-task`). Their design step is a bounded Opus task by
 construction: `/new-feat` and `/new-arch-task` always dispatch `designer` once with the source
 ledger and Haiku evidence packs, and again with a `DESIGN DELTA` when feedback changes the
 design. Every other command sends its thinking to the same agent as a `DECISION REQUEST`
@@ -218,7 +218,8 @@ uses it where a Sonnet agent would otherwise spend prose on classification:
   duplicates with it; `/fix-pr-comments` classifies threads and claim validity; `/new-feat`
   fills the classification matrix, gates `DESIGN DELTA`s and blocking findings; `/investigate`
   scores hypotheses; `/check` decides pre-existing versus evident failures; `/rebase` flags
-  semantic conflicts; `/commit` groups files. Each command states the questions and the
+  semantic conflicts; `/commit` groups files; `/next-linear-task` ranks eligible issues from
+  Linear and repository evidence. Each command states the questions and the
   confidence threshold below which the agent judges for itself.
 - Every free-text root turn is classified by Jev (`kind`, `needs_design`, `mechanics`). The
   label replaces the keyword heuristic in `prompt_class` (`prompt_class_source: jev`), and an
@@ -233,6 +234,30 @@ uses it where a Sonnet agent would otherwise spend prose on classification:
   logged). Turn Jev off with `DESVIO_JEV=0` or `"jev": false` in `desvio.json`; after an error
   the plugin mutes it for a minute and logs `jev_error`. A state that names an excluded path is
   refused.
+
+## Picking the next Linear task
+
+```text
+/next-linear-task project <project name or URL>
+/next-linear-task team <team name or key>
+/next-linear-task project <project name> only recommend
+```
+
+Append constraints such as `repo /path/to/repo, finish within one day` when needed. The command
+resolves the scope, checks dependencies, assignees and related active PRs, then compares a
+shortlist with the current code. It excludes blocked, conflicting and already implemented work
+before ranking impact, downstream work unblocked, readiness, remaining effort and overlap.
+Missing facts that could change the choice or implementation trigger focused questions.
+
+Sonnet `build` coordinates and implements; Haiku workers gather reusable evidence packs; Jev
+scores the sourced candidates. A bounded `designer` call is reserved for a necessary design or
+hard decision. The primary model stays fixed throughout the run. If Jev fails, the command
+reports that and uses the same rubric on Sonnet.
+
+By default it refreshes the selected issue's ownership and blockers and starts implementing
+locally in the same run. `only recommend` stops before project writes. Linear updates and
+publishing require user authorization; selecting an issue does not reserve it. Home Manager
+discovers the new command from `commands/`; apply your profile with `hms` to install it.
 
 ## Developing a new feature
 
