@@ -25,9 +25,12 @@ export const reviewAgents = new Set([
   "refactorer",
 ])
 export const reviewWorkerAgents = new Set(["bulk-reader", "explorer", "code-writer", "doc-writer"])
+// `.env` is anchored to a file name (`.env`, `.env.local`, `config.env`): an unanchored `\.env`
+// also matched direnv's `.envrc`, which only says `use devenv`, and rejected every decide state
+// or delegation prompt that listed it.
 const excluded = (
   process.env.DESVIO_EXCLUDE ??
-  "/wallet/,/kyc/,/aml/,/payments/,/payouts/,/secrets/,\\.env,\\.tfvars,\\.pem$,\\.p12$,credentials"
+  "/wallet/,/kyc/,/aml/,/payments/,/payouts/,/secrets/,\\.env(\\.[^/]*)?$,\\.tfvars,\\.pem$,\\.p12$,credentials"
 )
   .split(",")
   .map((s) => s.trim())

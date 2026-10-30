@@ -3,7 +3,9 @@
   "model": "vercel/anthropic/claude-sonnet-5.5",
   "small_model": "vercel/anthropic/claude-haiku-5.5",
   "default_agent": "build",
-  "subagent_depth": 2,
+  "experimental": {
+    "subagent_depth": 2
+  },
   "plugins": ["github:vercel/vercel-plugin"],
   "mcp": {
     "lucid": {

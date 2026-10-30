@@ -53,8 +53,10 @@ export const routingInstructions =
   "/commit, /rebase, /check, /new-pr, /linear-task, /investigate; suggest them instead of " +
   "doing that work on a reasoning model. " +
   "Sonnet build/edit executes defined work, integrates changes, runs checks " +
-  "and handles user feedback. Haiku explorer locates files; bulk-reader gathers broad context; " +
-  "send repo-wide or multi-pattern location searches to explorer instead of running rg, use " +
+  "and handles user feedback. Haiku explorer locates files; bulk-reader gathers broad context. " +
+  "Workers are agents, not tools: reach them only through the subagent tool with agent set to " +
+  "explorer, bulk-reader, code-writer or doc-writer. " +
+  "Send repo-wide or multi-pattern location searches to explorer instead of running rg, use " +
   "repo_grep directly for one narrow lookup, and reserve raw rg (it asks) for excluded paths " +
   "that repo_grep filters out. Prefer defined tools over shell: validate_command for checks, " +
   "merge_conflicts for conflict regions, pr_review_history or pr_unresolved_comments for PR " +
