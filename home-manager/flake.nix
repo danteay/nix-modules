@@ -41,6 +41,8 @@
         # go-mockery = unstable-pkgs.legacyPackages.${system}.go-mockery;
         # inetutils-2.7 fails to compile with clang-21 on macOS in nixos-25.11 (revalidate on 26.05)
         inetutils = unstable-pkgs.legacyPackages.${system}.inetutils;
+        # devenv moves fast; always take it from the unstable channel
+        devenv = unstable-pkgs.legacyPackages.${system}.devenv;
         # direnv-2.37.1 fish tests get killed during build on macOS (nixos-25.11, revalidate on 26.05)
         direnv = prev.direnv.overrideAttrs (_: { doCheck = false; });
       });

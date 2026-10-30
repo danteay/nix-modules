@@ -10,6 +10,7 @@
     fzf
     uv
     websocat
+    devenv  # developer environments (from unstable via flake overlay)
   ];
 
   programs.direnv = {
