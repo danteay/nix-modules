@@ -61,7 +61,14 @@ export function initialState(sessionID: string, baseline = routeFor("build")): S
 }
 
 /** Primary agents a user can pick in the selector. Subagents never arrive as a root agent. */
-export const primaryAgents = new Set(["build", "edit", "bulk", "coordinator", "plan"])
+export const primaryAgents = new Set([
+  "build",
+  "edit",
+  "bulk",
+  "coordinator",
+  "plan",
+  "linear-planner",
+])
 const roleRank: Record<ModelRole, number> = { bulk: 0, execution: 1, reasoning: 2 }
 export const roleCost = (agent: string) => roleRank[agentRoles[agent] ?? "execution"] ?? 1
 

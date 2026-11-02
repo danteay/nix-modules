@@ -249,6 +249,7 @@ export const mechanicsCommands = [
   "new-pr",
   "linear-task",
   "investigate",
+  "plan-linear-work",
 ] as const
 
 export const turnQuestions: Questions = {
@@ -292,6 +293,8 @@ export const turnQuestions: Questions = {
       "linear-task": "Create or update a Linear issue, task, subtasks or ticket fields",
       investigate:
         "Investigate a production symptom, incident or error with logs, metrics or Datadog",
+      "plan-linear-work":
+        "Plan, organize or model an area's pending or untracked work into Linear projects, milestones and issues",
     },
   },
 }

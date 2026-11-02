@@ -588,7 +588,10 @@ export const Desvio: Plugin = async ({ project, directory, client }) => {
         })
         return
       }
-      if (input.tool === "decide" && typeof output.metadata?.cost === "number") {
+      if (
+        (input.tool === "decide" || output.metadata?.decision === true) &&
+        typeof output.metadata?.cost === "number"
+      ) {
         const who = await identity(input.sessionID)
         await logDecision(
           who,

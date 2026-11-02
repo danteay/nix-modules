@@ -143,6 +143,24 @@
         },
         "pr_reply_comment": "deny"
       }
+    },
+    "linear-planner": {
+      "description": "Plans an area's pending work into Linear projects, milestones and issues for one team; grouping on the Opus work-modeler, publication only after explicit approval",
+      "mode": "primary",
+      "model": "vercel/anthropic/claude-sonnet-5.5",
+      "permission": {
+        "edit": {
+          "*": "deny",
+          "*linear-plan-*.md": "allow"
+        },
+        "bash": {
+          "*": "deny",
+          "git status*": "allow",
+          "git log*": "allow",
+          "git branch*": "allow"
+        },
+        "pr_reply_comment": "deny"
+      }
     }
   },
   "compaction": {

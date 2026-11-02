@@ -14,10 +14,12 @@ export const workerAgents = new Set([
   "code-writer",
   "doc-writer",
   "feature-builder",
+  "inventory-reader",
 ])
 export const reviewAgents = new Set([
   "architect",
   "designer",
+  "work-modeler",
   "code-reviewer",
   "devops",
   "documentor",

@@ -120,9 +120,11 @@ Claude agents use Anthropic directly. The configured routes are:
 |---|---|---|
 | Explicit bounded reasoning | `coordinator` | `vercel/anthropic/claude-opus-5.5` |
 | Design of a feature or architecture task (`/new-feat`, `/new-arch-task`) | `designer` | `vercel/anthropic/claude-opus-5.5` |
+| Grouping pending work into Linear projects, milestones and issues (`/plan-linear-work`) | `work-modeler` | `vercel/anthropic/claude-opus-5.5` |
 | Defined execution, integration, routine review | `build`, `edit`, `general`, `feature-builder`, `code-reviewer`, `tester`, `refactorer`, `devops`, `documentor` | `vercel/anthropic/claude-sonnet-5.5` |
+| Linear work planning: team resolution, context gathering, draft, publication (`/plan-linear-work`) | `linear-planner` | `vercel/anthropic/claude-sonnet-5.5` |
 | Hard decisions (`DECISION REQUEST`) and diff review | `designer`, `plan`, `architect` | `vercel/anthropic/claude-opus-5.5` |
-| Context, reference-based boilerplate, prose, utility commands | `bulk`, `explorer`, `explore`, `bulk-reader`, `code-writer`, `doc-writer` | `vercel/anthropic/claude-haiku-5.5` |
+| Context, reference-based boilerplate, prose, utility commands | `bulk`, `explorer`, `explore`, `bulk-reader`, `code-writer`, `doc-writer`, `inventory-reader` | `vercel/anthropic/claude-haiku-5.5` |
 | Typed decisions: classification, triage, gating, scoring (`decide` tool, turn labels) | Jev (not an agent) | `vercel/typesafe-ai/jev-1.14.0` |
 
 Model versions (October 12, 2026): Opus 5.5 replaced Opus 5 for the reasoning role (same tier,
@@ -258,6 +260,49 @@ updates Linear. After refreshing ownership and blockers, it returns exactly thre
 their dependency relationships and remaining prerequisites; selecting an issue does not reserve
 it. Implementation is a separate workflow. Home Manager discovers the command from `commands/`;
 apply your profile with `hms` to install it.
+
+## Planning area work into Linear
+
+```text
+/plan-linear-work team <team name or key> <context: notes, file paths, document or Linear links>
+/plan-linear-work <context>
+```
+
+`/plan-linear-work` runs on the `linear-planner` primary (Sonnet). The team is mandatory: when
+the arguments do not name it, the planner lists the teams and asks which one before reading
+anything else. The Sonnet context is the expensive path, so every gathering and labelling step
+has a cheaper owner:
+
+- `linear_backlog` (`tools/linear_backlog.ts`, `lib/linear.ts`) reads teams, team context
+  (states, labels, cycle, open projects with milestone ids), open issues and shortlisted issue
+  details straight from the Linear GraphQL API with only the planning fields, one line per
+  record, full pagination. A 150-issue backlog is a few thousand tokens instead of the tens of
+  thousands the MCP list tools return. Credential: `LINEAR_API_KEY`, else the OAuth token
+  OpenCode stored for the `linear` MCP; without either the planner falls back to the MCP with
+  narrow calls. Writes always go through the MCP (`save_project`, `save_milestone`,
+  `save_issue`), where each mutation is visible.
+- `inventory-reader` (Haiku) turns supplied notes, minutes and plan files into fixed ledger
+  rows (summary, source line, dependencies, owner, status); `explorer` and `bulk-reader` cover
+  repositories and large files as elsewhere.
+- `work_triage` (`tools/work_triage.ts`, `lib/work-triage.ts`) labels the ledger on Jev: per
+  item, tracked probability and the matching open issue, which existing project it fits or
+  `new_project`/`standalone`, and size. It builds and batches the questions itself (32 per
+  call) and can fetch the open identifiers and titles, so Sonnet passes short rows instead of
+  writing instructions per item. Its cost is logged like `decide` (`metadata.decision`).
+- One `work-modeler` (Opus) dispatch groups the ledger and digests into projects (new or
+  reused), milestones for long projects and issues with placement, parents and blockers, and
+  returns the plan JSON.
+- `work_plan_check` (`tools/work_plan_check.ts`, `lib/work-plan.ts`) validates it: refs,
+  milestone/project consistency, dependency cycles, duplicate titles against the open backlog
+  (fetched by the tool when `existing` is omitted), field ranges, and the publication order.
+
+The planner writes `linear-plan-<team-key>-<date>.md`, the only file its `edit` permission
+allows, asks for explicit approval with the `question` tool, and only then creates projects,
+then milestones, then issues through the MCP, verifying with one `details` read. It never
+deletes, closes or reassigns records, never invents estimates, dates or owners, and never
+implements the work. Keep `linear-planner` selected (or use `/desvio-continue`) for later
+feedback rounds so they do not fall back to `build`. Design notes:
+[docs/linear-planning.md](docs/linear-planning.md).
 
 ## Developing a new feature
 
