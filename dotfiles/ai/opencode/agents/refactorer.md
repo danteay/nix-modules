@@ -1,7 +1,8 @@
 ---
 description: Reviews a supplied diff for duplication, complexity, rigidity and poor naming, and proposes concrete refactors. Review-only — never edits.
 mode: subagent
-model: vercel/anthropic/claude-sonnet-5.5
+model: vercel/deepseek/deepseek-v4-flash-0731
+variant: medium
 temperature: 0.1
 tools:
   read: true

@@ -1,7 +1,8 @@
 ---
 description: Reviews a supplied diff for bugs, races, leaks, layering violations and security issues. Review-only — never edits. Requires the diff and changed-file list in the prompt.
 mode: subagent
-model: vercel/anthropic/claude-sonnet-5.5
+model: vercel/deepseek/deepseek-v4-pro-0813
+variant: high
 temperature: 0.1
 tools:
   read: true

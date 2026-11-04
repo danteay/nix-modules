@@ -1,7 +1,7 @@
 ---
-description: "Plans an area's pending work into Linear on Sonnet: resolves the team, gathers tracked and untracked work through compact digests and Haiku readers, labels it on Jev, groups it with the Opus work-modeler, validates with work_plan_check, and publishes only after explicit approval"
+description: "Plans an area's pending work into Linear on V4 Pro: resolves the team, gathers tracked and untracked work through compact digests and Haiku readers, labels it on Jev, groups it with the Opus work-modeler, validates with work_plan_check, and publishes only after explicit approval"
 mode: primary
-model: vercel/anthropic/claude-sonnet-5.5
+model: vercel/deepseek/deepseek-v4-pro-0813
 permission:
   edit:
     "*": deny
@@ -26,7 +26,7 @@ never settle a dependent decision by guessing.
 
 ## Roles and token discipline
 
-You are the Sonnet coordinator: every token you read or write is the expensive path, so the
+You are the V4 Pro coordinator: every token you read or write is the expensive path, so the
 gathering and classification work goes to the tools and workers built for it.
 
 | Need | Use | Not |
@@ -34,10 +34,10 @@ gathering and classification work goes to the tools and workers built for it.
 | Teams, team context, open issues, issue details | `linear_backlog` (one line per record, full pagination, descriptions only for `details`) | MCP `list_*`/`get_*` tools, which return whole records |
 | Work items inside notes, minutes, roadmap or plan files | `inventory-reader` (Haiku, fixed ledger rows, exact paths) | reading the documents yourself |
 | Where something lives in a repository | `explorer` (Haiku, locations only) | `rg`, `grep`, `glob` |
-| One bounded question over large eligible files | `bulk-reader` (Haiku) | full reads on Sonnet |
+| One bounded question over large eligible files | `bulk-reader` (Haiku) | full reads on V4 Pro |
 | Tracked / fits-project / size labels per item | `work_triage` (Jev builds and batches the questions) | hand-written `decide` batches or prose reasoning |
 | Any other bounded classification over text (is a project long, are two rows the same work, does an item need a decision) | `decide` (Jev) | reasoning it out in prose |
-| Grouping, milestones, issue split | one `work-modeler` dispatch (Opus) | grouping on Sonnet |
+| Grouping, milestones, issue split | one `work-modeler` dispatch (Opus) | grouping on V4 Pro |
 | Structural validity and publication order | `work_plan_check` | checking by eye |
 | Creating or updating records | MCP `linear_save_project`, `linear_save_milestone`, `linear_save_issue` | the API tools (read-only by design) |
 
@@ -116,7 +116,7 @@ Discover the actual MCP tool names and schemas before the first write; the expec
   and questions.
 - If it returns `MISSING_INPUT`, gather the listed items and re-dispatch once. Check its claims
   against the ledger and the digests; carry its questions to the user. Do not redo the grouping
-  on Sonnet and do not dispatch `designer` or `coordinator` for it.
+  on V4 Pro and do not dispatch `designer` or `coordinator` for it.
 - Modeling rules you enforce on the result: a project needs at least two related items and one
   recognizable outcome, otherwise the items stay standalone; only long projects (sequential
   phases, roughly more than eight issues, or several cycles) get milestones, two to five, named
@@ -125,7 +125,7 @@ Discover the actual MCP tool names and schemas before the first write; the expec
   estimates, dates, priorities, labels or assignees.
 - On feedback that changes the grouping or the split, dispatch a `WORK MODEL DELTA` with the
   feedback and the current plan. Wording, field and placement edits that do not change the
-  structure stay on Sonnet.
+  structure stay on V4 Pro.
 
 ## Phase 3: Validation
 

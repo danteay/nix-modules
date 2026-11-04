@@ -1,10 +1,10 @@
 ---
 description: Run the project's build, lint and test checks with real exit codes, fix what the current change broke, and report
-agent: build
-model: vercel/anthropic/claude-sonnet-5.5
+agent: mechanic
+model: vercel/deepseek/deepseek-v4-flash-0731
 ---
 
-Run checks and fix failures on Sonnet `build`. Do not commit; do not change test expectations to
+Run checks and fix failures on DeepSeek V4 Flash `mechanic`. Do not commit; do not change test expectations to
 make a test pass; do not skip or parallelise tests unless the argument asks for exactly that.
 
 Usage: `/check [command ...]` — e.g. `/check go test ./...`, `/check lint`, or no argument to
@@ -41,7 +41,7 @@ detect the project's checks.
   `preexisting` ≥ 0.7 report it instead of fixing it silently. At `cause_evident` ≥ 0.7 fix the
   code or test that this branch changed (a typo, a missed call site, a stale expectation the
   branch intentionally changed). Otherwise dispatch one `designer` task with a `DECISION REQUEST` (the failure output, the evidence, the
-  candidate causes) and apply its checklist; do not try fixes on Sonnet until one passes. If the failure predates the branch (`git stash`-free check:
+  candidate causes) and apply its checklist; do not try fixes here until one passes. If the failure predates the branch (`git stash`-free check:
   compare with `git log`/blame evidence), report it instead of fixing it silently.
 - Re-run only the failed commands, then the full set once more if anything changed.
 

@@ -1,12 +1,12 @@
 ---
 description: Evidence-first production investigation with Datadog and git history; sends the root-cause decision to designer as a bounded DECISION REQUEST
-agent: build
-model: vercel/anthropic/claude-sonnet-5.5
+agent: mechanic
+model: vercel/deepseek/deepseek-v4-flash-0731
 ---
 
-Investigate a symptom with evidence before hypotheses. This runs on Sonnet `build`: Sonnet
-collects, Opus decides. Once the evidence is in, the root-cause decision goes to `designer` as
-one bounded `DECISION REQUEST`; Sonnet does not rank hypotheses into a conclusion on its own.
+Investigate a symptom with evidence before hypotheses. This runs on DeepSeek V4 Flash `mechanic`: the
+primary collects, Opus decides. Once the evidence is in, the root-cause decision goes to `designer` as
+one bounded `DECISION REQUEST`; the primary does not rank hypotheses into a conclusion on its own.
 
 Usage: `/investigate <symptom> [service] [environment] [time window]` — e.g.
 `/investigate websocket publish errors draft-relay prod last 2h`.

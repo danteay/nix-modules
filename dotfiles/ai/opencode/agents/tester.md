@@ -1,7 +1,8 @@
 ---
 description: Reviews a supplied diff for test coverage and test quality against the repo's documented test patterns. Review-only — never edits and never runs tests.
 mode: subagent
-model: vercel/anthropic/claude-sonnet-5.5
+model: vercel/deepseek/deepseek-v4-flash-0731
+variant: medium
 temperature: 0.1
 tools:
   read: true

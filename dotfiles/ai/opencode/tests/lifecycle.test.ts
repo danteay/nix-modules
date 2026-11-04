@@ -5,6 +5,7 @@ import { join } from "node:path"
 import { begin, initialState, routeFor, settle, terminalOutcome } from "../lib/lifecycle"
 import { LifecycleManager } from "../lib/lifecycle-manager"
 import type { ClientLike, MessageLike } from "../lib/opencode-types"
+import { modelRole, models } from "../lib/routing"
 import { StateStore } from "../lib/state"
 
 /** Test double for the host client; `selectRoute` is required so tests can replace it. */
@@ -103,7 +104,7 @@ function fixture(mode: "observe" | "enforce" | "off" = "enforce") {
   }
 }
 
-test("PR completes on GLM then restores Sonnet for the next ordinary design question", async () => {
+test("PR completes on GLM then restores V4 Pro for the next ordinary design question", async () => {
   const f = fixture()
   await f.manager.command("root", "new-pr")
   expect(await f.manager.incoming("root", "pr", routeFor("bulk"))).toEqual(routeFor("bulk"))
@@ -151,7 +152,7 @@ test("all commands, including slash skills and custom agents, return to build", 
     f.complete("request")
     await f.idle()
     expect(f.selection.agent).toBe("build")
-    expect(f.selection.model.id).toBe("anthropic/claude-sonnet-5.5")
+    expect(f.selection.model.id).toBe("deepseek/deepseek-v4-pro-0813")
   }
 })
 
@@ -330,7 +331,7 @@ test("enforcement recovers stale bulk after an observed command, even without an
     )
     expect(await enforced.incoming("root", "design", routeFor("bulk"))).toEqual(routeFor("build"))
     expect(f.selection.agent).toBe("build")
-    expect(f.selection.model.id).toBe("anthropic/claude-sonnet-5.5")
+    expect(f.selection.model.id).toBe("deepseek/deepseek-v4-pro-0813")
   }
 })
 test("unmanaged routes are preserved; child input is not rerouted", async () => {
@@ -681,4 +682,27 @@ test("CLI pin scopes: reasoning pins default to once, --sticky keeps them, cheap
   expect((await run("auto", "root", "--sticky")).exit).toBe(1)
   expect((await run("auto", "root")).exit).toBe(0)
   expect(f.store.get("root")?.pinScope).toBeUndefined()
+})
+
+test("the light-role mechanic primary routes to DeepSeek V4 Flash and is honored as a cheaper selection", async () => {
+  expect(modelRole(models.light)).toBe("light")
+  expect(routeFor("mechanic")).toEqual({
+    agent: "mechanic",
+    providerID: "vercel",
+    modelID: "deepseek/deepseek-v4-flash-0731",
+  })
+  for (const agent of ["feature-builder", "tester", "refactorer", "devops", "documentor"])
+    expect(routeFor(agent).modelID).toBe("deepseek/deepseek-v4-flash-0731")
+  expect(routeFor("code-reviewer").modelID).toBe("deepseek/deepseek-v4-pro-0813")
+  const f = fixture()
+  // A deliberate switch from the V4 Pro baseline to mechanic is a downgrade: honored, sticky.
+  expect(await f.manager.incoming("root", "a", routeFor("mechanic"))).toEqual(routeFor("mechanic"))
+  expect(f.store.get("root")?.run?.source).toBe("manual-selection")
+  expect(f.log.at(-1)).toMatchObject({
+    selection: "honored",
+    requested_route: routeFor("mechanic"),
+  })
+  f.complete("a")
+  await f.idle()
+  expect(f.selection.agent).toBe("build")
 })

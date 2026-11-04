@@ -1,7 +1,8 @@
 ---
 description: Reviews a supplied diff of infrastructure, deployment and CI changes for correctness, safety, reversibility and least privilege. Review-only — never edits and never applies.
 mode: subagent
-model: vercel/anthropic/claude-sonnet-5.5
+model: vercel/deepseek/deepseek-v4-flash-0731
+variant: medium
 temperature: 0.1
 tools:
   read: true

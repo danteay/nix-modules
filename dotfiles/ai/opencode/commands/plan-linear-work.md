@@ -1,7 +1,7 @@
 ---
 description: Plan an area's pending and untracked work into Linear projects, milestones and issues for one team; grouping on Opus, publication only after approval
 agent: linear-planner
-model: vercel/anthropic/claude-sonnet-5.5
+model: vercel/deepseek/deepseek-v4-pro-0813
 ---
 
 Plan Linear work for: $ARGUMENTS

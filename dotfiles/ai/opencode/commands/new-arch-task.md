@@ -1,7 +1,7 @@
 ---
 description: Analyze diagrams and documentation, design architecture work, and prepare a reviewed Linear task
 agent: build
-model: vercel/anthropic/claude-sonnet-5.5
+model: vercel/deepseek/deepseek-v4-pro-0813
 ---
 
 Plan an architecture or work-planning task for: $ARGUMENTS
@@ -57,7 +57,7 @@ draft and its proposed Linear changes. Approval of an older draft does not appro
 
 ## 2. Reasoning
 
-- The Sonnet coordinator owns source retrieval, ledger maintenance, drafting and publication.
+- The V4 Pro coordinator owns source retrieval, ledger maintenance, drafting and publication.
   **Opus owns the reasoning.** Once the ledger and evidence packs exist, dispatch exactly one
   `designer` task with a `DESIGN REQUEST` prompt: the outcome, the context ledger, the evidence
   packs, the current and desired flows as reconstructed from the sources, the mismatches,
@@ -65,8 +65,8 @@ draft and its proposed Linear changes. Approval of an older draft does not appro
   design, rejected alternatives, ordered work slices, risks and questions. If it returns
   `MISSING_INPUT`, gather the items and re-dispatch once. Write the problem frame, options and
   recommendation below from its answer, checked against the ledger; do not redo the design on
-  Sonnet. On feedback that changes the decision, dispatch a `DESIGN DELTA`; keep routine task
-  wording and field updates on Sonnet. `architect` is not used here; it reviews diffs.
+  V4 Pro. On feedback that changes the decision, dispatch a `DESIGN DELTA`; keep routine task
+  wording and field updates on V4 Pro. `architect` is not used here; it reviews diffs.
 
 - Start from the context ledger. Write a concise **problem frame**: the decision to make, why
   now, stakeholders, boundaries, and what is known versus unknown. Reconstruct the current flow

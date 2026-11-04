@@ -88,12 +88,15 @@ test("primary full read blocked; targeted primary and full bulk-reader reads suc
   expect(r.at(-1)?.agent).toBe("bulk-reader")
   expect(r.at(-1)?.workflowID).toBe("primary")
 })
-test("resumed build turns use Sonnet, bulk uses GLM, and explicit reasoning agents retain Opus", async () => {
+test("resumed build turns use V4 Pro, light agents use DeepSeek V4 Flash, bulk uses Haiku, and explicit reasoning agents retain Opus", async () => {
   const h = await plugin()
   for (const [agent, selected] of Object.entries({
     build: models.execution,
-    "feature-builder": models.execution,
     "code-reviewer": models.execution,
+    mechanic: models.light,
+    "feature-builder": models.light,
+    tester: models.light,
+    documentor: models.light,
     bulk: models.bulk,
     explorer: models.bulk,
     explore: models.bulk,
@@ -158,7 +161,7 @@ test("built-in explore dispatch is logged and checks excluded prompts", async ()
     run(h, "primary", "task", { subagent_type: "explore", prompt: "Read wallet/private.go" }),
   ).rejects.toThrow("excluded path")
 })
-test("offset alone and oversized limits cannot bypass the read guard, including Sonnet children", async () => {
+test("offset alone and oversized limits cannot bypass the read guard, including V4 Pro children", async () => {
   const h = await plugin()
   for (const args of [
     { offset: 1 },

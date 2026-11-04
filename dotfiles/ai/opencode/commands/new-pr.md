@@ -5,7 +5,7 @@ model: vercel/anthropic/claude-haiku-5.5
 ---
 
 This is mechanics on Haiku `bulk`: it makes no design or correctness decisions. If one is needed,
-stop and tell the user which Sonnet command sends it to `designer` (`/new-feat`, `/check`,
+stop and tell the user which V4 Pro command sends it to `designer` (`/new-feat`, `/check`,
 `/fix-pr-comments`, `/rebase`, `/investigate`).
 
 Create a pull request from the current branch. This command supports two workflows and automatically detects which one applies — do NOT ask the user to choose unless detection is inconclusive.
@@ -48,7 +48,7 @@ This runs on Haiku `bulk`, so it follows `/commit`'s rules instead of improvisin
   commit per concern, as `/commit` would.
 - Write the message with a HEREDOC and include the Co-Authored-By trailer.
 - IMPORTANT: Do NOT skip git hooks. If a pre-commit hook fails, report its output and stop. Suggest
-  `/check` to fix it on Sonnet, then rerun `/new-pr`. Do not change code here to satisfy a hook.
+  `/check` to fix it on V4 Pro, then rerun `/new-pr`. Do not change code here to satisfy a hook.
 
 ### Step A2: Sync with the selected base branch
 
@@ -56,7 +56,7 @@ This runs on Haiku `bulk`, so it follows `/commit`'s rules instead of improvisin
 - Check if there are new commits on `origin/$BASE_BRANCH` that are not in the current branch: `git log "HEAD..origin/$BASE_BRANCH" --oneline`
 - If there ARE new commits on `origin/$BASE_BRANCH`:
   - Run `git pull --rebase origin "$BASE_BRANCH"`
-  - If the rebase stops on conflicts, do NOT resolve them here: conflict resolution needs code understanding and belongs to Sonnet. Run `git rebase --abort`, list the conflicted files (`merge_conflicts` before aborting), tell the user to run `/rebase "$BASE_BRANCH"` and then rerun `/new-pr`, and stop.
+  - If the rebase stops on conflicts, do NOT resolve them here: conflict resolution needs code understanding and belongs to V4 Pro. Run `git rebase --abort`, list the conflicted files (`merge_conflicts` before aborting), tell the user to run `/rebase "$BASE_BRANCH"` and then rerun `/new-pr`, and stop.
   - Set a flag that rebase happened (you will need this for the push step).
 - If there are NO new commits, skip this step.
 
@@ -154,7 +154,7 @@ EOF
 ### Step B2: Sync the stack
 
 - Run `gh stack rebase` — this fetches `origin`, then cascades a rebase across every branch in the stack, starting from trunk, so each layer replays cleanly on top of the (possibly updated) layer below it.
-- If it pauses for a conflict, do NOT resolve it here. Capture the conflicted files with `merge_conflicts`, run `gh stack rebase --abort`, tell the user to run `/rebase` (it handles `gh stack` on Sonnet) and then rerun `/new-pr`, and stop.
+- If it pauses for a conflict, do NOT resolve it here. Capture the conflicted files with `merge_conflicts`, run `gh stack rebase --abort`, tell the user to run `/rebase` (it handles `gh stack` on V4 Pro) and then rerun `/new-pr`, and stop.
 
 ### Step B3: Push the stack
 

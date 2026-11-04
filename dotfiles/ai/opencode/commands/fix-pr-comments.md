@@ -1,10 +1,10 @@
 ---
 description: Triage unresolved PR review comments, verify claimed errors, fix what is valid, push, and reply on each thread
-agent: build
-model: vercel/anthropic/claude-sonnet-5.5
+agent: mechanic
+model: vercel/deepseek/deepseek-v4-flash-0731
 ---
 
-Work through the unresolved review threads of a pull request. This runs on Sonnet `build`;
+Work through the unresolved review threads of a pull request. This runs on DeepSeek V4 Flash `mechanic`;
 thinking work goes to `designer` (Opus) as bounded requests with the evidence attached: a
 `DECISION REQUEST` per disputed correctness or security claim, a `DESIGN DELTA` when a thread
 asks for a structural or contract change. Never do the triage itself on a reasoning model.
@@ -49,7 +49,7 @@ yourself. `claim_valid` ≥ 0.85 or ≤ 0.15 settles an `error`; anything betwee
   boundary, interface, data shape, error contract), dispatch `designer` with a `DESIGN DELTA`
   carrying the thread, the current design evidence and constraints, and implement its slices
   or reply with its reasoning. Do not send style nits, questions or already-decided threads to
-  `designer`; never decide an unclear claim on Sonnet.
+  `designer`; never decide an unclear claim here.
 - Present a compact table: `#`, `file:line`, class, verdict, planned action (fix / reply only /
   skip), one-line rationale.
 

@@ -96,7 +96,9 @@ function host(sessions: Record<string, V2Session>) {
     command: {
       transform: async (fn) => fn({ add: (definition) => commands.push(definition) }),
     },
-    model: { default: async () => ({ data: { providerID: sonnet.providerID, id: sonnet.id } }) },
+    model: {
+      default: async () => ({ data: { providerID: execution.providerID, id: execution.id } }),
+    },
     permission: {
       assert: async (input) => {
         asserts.push(input)
@@ -116,7 +118,7 @@ function host(sessions: Record<string, V2Session>) {
   }
   return { api, call, emit, tools, commands, asserts, selections }
 }
-const sonnet = { providerID: "vercel", id: "anthropic/claude-sonnet-5.5", variant: "default" }
+const execution = { providerID: "vercel", id: "deepseek/deepseek-v4-pro-0813", variant: "default" }
 const opus = { providerID: "vercel", id: "anthropic/claude-opus-5.5", variant: "default" }
 
 test("events rebuild the history the lifecycle manager settles a run from", () => {
@@ -130,7 +132,7 @@ test("events rebuild the history the lifecycle manager settles a run from", () =
       sessionID: s,
       assistantMessageID: "msg_a1",
       agent: "build",
-      model: sonnet,
+      model: execution,
     }),
     event("session.step.ended", {
       sessionID: s,
@@ -149,7 +151,7 @@ test("events rebuild the history the lifecycle manager settles a run from", () =
     role: "assistant",
     parentID: "msg_u1",
     providerID: "vercel",
-    modelID: "anthropic/claude-sonnet-5.5",
+    modelID: "deepseek/deepseek-v4-pro-0813",
     cost: 0.01,
   })
   expect(out.at(-1)).toEqual({ type: "session.idle", properties: { sessionID: s } })
@@ -160,7 +162,7 @@ test("events rebuild the history the lifecycle manager settles a run from", () =
 
   translate(event("session.execution.started", { sessionID: s }), h)
   translate(
-    event("session.step.started", { sessionID: s, assistantMessageID: "msg_a2", model: sonnet }),
+    event("session.step.started", { sessionID: s, assistantMessageID: "msg_a2", model: execution }),
     h,
   )
   translate(event("session.execution.interrupted", { sessionID: s }), h)
@@ -186,7 +188,7 @@ test("permission waits, compaction usage and skills keep their v1 event shapes",
     translate(event("permission.replied", { sessionID: s, requestID: "per_1" }), h)[0],
   ).toEqual({ type: "permission.replied", properties: { sessionID: s, requestID: "per_1" } })
   const [compaction] = translate(
-    event("session.compaction.ended", { sessionID: s, model: sonnet, cost: 0.2 }),
+    event("session.compaction.ended", { sessionID: s, model: execution, cost: 0.2 }),
     h,
   )
   expect(compaction.properties?.info).toMatchObject({
@@ -314,8 +316,8 @@ test("a tool that fails to import is reported and skipped, the rest still regist
 
 test("bridged hooks route by agent, inject instructions, guard reads and log usage", async () => {
   const sessions: Record<string, V2Session> = {
-    root: { id: "root", model: sonnet },
-    main: { id: "main", agent: "build", model: sonnet },
+    root: { id: "root", model: execution },
+    main: { id: "main", agent: "build", model: execution },
   }
   const fake = host(sessions)
   await observed.setup(fake.api)
@@ -365,7 +367,7 @@ test("bridged hooks route by agent, inject instructions, guard reads and log usa
       sessionID: "root",
       assistantMessageID: "msg_a1",
       agent: "build",
-      model: sonnet,
+      model: execution,
     }),
     event("session.step.ended", {
       sessionID: "root",
@@ -398,7 +400,7 @@ test("enforced lifecycle selects the baseline and settles from bridged events", 
     messageID: "msg_lc",
     prompt: { text: "hi" },
   })
-  expect(sessions.lc.model?.id).toBe(sonnet.id)
+  expect(sessions.lc.model?.id).toBe(execution.id)
   await fake.emit(
     event("session.inbox.delivered", { sessionID: "lc", inboxID: "msg_lc" }),
     event("session.execution.started", { sessionID: "lc" }),
@@ -406,7 +408,7 @@ test("enforced lifecycle selects the baseline and settles from bridged events", 
       sessionID: "lc",
       assistantMessageID: "msg_lca",
       agent: "build",
-      model: sonnet,
+      model: execution,
     }),
     event("session.step.ended", { sessionID: "lc", assistantMessageID: "msg_lca", finish: "stop" }),
     event("session.execution.succeeded", { sessionID: "lc" }),
@@ -443,7 +445,9 @@ test("form waits become question waits correlated to the asking message", () => 
 })
 
 test("lifecycle controls are server commands that edit the next turn's route", async () => {
-  const sessions: Record<string, V2Session> = { ctl: { id: "ctl", agent: "build", model: sonnet } }
+  const sessions: Record<string, V2Session> = {
+    ctl: { id: "ctl", agent: "build", model: execution },
+  }
   const fake = host(sessions)
   await enforced.setup(fake.api)
   const command = (name: string) => {
@@ -467,7 +471,7 @@ test("lifecycle controls are server commands that edit the next turn's route", a
     event("session.step.started", {
       sessionID: "ctl",
       assistantMessageID: "msg_c1a",
-      model: sonnet,
+      model: execution,
     }),
     event("session.step.ended", {
       sessionID: "ctl",

@@ -183,6 +183,38 @@
       "usage_normalization": "OpenCode getUsage subtracts reasoning from output, and bills both at output rate.",
       "assumptions": "Vercel AI Gateway passes through Anthropic list price with no markup (per OpenCode models.dev catalog). Prompts over 100K bill 5x (input 0.5, output 2.5, cache_read 0.05, cache_write 0.625); the fallback estimator cannot express that tier, so reported cost stays authoritative."
     },
+    "vercel/deepseek/deepseek-v4-pro-0813": {
+      "input": 0.66,
+      "output": 1.98,
+      "cache_read": 0.066,
+      "cache_write": 0,
+      "reasoning_billing": "included",
+      "verified": "2026-11-04",
+      "source": "https://vercel.com/ai-gateway/models",
+      "usage_normalization": "Gateway reports reasoning folded into output; no separate cache-write charge (implicit prefix caching).",
+      "assumptions": "OpenCode models.dev catalog price on the gateway. DeepSeek direct and most aggregators list 1.32/3.96 for the 0813 weights; reported cost stays authoritative."
+    },
+    "vercel/deepseek/deepseek-v4-flash-0731": {
+      "input": 0.076,
+      "output": 0.153,
+      "cache_read": 0.014,
+      "cache_write": 0,
+      "reasoning_billing": "included",
+      "verified": "2026-11-04",
+      "source": "https://vercel.com/ai-gateway/models",
+      "usage_normalization": "Gateway reports reasoning folded into output; no separate cache-write charge (implicit prefix caching).",
+      "assumptions": "OpenCode models.dev catalog price for the 0731 weights. Vercel's model page for the floating deepseek-v4-flash ID lists 0.06/0.169; reported cost stays authoritative."
+    },
+    "vercel/deepseek/deepseek-v4-flash": {
+      "input": 0.13,
+      "output": 0.26,
+      "cache_read": 0.028,
+      "cache_write": 0,
+      "reasoning_billing": "included",
+      "verified": "2026-11-04",
+      "source": "https://vercel.com/ai-gateway/models",
+      "assumptions": "Catalog price for the floating ID; not routed by desvio (the dated 0731 ID is)."
+    },
     "vercel/typesafe-ai/jev-1.14.0": {
       "input": 0.042,
       "output": 0,

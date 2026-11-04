@@ -1,7 +1,7 @@
 ---
 description: Multi-agent code review over a pull request — writes full findings to .review-<pr>.md, then posts one consolidated GitHub review
 agent: build
-model: vercel/anthropic/claude-sonnet-5.5
+model: vercel/deepseek/deepseek-v4-pro-0813
 ---
 
 Conduct a multi-agent code review over a pull request, write the full findings to a local
@@ -182,11 +182,11 @@ review wastes money and produces noise findings.
 Record which agents were selected and why (one line each). Report the skipped agents and the reason
 in the final output so the gating is transparent — never silently drop an agent.
 
-The coordinator and routine reviewers use Sonnet; `architect` reviews on Opus. Reviewers never
+The coordinator and `code-reviewer` use V4 Pro; `tester`, `refactorer`, `devops` and `documentor` run on DeepSeek V4 Flash; `architect` reviews on Opus. Reviewers never
 settle an open design, contract, correctness or tradeoff question; they return it in `notes` as
 `DECISION_NEEDED`. Collect those in Step 6 and send each distinct one to `designer` as a
 `DECISION REQUEST` with the evidence; do not restart every reviewer on Opus. User corrections to
-severity, formatting and posting remain on Sonnet. The Step 5a packs are the shared context:
+severity, formatting and posting remain on V4 Pro. The Step 5a packs are the shared context:
 every reviewer gets the same packs with source references and its diff slice, so the same files
 are read once by Haiku instead of once per reviewer.
 
@@ -277,7 +277,7 @@ Once all dispatched agents return (1 to 6 of them):
 4. Resolve `DECISION_NEEDED` notes. Merge duplicates, then dispatch one `designer` task per
    distinct question with a `DECISION REQUEST` (the question, the diff slice, the evidence pack,
    the reviewers' options). Turn its decision into a finding with the designer credited, or drop
-   the finding it invalidates. Never answer such a question on Sonnet.
+   the finding it invalidates. Never answer such a question on V4 Pro.
 5. Sanity-check each surviving finding before you keep it. An agent that could not read a file
    (excluded path, or it said so in `notes`) may have guessed. Verify the quoted `current_code`
    actually appears in the diff or the file; drop or downgrade findings whose quote does not

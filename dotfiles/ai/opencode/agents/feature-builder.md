@@ -1,7 +1,8 @@
 ---
 description: Implements one approved feature component in source or configuration files, using an explicit plan slice and repository evidence
 mode: subagent
-model: vercel/anthropic/claude-sonnet-5.5
+model: vercel/deepseek/deepseek-v4-flash-0731
+variant: medium
 temperature: 0.1
 permission:
   "*": deny

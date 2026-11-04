@@ -1,7 +1,7 @@
 ---
 description: Compile sourced feature context, run specialist analysis, write a reviewable plan, then build after approval
 agent: build
-model: vercel/anthropic/claude-sonnet-5.5
+model: vercel/deepseek/deepseek-v4-pro-0813
 ---
 
 Start a feature workflow for: $ARGUMENTS
@@ -61,7 +61,7 @@ approves the current plan. An earlier approval of an older plan is not approval 
 
 ## 2. Problem analysis
 
-- The coordinator and routine specialists use Sonnet; their evidence is the Haiku packs from
+- The coordinator and `code-reviewer` use V4 Pro, the other specialists DeepSeek V4 Flash; their evidence is the Haiku packs from
   phase 1. Specialist analyses are prospective inputs to the design, not the design: the design
   itself is made by `designer` (Opus) in phase 3. Do not dispatch `architect` here; it reviews
   diffs. A hard correctness/security/debugging question that blocks the analysis goes to
@@ -95,7 +95,7 @@ approves the current plan. An earlier approval of an older plan is not approval 
 
 ## 3. Planning
 
-- **Opus designs; Sonnet does not.** Dispatch exactly one `designer` task with a prompt that
+- **Opus designs; V4 Pro does not.** Dispatch exactly one `designer` task with a prompt that
   starts with `DESIGN REQUEST` and carries: the requested outcome and acceptance criteria, the
   source ledger, the evidence packs verbatim, the synthesized specialist findings, constraints
   and conventions, the user's decisions so far and the open questions. `designer` returns the
@@ -103,7 +103,7 @@ approves the current plan. An earlier approval of an older plan is not approval 
   rollout/rollback), rejected alternatives, ordered build slices, risks and questions. If it
   returns `MISSING_INPUT`, gather the listed items (Haiku for evidence, the user for intent) and
   re-dispatch once. Check its claims against the ledger; carry its questions to the user. Do not
-  redo, extend or replace the design on Sonnet, and do not dispatch a second design pass unless
+  redo, extend or replace the design on V4 Pro, and do not dispatch a second design pass unless
   the input changed.
 - Take the build order from the designer's slices: ordered, independently reviewable
   components, each with inputs, outputs/files, owner, prerequisites, implementation steps,
@@ -144,14 +144,14 @@ approves the current plan. An earlier approval of an older plan is not approval 
   low-confidence answer, dispatch `designer`
   with a `DESIGN DELTA` prompt: the prior design, the feedback, the new evidence and the user's
   new decisions; update the plan from its answer. Feedback about wording, ordering, naming or
-  clarification is applied on Sonnet without a design pass. Recheck the clarity of the
+  clarification is applied on V4 Pro without a design pass. Recheck the clarity of the
   revised work and ask for newly missing context as needed. Repeat until the user
   explicitly approves the **current** plan for Build. Silence is not approval. Resolve blocking
   decisions before Build; keep any accepted assumptions visible.
 
 ## 6. Build
 
-- Remain on Sonnet for approval follow-ups, integration, checks and corrections. Dispatch
+- Remain on V4 Pro for approval follow-ups, integration, checks and corrections. Dispatch
   **every** approved component to `feature-builder` with its slice, the designer's decision for
   it and the relevant evidence pack as its whole context; a fresh context per component is what
   keeps the primary's context small over a day-long build. Implement directly only a correction
@@ -159,7 +159,7 @@ approves the current plan. An earlier approval of an older plan is not approval 
   evidence changes a decision, and then send only that decision and the changed evidence as a
   `DESIGN DELTA`. A `MISSING_PLAN_SLICE` from `feature-builder`, a `DECISION_NEEDED` from a
   reviewer, or a check failure whose cause is not evident goes to `designer` as a
-  `DECISION REQUEST`; Sonnet never settles it by trial.
+  `DECISION REQUEST`; V4 Pro never settles it by trial.
 
 - Follow the approved component order. Dispatch the assigned implementation agent for one
   component at a time, with its exact scope, reference paths when required, and acceptance

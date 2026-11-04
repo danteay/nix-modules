@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "vercel/anthropic/claude-sonnet-5.5",
+  "model": "vercel/deepseek/deepseek-v4-pro-0813",
   "small_model": "vercel/anthropic/claude-haiku-5.5",
   "default_agent": "build",
   "experimental": {
@@ -34,7 +34,7 @@
   "agent": {
     "build": {
       "mode": "primary",
-      "model": "vercel/anthropic/claude-sonnet-5.5",
+      "model": "vercel/deepseek/deepseek-v4-pro-0813",
       "permission": {
         "edit": "allow",
         "bash": {
@@ -71,7 +71,7 @@
     },
     "edit": {
       "mode": "primary",
-      "model": "vercel/anthropic/claude-sonnet-5.5",
+      "model": "vercel/deepseek/deepseek-v4-pro-0813",
       "permission": {
         "edit": "allow",
         "bash": {
@@ -80,8 +80,31 @@
         "pr_reply_comment": "ask"
       }
     },
+    "mechanic": {
+      "description": "Runs the mechanics commands (/fix-pr-comments, /rebase, /check, /investigate, /next-linear-task) on DeepSeek V4 Flash: tool orchestration and small fixes; Jev classifies, designer decides, feature-builder takes substantial slices.",
+      "mode": "primary",
+      "model": "vercel/deepseek/deepseek-v4-flash-0731",
+      "permission": {
+        "edit": "allow",
+        "bash": {
+          "*": "ask",
+          "git status*": "allow",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "go build*": "allow",
+          "go test*": "allow",
+          "go vet*": "allow",
+          "rg *": "ask",
+          "gh pr view*": "allow",
+          "gh pr diff*": "allow",
+          "gh pr list*": "allow",
+          "gh api --paginate*": "allow"
+        },
+        "pr_reply_comment": "ask"
+      }
+    },
     "bulk": {
-      "description": "Run defined bulk operations and utility commands on Haiku; makes no design or correctness decisions (those go to designer through a Sonnet command).",
+      "description": "Run defined bulk operations and utility commands on Haiku; makes no design or correctness decisions (those go to designer through a V4 Pro command).",
       "mode": "primary",
       "model": "vercel/anthropic/claude-haiku-5.5",
       "permission": {
@@ -105,7 +128,7 @@
     },
     "general": {
       "mode": "subagent",
-      "model": "vercel/anthropic/claude-sonnet-5.5"
+      "model": "vercel/deepseek/deepseek-v4-pro-0813"
     },
     "explore": {
       "mode": "subagent",
@@ -129,7 +152,7 @@
       "prompt": "Gather repository context with repo_grep, go_outline and read. Do not use shell, grep or glob. Return concise file:line evidence. Excluded paths must stay with the primary agent."
     },
     "coordinator": {
-      "description": "Interactive form of designer: resolves one bounded design or hard decision on Opus in the designer schema and hands execution back to Sonnet build; never implements",
+      "description": "Interactive form of designer: resolves one bounded design or hard decision on Opus in the designer schema and hands execution back to V4 Pro build; never implements",
       "mode": "primary",
       "model": "vercel/anthropic/claude-opus-5.5",
       "permission": {
@@ -147,7 +170,7 @@
     "linear-planner": {
       "description": "Plans an area's pending work into Linear projects, milestones and issues for one team; grouping on the Opus work-modeler, publication only after explicit approval",
       "mode": "primary",
-      "model": "vercel/anthropic/claude-sonnet-5.5",
+      "model": "vercel/deepseek/deepseek-v4-pro-0813",
       "permission": {
         "edit": {
           "*": "deny",

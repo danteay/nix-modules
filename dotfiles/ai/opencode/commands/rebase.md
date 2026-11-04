@@ -1,11 +1,11 @@
 ---
 description: Fetch a base branch, rebase the current branch onto it, resolve conflicts with evidence, and rerun checks
-agent: build
-model: vercel/anthropic/claude-sonnet-5.5
+agent: mechanic
+model: vercel/deepseek/deepseek-v4-flash-0731
 ---
 
 Rebase the current branch onto an updated base. Conflict resolution needs code understanding,
-so this runs on Sonnet `build`. A conflict whose right resolution is a semantic decision (both
+so this runs on DeepSeek V4 Flash `mechanic`. A conflict whose right resolution is a semantic decision (both
 sides changed the same behaviour or contract) goes to `designer` as one `DECISION REQUEST`;
 mechanical conflicts never need a reasoning model.
 
@@ -49,7 +49,7 @@ labels and read offset/limit. Do not search for markers with `rg` or `git diff`.
   contract, so merging them needs a decision about intent, not a textual merge"). Below 0.5,
   merge it yourself keeping both intents. At ≥ 0.5, when the evidence does not say which intent
   wins, dispatch one `designer` task with a `DECISION REQUEST`: both hunks, the commits
-  that introduced them, and the question. Apply its decision. Do not guess on Sonnet.
+  that introduced them, and the question. Apply its decision. Do not guess here.
 - If a conflict still cannot be resolved (designer returns `MISSING_INPUT` or a question for the
   user), `git rebase --abort`, explain which hunks conflict and why, and stop.
 

@@ -92,7 +92,7 @@ read-only store link). Requires OpenCode 2 (`opencode-v2` formula in `nix-darwin
 - The primary agent uses `go_outline` only for Go, or `repo_grep` for other languages,
   followed by a targeted read for narrow questions. It
   delegates broad file questions to bulk-reader. The Go threshold remains 200 lines.
-- Bulk-role sessions (Haiku) may read large eligible files directly. Other models, including Sonnet feature
+- Bulk-role sessions (Haiku) may read large eligible files directly. Other models, including V4 Pro feature
   builders and Opus reviewers, use the size guard. A targeted read needs a positive integer
   `limit` no larger than the language threshold; `offset` alone does not bypass it. Worker reads/writes
   and outlines check excluded paths, including symlink targets, before offset/limit.
@@ -121,8 +121,9 @@ Claude agents use Anthropic directly. The configured routes are:
 | Explicit bounded reasoning | `coordinator` | `vercel/anthropic/claude-opus-5.5` |
 | Design of a feature or architecture task (`/new-feat`, `/new-arch-task`) | `designer` | `vercel/anthropic/claude-opus-5.5` |
 | Grouping pending work into Linear projects, milestones and issues (`/plan-linear-work`) | `work-modeler` | `vercel/anthropic/claude-opus-5.5` |
-| Defined execution, integration, routine review | `build`, `edit`, `general`, `feature-builder`, `code-reviewer`, `tester`, `refactorer`, `devops`, `documentor` | `vercel/anthropic/claude-sonnet-5.5` |
-| Linear work planning: team resolution, context gathering, draft, publication (`/plan-linear-work`) | `linear-planner` | `vercel/anthropic/claude-sonnet-5.5` |
+| Defined execution, integration, bug/race/security review | `build`, `edit`, `general`, `code-reviewer` | `vercel/deepseek/deepseek-v4-pro-0813` |
+| Bounded execution and mechanics: slice implementation, routine reviews, mechanics commands (`/fix-pr-comments`, `/rebase`, `/check`, `/investigate`, `/next-linear-task`) | `mechanic`, `feature-builder`, `tester`, `refactorer`, `devops`, `documentor` | `vercel/deepseek/deepseek-v4-flash-0731` |
+| Linear work planning: team resolution, context gathering, draft, publication (`/plan-linear-work`) | `linear-planner` | `vercel/deepseek/deepseek-v4-pro-0813` |
 | Hard decisions (`DECISION REQUEST`) and diff review | `designer`, `plan`, `architect` | `vercel/anthropic/claude-opus-5.5` |
 | Context, reference-based boilerplate, prose, utility commands | `bulk`, `explorer`, `explore`, `bulk-reader`, `code-writer`, `doc-writer`, `inventory-reader` | `vercel/anthropic/claude-haiku-5.5` |
 | Typed decisions: classification, triage, gating, scoring (`decide` tool, turn labels) | Jev (not an agent) | `vercel/typesafe-ai/jev-1.14.0` |
@@ -140,18 +141,19 @@ change `models.bulk` in `lib/routing.ts` plus the matching `model:` lines in `op
 long-context tier cannot be expressed by the fallback estimator, so reported cost stays
 authoritative.
 
-The default is Sonnet `build`; `small_model` is Haiku 5.5. Utility commands explicitly choose
+The default is DeepSeek V4 Pro `build` (`vercel/deepseek/deepseek-v4-pro-0813`); `small_model` is Haiku 5.5. Utility commands explicitly choose
 `bulk` (`/new-pr`, `/commit`, `/linear-task`, `/bulk-read`, `/scaffold`, `/outline`, `/usage`);
-feature, architecture-task, PR-review, PR-comment, rebase, check and investigation commands
-choose Sonnet `build` (`/new-feat`, `/new-arch-task`, `/review-pr`, `/fix-pr-comments`,
-`/rebase`, `/check`, `/investigate`). Their design step is a bounded Opus task by
+feature, architecture-task and PR-review commands choose V4 Pro `build` (`/new-feat`,
+`/new-arch-task`, `/review-pr`); the mechanics commands choose the DeepSeek V4 Flash `mechanic`
+primary (`/fix-pr-comments`, `/rebase`, `/check`, `/investigate`, `/next-linear-task`), where
+Jev classifies, `designer` decides and `feature-builder` takes substantial slices. Their design step is a bounded Opus task by
 construction: `/new-feat` and `/new-arch-task` always dispatch `designer` once with the source
 ledger and Haiku evidence packs, and again with a `DESIGN DELTA` when feedback changes the
 design. Every other command sends its thinking to the same agent as a `DECISION REQUEST`
 (`/fix-pr-comments` for a disputed claim, `/investigate` for the root cause, `/check` for a
 failure whose cause is not evident, `/rebase` for a semantic conflict, `/review-pr` for the
 `DECISION_NEEDED` notes its reviewers return); `architect` reviews diffs. Within those command
-runs, edits, formatting and checks stay on Sonnet. The October 2026 audit found git/PR mechanics, approvals and check runs typed as free
+runs, edits, formatting and checks stay on V4 Pro. The October 2026 audit found git/PR mechanics, approvals and check runs typed as free
 text on Opus; the recurring ones now have a command with a fixed cheap model, and the routing
 instructions tell the model to suggest them. After a terminal response, ordinary free text returns to the baseline/pin; use an explicit task continuation to retain
 the prior command route and task identity. `plan` is available for a
@@ -213,7 +215,7 @@ the `linear` MCP, and replies to existing threads go through `pr_reply_comment`.
 TypeSafe AI's decision-only model on the Vercel AI Gateway: it returns a probability, a choice
 with probabilities or a score for each typed question about a supplied `state`, generates no
 text, and bills only input at about $0.042 per million tokens. It cannot run an agent, so desvio
-uses it where a Sonnet agent would otherwise spend prose on classification:
+uses it where a V4 Pro agent would otherwise spend prose on classification:
 
 - The `decide` tool (`tools/decide.ts`, `lib/jev.ts`) is available to primaries and workers.
   `/review-pr` classifies the change buckets, triages prior threads and scores severity and
@@ -250,9 +252,9 @@ shortlist with the current code. It excludes blocked, conflicting and already im
 before ranking impact, downstream work unblocked, readiness, remaining effort and overlap.
 Missing facts that could change the recommendation trigger focused questions.
 
-Sonnet `build` coordinates the read-only analysis; Haiku workers gather reusable evidence packs;
+V4 Pro `build` coordinates the read-only analysis; Haiku workers gather reusable evidence packs;
 Jev scores the sourced candidates. The primary model stays fixed throughout the run. If Jev
-fails, the command reports that and uses the same rubric on Sonnet.
+fails, the command reports that and uses the same rubric on V4 Pro.
 
 Every invocation is recommendation-only: it never implements, edits files, runs builds/tests or
 updates Linear. After refreshing ownership and blockers, it returns exactly three sections:
@@ -268,9 +270,9 @@ apply your profile with `hms` to install it.
 /plan-linear-work <context>
 ```
 
-`/plan-linear-work` runs on the `linear-planner` primary (Sonnet). The team is mandatory: when
+`/plan-linear-work` runs on the `linear-planner` primary (V4 Pro). The team is mandatory: when
 the arguments do not name it, the planner lists the teams and asks which one before reading
-anything else. The Sonnet context is the expensive path, so every gathering and labelling step
+anything else. The V4 Pro context is the expensive path, so every gathering and labelling step
 has a cheaper owner:
 
 - `linear_backlog` (`tools/linear_backlog.ts`, `lib/linear.ts`) reads teams, team context
@@ -287,7 +289,7 @@ has a cheaper owner:
 - `work_triage` (`tools/work_triage.ts`, `lib/work-triage.ts`) labels the ledger on Jev: per
   item, tracked probability and the matching open issue, which existing project it fits or
   `new_project`/`standalone`, and size. It builds and batches the questions itself (32 per
-  call) and can fetch the open identifiers and titles, so Sonnet passes short rows instead of
+  call) and can fetch the open identifiers and titles, so V4 Pro passes short rows instead of
   writing instructions per item. Its cost is logged like `decide` (`metadata.decision`).
 - One `work-modeler` (Opus) dispatch groups the ledger and digests into projects (new or
   reused), milestones for long projects and issues with placement, parents and blockers, and
@@ -317,8 +319,8 @@ It searches and reads official technology documentation when needed, and asks fo
 project-specific context whenever the sources or authorized inference leave the work unclear.
 Those agents use a `FEATURE ANALYSIS` mode and return evidence, risks and questions without
 requiring a diff. The design itself is made by `designer` (Opus) from the ledger, the packs
-and the specialist findings; Sonnet writes `plan-<proj-name>.md` from its answer, iterates on
-feedback (a `DESIGN DELTA` to `designer` when the design changes, Sonnet alone for wording),
+and the specialist findings; V4 Pro writes `plan-<proj-name>.md` from its answer, iterates on
+feedback (a `DESIGN DELTA` to `designer` when the design changes, V4 Pro alone for wording),
 and starts implementation only after explicit approval of the current plan. Build components
 run in plan order with a user review gate after each one. Every approved source or configuration
 slice is dispatched to `feature-builder` with a fresh context (the primary's context stays
@@ -345,12 +347,12 @@ Linear create or update; this command never implements the planned work.
 ## Fixing review comments, committing, rebasing, checking
 
 ```
-/fix-pr-comments [pr]            # Sonnet build: triage threads, verify claimed errors, fix, push, reply
+/fix-pr-comments [pr]            # Flash mechanic: triage threads, verify claimed errors, fix, push, reply
 /commit [context|push]           # Haiku bulk: group the working tree into conventional commits
-/rebase [base-branch]            # Sonnet build: fetch, rebase, resolve conflicts, rerun checks
-/check [command ...]             # Sonnet build: run build/lint/test with real exit codes, fix
+/rebase [base-branch]            # Flash mechanic: fetch, rebase, resolve conflicts, rerun checks
+/check [command ...]             # Flash mechanic: run build/lint/test with real exit codes, fix
 /linear-task <issue> <changes>   # Haiku bulk: update an issue or add subtasks after confirmation
-/investigate <symptom> [svc env window]  # Sonnet build: Datadog + git evidence, ranked hypotheses
+/investigate <symptom> [svc env window]  # Flash mechanic: Datadog + git evidence, ranked hypotheses
 ```
 
 `/fix-pr-comments` uses two custom tools: `pr_unresolved_comments` (GraphQL listing of

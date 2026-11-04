@@ -9,9 +9,9 @@ it is registered in desvio, and the plan contract the pieces share.
 
 | Piece | Path | Role | Model |
 |---|---|---|---|
-| Orchestrator | `agents/linear-planner.md` | primary; resolves the team, reads Linear, keeps the ledger and the draft, validates, publishes | Sonnet (execution) |
+| Orchestrator | `agents/linear-planner.md` | primary; resolves the team, reads Linear, keeps the ledger and the draft, validates, publishes | V4 Pro (execution) |
 | Modeler | `agents/work-modeler.md` | subagent; groups the inventory into projects, milestones and issues; returns the plan JSON | Opus (reasoning) |
-| Entry point | `commands/plan-linear-work.md` | command on `linear-planner` with `$ARGUMENTS` as the entry context | Sonnet |
+| Entry point | `commands/plan-linear-work.md` | command on `linear-planner` with `$ARGUMENTS` as the entry context | V4 Pro |
 | Linear reader | `tools/linear_backlog.ts`, `lib/linear.ts` | compact digests of teams, team context, open issues and shortlisted details from the GraphQL API; read-only | none (deterministic) |
 | Document reader | `agents/inventory-reader.md` | subagent; turns supplied notes and plan files into fixed ledger rows | Haiku (bulk) |
 | Triage | `tools/work_triage.ts`, `lib/work-triage.ts` | per item: tracked (+ matching issue), fits project / new / standalone, size; builds and batches the Jev questions | Jev |
@@ -34,7 +34,7 @@ it is registered in desvio, and the plan contract the pieces share.
 3. **Modeling.** One `work-modeler` dispatch with a `WORK MODEL REQUEST` (ledger, Linear state,
    constraints, decisions). It returns projects (new or reused), milestones for long projects,
    issues with placement, parent and blockers, the plan JSON, rejected groupings and questions.
-   Structural feedback goes back as a `WORK MODEL DELTA`; wording stays on Sonnet.
+   Structural feedback goes back as a `WORK MODEL DELTA`; wording stays on V4 Pro.
 4. **Validation.** `work_plan_check` on the plan JSON plus the `existing` records from the
    planner's reads. Errors are fixed before review; warnings are discussed with the user.
 5. **Draft and review.** `linear-plan-<team-key>-<date>.md` is the only file the planner may
@@ -57,15 +57,15 @@ it is registered in desvio, and the plan contract the pieces share.
 
 ## Token budget
 
-The Sonnet primary pays for every token it reads and writes; the design keeps it on digests,
+The V4 Pro primary pays for every token it reads and writes; the design keeps it on digests,
 rows and decisions:
 
 | Step | Without the tools | With the tools |
 |---|---|---|
 | Open backlog of 150 issues | MCP `list_issues` pages with descriptions, tens of thousands of input tokens, re-read by each paste | `linear_backlog issues`: about 30 tokens per issue, once |
 | Team context | `list_projects` + `list_milestones` per project + `list_issue_statuses` | one `linear_backlog team` digest |
-| Labels for 40 untracked items | three hand-written Jev questions per item at Sonnet output prices, or prose | one `work_triage` call with 40 short rows; Jev input-only pricing, 5 batched requests |
-| Documents | Sonnet full reads through the size guard | `inventory-reader` rows, Haiku |
+| Labels for 40 untracked items | three hand-written Jev questions per item at V4 Pro output prices, or prose | one `work_triage` call with 40 short rows; Jev input-only pricing, 5 batched requests |
+| Documents | V4 Pro full reads through the size guard | `inventory-reader` rows, Haiku |
 | Duplicate check | the primary re-emits every open title as `existing` | `work_plan_check` fetches `existing` itself |
 | Verification after publish | one `get_issue` per record | one `linear_backlog details` call for up to 20 identifiers |
 

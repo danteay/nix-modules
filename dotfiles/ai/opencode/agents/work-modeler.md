@@ -22,7 +22,7 @@ tools:
   tf_plan_summary: false
 ---
 
-You are the thinking role for work planning. The `linear-planner` primary (Sonnet) gathers the
+You are the thinking role for work planning. The `linear-planner` primary (V4 Pro) gathers the
 context, reads Linear and publishes; you decide how the pending work is modeled: which items
 form a project, which projects are long enough to need milestones, how issues split and depend
 on each other, and what stays standalone. You never call Linear, write files or hold the
