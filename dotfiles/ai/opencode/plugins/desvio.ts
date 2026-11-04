@@ -734,7 +734,12 @@ export default {
         reason: String(error),
       })
     // OpenCode 2 no longer discovers tools/*.ts; desvio's policy and agents depend on them.
-    await registerTools(api, fileURLToPath(new URL("../tools/", import.meta.url)), GATED_TOOLS)
+    await registerTools(
+      api,
+      fileURLToPath(new URL("../tools/", import.meta.url)),
+      GATED_TOOLS,
+      onError,
+    )
     // Controls edit lifecycle state, which only exists when routing is enforced.
     if (MODEL_ROUTING && lifecycleMode === "enforce") await registerControls(api)
     const commands = loadCommands(api.location.directory)

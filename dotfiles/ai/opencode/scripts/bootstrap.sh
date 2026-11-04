@@ -24,7 +24,10 @@ mkdir -p "$DST"
 
 # Unlink only managed paths; never write through a link into the Nix store.
 # Preserve unrelated local tools/plugins and the existing node_modules.
-for dir in plugins tools lib scripts tests bin; do
+# Copy dependencies before their importers (lib, then tools, then plugins): the OpenCode
+# service hot-reloads plugins on file changes, and a reload that sees a new tool before its
+# lib/ module deactivates desvio until the service restarts.
+for dir in lib tools plugins scripts tests bin; do
   if [[ -L "$DST/$dir" ]]; then unlink "$DST/$dir"; fi
   mkdir -p "$DST/$dir"
   for file in "$SRC/$dir/"*; do

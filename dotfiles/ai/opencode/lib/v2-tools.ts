@@ -35,15 +35,29 @@ export function inputSchema(args: z.ZodRawShape) {
  * Register v1-style custom tools (tools/*.ts) with OpenCode 2, which no longer discovers them.
  * `gated` names tools whose permission rule must be enforced: OpenCode 2 hides a denied tool
  * but leaves `ask` to the tool itself.
+ *
+ * A tool that fails to import is reported through `onError` and skipped. OpenCode 2 deactivates
+ * a plugin whose setup throws and never retries it, so one broken tool (for example a reload
+ * that lands mid-deploy, before its lib/ import exists) would otherwise remove every tool.
  */
-export async function registerTools(api: V2Api, dir: string, gated: Set<string>) {
+export async function registerTools(
+  api: V2Api,
+  dir: string,
+  gated: Set<string>,
+  onError?: (where: string, error: unknown) => void,
+) {
   const files = (await readdir(dir)).filter((f) => f.endsWith(".ts") && !f.endsWith(".d.ts"))
-  const tools = await Promise.all(
+  const loaded = await Promise.allSettled(
     files.map(async (file) => ({
       name: basename(file, ".ts"),
       def: (await import(join(dir, file))).default as ToolDefinition,
     })),
   )
+  const tools = loaded.flatMap((result, i) => {
+    if (result.status === "fulfilled") return [result.value]
+    onError?.(`tool:${files[i]}`, result.reason)
+    return []
+  })
   await api.tool.transform((registry) => {
     for (const { name, def } of tools) {
       const args = z.object(def.args)

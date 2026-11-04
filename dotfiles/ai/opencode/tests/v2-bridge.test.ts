@@ -292,6 +292,26 @@ test("custom tools register as first-class JSON Schema tools with v1 contexts", 
   ).rejects.toThrow("Permission denied")
 })
 
+test("a tool that fails to import is reported and skipped, the rest still register", async () => {
+  const tools = join(dir, "partial-tools")
+  await mkdir(tools, { recursive: true })
+  await writeFile(
+    join(tools, "good.ts"),
+    'export default { description: "ok", args: {}, execute: async () => "ok" }\n',
+  )
+  // A deploy that copied the tool before its lib/ module exists.
+  await writeFile(
+    join(tools, "broken.ts"),
+    'import { missing } from "../lib/not-there"\nexport default missing\n',
+  )
+  const fake = host({})
+  const errors: string[] = []
+  const names = await registerTools(fake.api, tools, new Set(), (where) => errors.push(where))
+  expect(names).toEqual(["good"])
+  expect(fake.tools.map((t) => t.name)).toEqual(["good"])
+  expect(errors).toEqual(["tool:broken.ts"])
+})
+
 test("bridged hooks route by agent, inject instructions, guard reads and log usage", async () => {
   const sessions: Record<string, V2Session> = {
     root: { id: "root", model: sonnet },
