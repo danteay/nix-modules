@@ -54,14 +54,15 @@ export const routingInstructions =
   "desvio model roles: V4 Pro build is the ordinary baseline and executes defined work. DeepSeek " +
   "V4 Flash (light role) runs feature-builder, the routine reviewers tester, refactorer, devops " +
   "and documentor, and the mechanic primary behind /fix-pr-comments, /rebase, /check, " +
-  "/investigate and /next-linear-task; code-reviewer runs on V4 Pro at high effort. " +
+  "/investigate, /fix-gha and /next-linear-task; code-reviewer runs on V4 Pro at high effort. " +
   "All thinking work goes to Opus designer in one of three shapes: DESIGN REQUEST, DESIGN " +
   "DELTA, DECISION REQUEST (one bounded correctness, security, debugging, contract or tradeoff " +
   "question with evidence). coordinator is the pinned interactive form of the same role " +
   "(/desvio-reason, one message, then back to build) and architect reviews diffs. Completed " +
   "commands and runs return to the configured baseline or pin; this does not switch a running " +
   "loop's model. Recurring mechanics have commands with fixed cheap models: /fix-pr-comments, " +
-  "/commit, /rebase, /check, /new-pr, /linear-task, /investigate; suggest them instead of " +
+  "/commit, /rebase, /check, /new-pr, /linear-task, /investigate, /fix-gha (failed GitHub " +
+  "Actions run from its link); suggest them instead of " +
   "doing that work on a reasoning model. /plan-linear-work (linear-planner) models an area's " +
   "pending work into Linear projects, milestones and issues: linear_backlog reads compact " +
   "digests instead of MCP lists, work_triage labels items on Jev, work-modeler (Opus) decides " +
@@ -75,7 +76,8 @@ export const routingInstructions =
   "repo_grep directly for one narrow lookup, and reserve raw rg (it asks) for excluded paths " +
   "that repo_grep filters out. Prefer defined tools over shell: validate_command for checks, " +
   "merge_conflicts for conflict regions, pr_review_history or pr_unresolved_comments for PR " +
-  "feedback, pr_reply_comment for thread replies, go_outline/go_doc for Go structure and APIs. " +
+  "feedback, pr_reply_comment for thread replies, gha_failure for a failed GitHub Actions " +
+  "run (failed steps, annotations, log excerpt) instead of gh run view --log, go_outline/go_doc for Go structure and APIs. " +
   "code-writer copies explicit reference patterns; doc-writer drafts prose. " +
   "designer (Opus) owns the design step of /new-feat and /new-arch-task: always dispatch it " +
   "once with the ledger, Haiku evidence packs and constraints before writing a plan, and again " +

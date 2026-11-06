@@ -81,7 +81,7 @@
       }
     },
     "mechanic": {
-      "description": "Runs the mechanics commands (/fix-pr-comments, /rebase, /check, /investigate, /next-linear-task) on DeepSeek V4 Flash: tool orchestration and small fixes; Jev classifies, designer decides, feature-builder takes substantial slices.",
+      "description": "Runs the mechanics commands (/fix-pr-comments, /rebase, /check, /investigate, /fix-gha, /next-linear-task) on DeepSeek V4 Flash: tool orchestration and small fixes; Jev classifies, designer decides, feature-builder takes substantial slices.",
       "mode": "primary",
       "model": "vercel/deepseek/deepseek-v4-flash-0731",
       "permission": {
@@ -98,7 +98,13 @@
           "gh pr view*": "allow",
           "gh pr diff*": "allow",
           "gh pr list*": "allow",
-          "gh api --paginate*": "allow"
+          "gh api --paginate*": "allow",
+          "gh run view*": "allow",
+          "gh repo view*": "allow",
+          "git rev-parse*": "allow",
+          "git merge-base*": "allow",
+          "git show*": "allow",
+          "git branch --show-current": "allow"
         },
         "pr_reply_comment": "ask"
       }

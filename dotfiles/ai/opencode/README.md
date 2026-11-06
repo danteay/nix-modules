@@ -122,7 +122,7 @@ Claude agents use Anthropic directly. The configured routes are:
 | Design of a feature or architecture task (`/new-feat`, `/new-arch-task`) | `designer` | `vercel/anthropic/claude-opus-5.5` |
 | Grouping pending work into Linear projects, milestones and issues (`/plan-linear-work`) | `work-modeler` | `vercel/anthropic/claude-opus-5.5` |
 | Defined execution, integration, bug/race/security review | `build`, `edit`, `general`, `code-reviewer` | `vercel/deepseek/deepseek-v4-pro-0813` |
-| Bounded execution and mechanics: slice implementation, routine reviews, mechanics commands (`/fix-pr-comments`, `/rebase`, `/check`, `/investigate`, `/next-linear-task`) | `mechanic`, `feature-builder`, `tester`, `refactorer`, `devops`, `documentor` | `vercel/deepseek/deepseek-v4-flash-0731` |
+| Bounded execution and mechanics: slice implementation, routine reviews, mechanics commands (`/fix-pr-comments`, `/rebase`, `/check`, `/investigate`, `/fix-gha`, `/next-linear-task`) | `mechanic`, `feature-builder`, `tester`, `refactorer`, `devops`, `documentor` | `vercel/deepseek/deepseek-v4-flash-0731` |
 | Linear work planning: team resolution, context gathering, draft, publication (`/plan-linear-work`) | `linear-planner` | `vercel/deepseek/deepseek-v4-pro-0813` |
 | Hard decisions (`DECISION REQUEST`) and diff review | `designer`, `plan`, `architect` | `vercel/anthropic/claude-opus-5.5` |
 | Context, reference-based boilerplate, prose, utility commands | `bulk`, `explorer`, `explore`, `bulk-reader`, `code-writer`, `doc-writer`, `inventory-reader` | `vercel/anthropic/claude-haiku-5.5` |
@@ -145,7 +145,7 @@ The default is DeepSeek V4 Pro `build` (`vercel/deepseek/deepseek-v4-pro-0813`);
 `bulk` (`/new-pr`, `/commit`, `/linear-task`, `/bulk-read`, `/scaffold`, `/outline`, `/usage`);
 feature, architecture-task and PR-review commands choose V4 Pro `build` (`/new-feat`,
 `/new-arch-task`, `/review-pr`); the mechanics commands choose the DeepSeek V4 Flash `mechanic`
-primary (`/fix-pr-comments`, `/rebase`, `/check`, `/investigate`, `/next-linear-task`), where
+primary (`/fix-pr-comments`, `/rebase`, `/check`, `/investigate`, `/fix-gha`, `/next-linear-task`), where
 Jev classifies, `designer` decides and `feature-builder` takes substantial slices. Their design step is a bounded Opus task by
 construction: `/new-feat` and `/new-arch-task` always dispatch `designer` once with the source
 ledger and Haiku evidence packs, and again with a `DESIGN DELTA` when feedback changes the
@@ -344,7 +344,7 @@ review checkpoints, and exact Linear task draft. When asked to reconcile current
 shows field-by-field proposed Linear changes. The user reviews the current draft before any
 Linear create or update; this command never implements the planned work.
 
-## Fixing review comments, committing, rebasing, checking
+## Fixing review comments and CI, committing, rebasing, checking
 
 ```
 /fix-pr-comments [pr]            # Flash mechanic: triage threads, verify claimed errors, fix, push, reply
@@ -353,6 +353,7 @@ Linear create or update; this command never implements the planned work.
 /check [command ...]             # Flash mechanic: run build/lint/test with real exit codes, fix
 /linear-task <issue> <changes>   # Haiku bulk: update an issue or add subtasks after confirmation
 /investigate <symptom> [svc env window]  # Flash mechanic: Datadog + git evidence, ranked hypotheses
+/fix-gha <actions-url> [context]  # Flash mechanic: failed GitHub Actions run → verified root cause → fix after approval
 ```
 
 `/fix-pr-comments` uses two custom tools: `pr_unresolved_comments` (GraphQL listing of
@@ -365,6 +366,20 @@ sends each unclear correctness/security claim to `designer` as a `DECISION REQUE
 structural change request as a `DESIGN DELTA`. `/commit` and
 `/linear-task` confirm their plan before writing. `/rebase` and `/commit` push only when asked.
 `/investigate` never applies remediation.
+
+`/fix-gha` takes a run, attempt, job or check-run link and calls `gha_failure` (`lib/gha.ts`):
+run metadata (workflow file, event, head SHA/branch, PRs), each failed job with its failed
+steps and check annotations, and a line-numbered log excerpt around the error markers
+(timestamps and terminal escapes stripped, first and last error regions kept within a
+220-line budget; a run that failed before creating jobs is reported as a workflow-level
+failure). The command checks that the checkout matches the run's commit without switching
+branches, classifies each job on Jev (`test`/`build`/`lint`/`dependency`/`workflow`/`infra`/
+`permissions`, plus `code_fix` and `flaky`), verifies the cause in the code and reproduces it
+with `validate_command` where it can run locally, and sends an open root cause to `designer`
+as one `DECISION REQUEST`. It then proposes the fix and asks once whether to implement,
+implement and commit, implement/commit/push, rerun failed jobs (`gh run rerun --failed`, still
+`ask`) or stop; nothing is edited before that answer. Log text is treated as untrusted
+evidence. `gha_failure` is a non-read tool, so workers cannot call it.
 
 ## Creating a pull request
 
