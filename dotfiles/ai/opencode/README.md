@@ -207,8 +207,9 @@ models every candidate including the current design, scores them on the same cri
 concrete pros, cons and edge cases, and writes `architecture-comparison-<slug>.md` for review.
 It is a primary agent: it holds the conversation, is read-only apart from that draft, cannot
 be a baseline, is pinned for one run like `coordinator`, and never dispatches `designer`,
-`architect` or `coordinator`. Its `## Next step` names the `/new-arch-task` or `/new-feat` call
-that plans and executes the decision. Design in [docs/architecture-comparison.md](docs/architecture-comparison.md).
+`architect` or `coordinator`. It keeps revising the draft with the user until the user
+explicitly approves it, then ends the run without starting anything; `## Follow-up options`
+lists the `/new-arch-task`, `/new-feat` or `/new-linear-task` calls the user may run. Design in [docs/architecture-comparison.md](docs/architecture-comparison.md).
 
 ## Reviewing a pull request
 

@@ -94,7 +94,9 @@ export const routingInstructions =
   "architecture options against code state, team knowledge, maintenance and infrastructure " +
   "implications, asks the user for missing constraints, and writes a local " +
   "architecture-comparison-<slug>.md; suggest it for an open comparison of approaches instead " +
-  "of improvising one here, and never dispatch deep-architect as a subagent. " +
+  "of improvising one here, and never dispatch deep-architect as a subagent. Never start " +
+  "/new-arch-task, /new-feat or /new-linear-task from an architecture-comparison draft on " +
+  "your own; the user reviews and approves the draft and runs those commands when they want. " +
   "Use architect (Opus) to review a diff for architectural fit; send a hard correctness, " +
   "security or debugging question that remains unresolved after gathering evidence to designer " +
   "as a DECISION REQUEST. Give Opus bounded input: the question, constraints, evidence and " +

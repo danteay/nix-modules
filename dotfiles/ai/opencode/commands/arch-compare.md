@@ -20,11 +20,14 @@ sources through the MCPs and Haiku workers, one question per task), Candidates (
 model per approach), Comparison (same criteria for every candidate; concrete pros, cons and
 edge cases; implications per candidate), Recommendation (one approach when the evidence
 supports it, otherwise the blocked state and the question that unblocks it), Draft and review
-(`architecture-comparison-<slug>.md`, feedback with the `question` tool).
+(`architecture-comparison-<slug>.md`, feedback rounds with the `question` tool until the user
+explicitly approves).
 
 This command authorizes read-only investigation and the local draft. It never implements,
-runs checks, or writes to Linear, Lucid or application code; the draft's `## Next step` names
-the `/new-arch-task` or `/new-feat` invocation that carries the decision forward.
+runs checks, or writes to Linear, Lucid or application code, and it never starts or offers to
+start `/new-arch-task`, `/new-feat`, `/new-linear-task` or any other follow-up command, before
+or after approval. The draft's `## Follow-up options` only lists them for the user, who decides
+whether to run them.
 
 For later feedback rounds on the same comparison, keep `deep-architect` selected as the agent
 (or use `/desvio-continue`) so the conversation stays on this role instead of returning to

@@ -42,7 +42,11 @@ contains.
    confidence, assumptions and the conditions that would flip it; otherwise the blocked state
    and the question or measurement that resolves it.
 6. **Draft and review.** `architecture-comparison-<slug>.md` is the only file the agent may
-   write. Feedback rounds update only what changed and keep the change log.
+   write. Feedback rounds update only what changed and keep the change log, and continue until
+   the user explicitly approves. On approval the agent marks the draft approved and ends the
+   run; it never starts or offers to start a follow-up command. `## Follow-up options` lists
+   `/new-arch-task`, `/new-feat` or `/new-linear-task` for the user's reference, and the user
+   decides whether to run them.
 
 ## Why a primary agent on the deep role
 
@@ -58,8 +62,10 @@ contains.
   every broad read or label question goes to a cheap model, and the primary spends its tokens
   on the comparison.
 - **Read-only by construction.** `edit` is denied except `*architecture-comparison-*.md`,
-  `bash` is denied except `git status|diff|log|branch`, `rg` asks. The comparison is handed to
-  `/new-arch-task` or `/new-feat` for planning and execution.
+  `bash` is denied except `git status|diff|log|branch`, `rg` asks. Planning and execution
+  stay with the user: the agent never chains into `/new-arch-task`, `/new-feat` or
+  `/new-linear-task`, and the routing instructions tell `build` not to act on a draft's
+  follow-up options unless the user runs the command.
 
 ## Registration in desvio
 
