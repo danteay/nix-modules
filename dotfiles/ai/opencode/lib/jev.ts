@@ -248,6 +248,7 @@ export const mechanicsCommands = [
   "check",
   "new-pr",
   "linear-task",
+  "new-linear-task",
   "investigate",
   "fix-gha",
   "plan-linear-work",
@@ -291,7 +292,10 @@ export const turnQuestions: Questions = {
       rebase: "Rebase onto a base branch or resolve rebase or merge conflicts",
       check: "Run or fix build, lint or test checks",
       "new-pr": "Open or create a pull request",
-      "linear-task": "Create or update a Linear issue, task, subtasks or ticket fields",
+      "linear-task":
+        "Update an existing Linear issue: change fields, add subtasks, set state or labels",
+      "new-linear-task":
+        "Create a new Linear task and file it under a team, project or milestone with theme and DORA labels",
       investigate:
         "Investigate a production symptom, incident or error with logs, metrics or Datadog",
       "fix-gha":

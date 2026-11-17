@@ -142,7 +142,7 @@ long-context tier cannot be expressed by the fallback estimator, so reported cos
 authoritative.
 
 The default is DeepSeek V4 Pro `build` (`vercel/deepseek/deepseek-v4-pro-0813`); `small_model` is Haiku 5.5. Utility commands explicitly choose
-`bulk` (`/new-pr`, `/commit`, `/linear-task`, `/bulk-read`, `/scaffold`, `/outline`, `/usage`);
+`bulk` (`/new-pr`, `/commit`, `/linear-task`, `/new-linear-task`, `/bulk-read`, `/scaffold`, `/outline`, `/usage`);
 feature, architecture-task and PR-review commands choose V4 Pro `build` (`/new-feat`,
 `/new-arch-task`, `/review-pr`); the mechanics commands choose the DeepSeek V4 Flash `mechanic`
 primary (`/fix-pr-comments`, `/rebase`, `/check`, `/investigate`, `/fix-gha`, `/next-linear-task`), where
@@ -263,6 +263,31 @@ their dependency relationships and remaining prerequisites; selecting an issue d
 it. Implementation is a separate workflow. Home Manager discovers the command from `commands/`;
 apply your profile with `hms` to install it.
 
+## Creating a single Linear task
+
+```text
+/new-linear-task <description> [team <name|key>]
+```
+
+`/new-linear-task` creates and registers one new task on Haiku `bulk`. It reads the team context
+and open-issue digest through `linear_backlog`, then delegates every judgment that is not in the
+user's words to Jev `decide`: which open project the task belongs to (and which milestone, when
+that project has them), which `theme:<name>` label is active, and which of the five DORA
+software-delivery labels the task feeds. It proposes a field-by-field draft and creates anything
+only after a single `question` confirmation.
+
+The five DORA labels are the 2024 framework's five metrics and are created once, workspace-wide,
+the first time they are missing:
+
+`dora:deployment-frequency`, `dora:lead-time-for-changes`, `dora:change-failure-rate`,
+`dora:failed-deployment-recovery-time`, `dora:deployment-rework-rate`.
+
+Theme labels are team-scoped. When none of the existing `theme:*` labels (or the dominant labels
+of recent in-progress issues) fit, the command proposes a new `theme:<slug>` and creates it before
+the issue. It never invents a project, milestone, priority, estimate or assignee, never edits
+existing issues (that is `/linear-task`), and never plans a whole area (`/plan-linear-work`).
+Writes go through the `linear` MCP (`save_issue_label`, `save_issue`).
+
 ## Planning area work into Linear
 
 ```text
@@ -352,6 +377,7 @@ Linear create or update; this command never implements the planned work.
 /rebase [base-branch]            # Flash mechanic: fetch, rebase, resolve conflicts, rerun checks
 /check [command ...]             # Flash mechanic: run build/lint/test with real exit codes, fix
 /linear-task <issue> <changes>   # Haiku bulk: update an issue or add subtasks after confirmation
+/new-linear-task <description> [team <name|key>]  # Haiku bulk: create one issue in a team, infer project/milestone/theme + DORA labels
 /investigate <symptom> [svc env window]  # Flash mechanic: Datadog + git evidence, ranked hypotheses
 /fix-gha <actions-url> [context]  # Flash mechanic: failed GitHub Actions run → verified root cause → fix after approval
 ```

@@ -39,7 +39,8 @@ What you do not do:
 
 - No implementation, formatting, commit, push, PR, test run or Linear/Datadog bookkeeping.
   Those belong to `build`, `/fix-pr-comments`, `/commit`, `/rebase`, `/check`, `/new-pr`,
-  `/linear-task`. If the user asks for them here, give the plan and say which command runs it.
+  `/new-linear-task`, `/linear-task`. If the user asks for them here, give the plan and say which
+  command runs it.
 - No extended loops. If a task needs many steps, you may delegate one approved slice to
   `feature-builder` (V4 Pro); otherwise return the checklist and stop. Do not continue
   executing on this model.
