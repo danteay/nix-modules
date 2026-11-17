@@ -3,7 +3,7 @@ import { join } from "node:path"
 import { resolveBaseline } from "./config"
 import { type PinScope, POLICY_VERSION, routeFor } from "./lifecycle"
 import { defaultLogDir } from "./paths"
-import { agentRoles } from "./routing"
+import { agentRoles, isReasoningTier } from "./routing"
 import { StateStore } from "./state"
 
 export const controlActions = [
@@ -16,11 +16,18 @@ export const controlActions = [
   "accept",
 ] as const
 export type ControlAction = (typeof controlActions)[number]
-export const pinnableAgents = ["coordinator", "build", "edit", "bulk", "plan"] as const
+export const pinnableAgents = [
+  "coordinator",
+  "build",
+  "edit",
+  "bulk",
+  "plan",
+  "deep-architect",
+] as const
 
 /** Reasoning pins expire after one run unless explicitly sticky; cheaper pins stay. */
 export function defaultPinScope(agent: string): PinScope {
-  return agentRoles[agent] === "reasoning" ? "once" : "sticky"
+  return isReasoningTier(agentRoles[agent]) ? "once" : "sticky"
 }
 
 /** User controls only: never expose acceptance as a model tool. */

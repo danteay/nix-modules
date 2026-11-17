@@ -1,6 +1,8 @@
 /** Roles are explicit: routing never guesses task difficulty from prompt keywords. */
 export const models = {
   reasoning: "vercel/anthropic/claude-opus-5.5",
+  /** Deep architecture comparison (`/arch-compare`): Fable 5.2 through the gateway, $8/$40 per MTok. */
+  deep: "vercel/anthropic/claude-fable-5.2",
   /** Ordinary execution and orchestration: DeepSeek V4 Pro (dated weights) through the gateway. */
   execution: "vercel/deepseek/deepseek-v4-pro-0813",
   /** Bounded execution and mechanics: DeepSeek V4 Flash (dated weights) through the gateway. */
@@ -25,6 +27,7 @@ export const agentRoles: Record<string, ModelRole> = {
   architect: "reasoning",
   designer: "reasoning",
   "work-modeler": "reasoning",
+  "deep-architect": "deep",
   "linear-planner": "execution",
   bulk: "bulk",
   explore: "bulk",
@@ -35,6 +38,10 @@ export const agentRoles: Record<string, ModelRole> = {
   "inventory-reader": "bulk",
 }
 
+/** Roles billed at reasoning-tier prices or above: rejected as baseline, pinned for one run. */
+export const isReasoningTier = (role: ModelRole | string | undefined): boolean =>
+  role === "reasoning" || role === "deep"
+
 export function modelForAgent(agent: string | null | undefined): string | undefined {
   const role = agent ? agentRoles[agent] : undefined
   return role ? models[role] : undefined
@@ -43,6 +50,7 @@ export function modelForAgent(agent: string | null | undefined): string | undefi
 export function modelRole(model: string): ModelRole | "decision" | "other" {
   // Include historical versions in descriptive reports, without inventing prices.
   if (/\/typesafe-ai\/jev/.test(model)) return "decision"
+  if (/\/claude-fable-|\/claude-mythos-/.test(model)) return "deep"
   if (/\/claude-opus-/.test(model)) return "reasoning"
   if (/\/claude-sonnet-|\/deepseek-v4-pro/.test(model)) return "execution"
   if (/\/deepseek-/.test(model)) return "light"
@@ -61,7 +69,7 @@ export const routingInstructions =
   "(/desvio-reason, one message, then back to build) and architect reviews diffs. Completed " +
   "commands and runs return to the configured baseline or pin; this does not switch a running " +
   "loop's model. Recurring mechanics have commands with fixed cheap models: /fix-pr-comments, " +
-  "/commit, /rebase, /check, /new-pr, /linear-task, /investigate, /fix-gha (failed GitHub " +
+  "/commit, /rebase, /check, /new-pr, /linear-task, /new-linear-task, /investigate, /fix-gha (failed GitHub " +
   "Actions run from its link); suggest them instead of " +
   "doing that work on a reasoning model. /plan-linear-work (linear-planner) models an area's " +
   "pending work into Linear projects, milestones and issues: linear_backlog reads compact " +
@@ -82,6 +90,11 @@ export const routingInstructions =
   "designer (Opus) owns the design step of /new-feat and /new-arch-task: always dispatch it " +
   "once with the ledger, Haiku evidence packs and constraints before writing a plan, and again " +
   "with a DESIGN DELTA when feedback changes the design; wording-only feedback stays on V4 Pro. " +
+  "/arch-compare (deep-architect, Fable 5.2) is the only route to the deep role: it compares " +
+  "architecture options against code state, team knowledge, maintenance and infrastructure " +
+  "implications, asks the user for missing constraints, and writes a local " +
+  "architecture-comparison-<slug>.md; suggest it for an open comparison of approaches instead " +
+  "of improvising one here, and never dispatch deep-architect as a subagent. " +
   "Use architect (Opus) to review a diff for architectural fit; send a hard correctness, " +
   "security or debugging question that remains unresolved after gathering evidence to designer " +
   "as a DECISION REQUEST. Give Opus bounded input: the question, constraints, evidence and " +

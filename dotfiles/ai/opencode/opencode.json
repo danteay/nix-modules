@@ -190,6 +190,26 @@
         },
         "pr_reply_comment": "deny"
       }
+    },
+    "deep-architect": {
+      "description": "Deep architecture comparison on Fable 5.2 (/arch-compare): compares candidate approaches on pros, cons, edge cases and the code, team, maintenance and infrastructure implications, asks the user for missing constraints, writes architecture-comparison-<slug>.md; never implements",
+      "mode": "primary",
+      "model": "vercel/anthropic/claude-fable-5.2",
+      "permission": {
+        "edit": {
+          "*": "deny",
+          "*architecture-comparison-*.md": "allow"
+        },
+        "bash": {
+          "*": "deny",
+          "git status*": "allow",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "git branch*": "allow",
+          "rg *": "ask"
+        },
+        "pr_reply_comment": "deny"
+      }
     }
   },
   "compaction": {

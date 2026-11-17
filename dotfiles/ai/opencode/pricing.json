@@ -150,6 +150,17 @@
       "usage_normalization": "OpenCode getUsage subtracts reasoning from output, and bills both at output rate.",
       "assumptions": "Zen pay-as-you-go list price; prompts up to 100K tokens. Prompts over 100K bill 5x (input 0.5, output 2.5, cache_read 0.05, cache_write 0.625); the fallback estimator cannot express that tier, so reported cost stays authoritative."
     },
+    "vercel/anthropic/claude-fable-5.2": {
+      "input": 8,
+      "output": 40,
+      "cache_read": 0.2,
+      "cache_write": 10,
+      "reasoning_billing": "separate",
+      "verified": "2026-11-17",
+      "source": "https://vercel.com/ai-gateway/models/claude-fable-5.2",
+      "usage_normalization": "OpenCode getUsage subtracts reasoning from output, and bills both at output rate.",
+      "assumptions": "Vercel lists $8/$40 input/output; cache rates are Anthropic list price for Fable 5.2 (5m cache writes $10, cache hits $0.20), assuming the gateway passes them through without markup."
+    },
     "vercel/anthropic/claude-opus-5.5": {
       "input": 4,
       "output": 20,

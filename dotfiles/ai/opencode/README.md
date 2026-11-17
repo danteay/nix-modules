@@ -125,6 +125,7 @@ Claude agents use Anthropic directly. The configured routes are:
 | Bounded execution and mechanics: slice implementation, routine reviews, mechanics commands (`/fix-pr-comments`, `/rebase`, `/check`, `/investigate`, `/fix-gha`, `/next-linear-task`) | `mechanic`, `feature-builder`, `tester`, `refactorer`, `devops`, `documentor` | `vercel/deepseek/deepseek-v4-flash-0731` |
 | Linear work planning: team resolution, context gathering, draft, publication (`/plan-linear-work`) | `linear-planner` | `vercel/deepseek/deepseek-v4-pro-0813` |
 | Hard decisions (`DECISION REQUEST`) and diff review | `designer`, `plan`, `architect` | `vercel/anthropic/claude-opus-5.5` |
+| Deep architecture comparison: pros, cons, edge cases, code/team/maintenance/infrastructure implications (`/arch-compare`) | `deep-architect` | `vercel/anthropic/claude-fable-5.2` |
 | Context, reference-based boilerplate, prose, utility commands | `bulk`, `explorer`, `explore`, `bulk-reader`, `code-writer`, `doc-writer`, `inventory-reader` | `vercel/anthropic/claude-haiku-5.5` |
 | Typed decisions: classification, triage, gating, scoring (`decide` tool, turn labels) | Jev (not an agent) | `vercel/typesafe-ai/jev-1.14.0` |
 
@@ -144,7 +145,9 @@ authoritative.
 The default is DeepSeek V4 Pro `build` (`vercel/deepseek/deepseek-v4-pro-0813`); `small_model` is Haiku 5.5. Utility commands explicitly choose
 `bulk` (`/new-pr`, `/commit`, `/linear-task`, `/new-linear-task`, `/bulk-read`, `/scaffold`, `/outline`, `/usage`);
 feature, architecture-task and PR-review commands choose V4 Pro `build` (`/new-feat`,
-`/new-arch-task`, `/review-pr`); the mechanics commands choose the DeepSeek V4 Flash `mechanic`
+`/new-arch-task`, `/review-pr`); `/arch-compare` chooses the Fable 5.2 `deep-architect` primary (the
+only route to the `deep` role; see [docs/architecture-comparison.md](docs/architecture-comparison.md));
+the mechanics commands choose the DeepSeek V4 Flash `mechanic`
 primary (`/fix-pr-comments`, `/rebase`, `/check`, `/investigate`, `/fix-gha`, `/next-linear-task`), where
 Jev classifies, `designer` decides and `feature-builder` takes substantial slices. Their design step is a bounded Opus task by
 construction: `/new-feat` and `/new-arch-task` always dispatch `designer` once with the source
@@ -189,6 +192,23 @@ carrying `current_code`, `suggested_change` and `assumptions[]`. The primary age
 fields to write the review file without re-reading large files through the size guard.
 
 `documentor` reviews documentation impact; `doc-writer` writes the docs. Do not confuse them.
+
+## Comparing architecture options
+
+```
+/arch-compare <decision> [candidates] [sources]
+```
+
+`deep-architect` (Fable 5.2, `vercel/anthropic/claude-fable-5.2`, $8/$40 per MTok, verified on
+the Vercel gateway on November 17, 2026) frames the decision, asks with the `question` tool for
+the constraints the prompt leaves open (behavior, code state, team knowledge, maintenance and
+infrastructure context, missing assets), gathers evidence through the MCPs and Haiku workers,
+models every candidate including the current design, scores them on the same criteria with
+concrete pros, cons and edge cases, and writes `architecture-comparison-<slug>.md` for review.
+It is a primary agent: it holds the conversation, is read-only apart from that draft, cannot
+be a baseline, is pinned for one run like `coordinator`, and never dispatches `designer`,
+`architect` or `coordinator`. Its `## Next step` names the `/new-arch-task` or `/new-feat` call
+that plans and executes the decision. Design in [docs/architecture-comparison.md](docs/architecture-comparison.md).
 
 ## Reviewing a pull request
 

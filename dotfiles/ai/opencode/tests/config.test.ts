@@ -4,8 +4,10 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { cheapClasses, classifyPrompt, preview } from "../lib/classify"
 import { configPath, resolveBaseline } from "../lib/config"
+import { defaultPinScope } from "../lib/control"
 import { describeProcessCheck, inspectProcesses } from "../lib/doctor"
-import { routeFor } from "../lib/lifecycle"
+import { primaryAgents, roleCost, routeFor } from "../lib/lifecycle"
+import { agentRoles, isReasoningTier, modelForAgent, modelRole } from "../lib/routing"
 
 function tmp() {
   const dir = mkdtempSync(join(tmpdir(), "desvio-config-"))
@@ -144,6 +146,37 @@ test("process check parses macOS/Linux ps output and flags stale environments", 
     expect(lines[1]).toContain("STALE")
     expect(lines[2]).toContain("env unset")
     expect(await inspectProcesses(async () => ({ exitCode: 1, stdout: "" }))).toEqual([])
+  } finally {
+    t.done()
+  }
+})
+
+test("deep-architect is reasoning-tier: Fable role, rejected baseline, one-run pin", () => {
+  expect(agentRoles["deep-architect"]).toBe("deep")
+  expect(modelForAgent("deep-architect")).toBe("vercel/anthropic/claude-fable-5.2")
+  expect(modelRole("vercel/anthropic/claude-fable-5.2")).toBe("deep")
+  expect(modelRole("anthropic/claude-mythos-5.2")).toBe("deep")
+  expect(modelRole("vercel/anthropic/claude-opus-5.5")).toBe("reasoning")
+  expect(isReasoningTier("deep")).toBe(true)
+  expect(isReasoningTier("reasoning")).toBe(true)
+  expect(isReasoningTier("execution")).toBe(false)
+  expect(defaultPinScope("deep-architect")).toBe("once")
+  expect(primaryAgents.has("deep-architect")).toBe(true)
+  expect(roleCost("deep-architect")).toBeGreaterThan(roleCost("coordinator"))
+  const t = tmp()
+  try {
+    const env = { DESVIO_CONFIG: t.path }
+    writeFileSync(t.path, JSON.stringify({ baseline: "deep-architect" }))
+    let r = resolveBaseline(env)
+    expect(r.route).toEqual(routeFor("build"))
+    expect(r.rejected?.agent).toBe("deep-architect")
+    writeFileSync(
+      t.path,
+      JSON.stringify({ baseline: "deep-architect", allow_reasoning_baseline: true }),
+    )
+    r = resolveBaseline(env)
+    expect(r.route).toEqual(routeFor("deep-architect"))
+    expect(r.route.modelID).toBe("anthropic/claude-fable-5.2")
   } finally {
     t.done()
   }

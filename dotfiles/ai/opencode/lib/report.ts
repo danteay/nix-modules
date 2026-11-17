@@ -1,7 +1,7 @@
 import { cheapClasses, type PromptClass } from "./classify"
 import type { LogRecord } from "./log-types"
 import { reportQuality } from "./report-quality"
-import { agentRoles, modelRole } from "./routing"
+import { agentRoles, isReasoningTier, modelRole } from "./routing"
 
 type Rec = LogRecord
 /** One `pricing.json` entry (USD per million tokens). */
@@ -310,7 +310,7 @@ function aggregate(
         for (const path of paths) delegated.set(`${session}:${path}`, `${session}:${r.callID}`)
       }
     }
-    if (r.kind === "delegation" && r.subagent_type && agentRoles[r.subagent_type] === "reasoning")
+    if (r.kind === "delegation" && r.subagent_type && isReasoningTier(agentRoles[r.subagent_type]))
       w.reasoning_delegations++
     if (r.kind === "worker_denied")
       denialReasons[r.reason ?? "unknown"] = (denialReasons[r.reason ?? "unknown"] ?? 0) + 1
@@ -491,7 +491,7 @@ function turnsView(modern: Rec[], parents: Map<string, string>): Turn[] {
       calls++
       const c = measured(m.cost) ? m.cost : 0
       cost += c
-      if (modelRole(`${m.providerID}/${m.modelID}`) === "reasoning") {
+      if (isReasoningTier(modelRole(`${m.providerID}/${m.modelID}`))) {
         reasoning += c
         reasoningCalls++
       }
@@ -525,7 +525,7 @@ function turnsView(modern: Rec[], parents: Map<string, string>): Turn[] {
       reasoning_cost: reasoning,
       reasoning_calls: reasoningCalls,
       max_context: maxContext,
-      cheap_on_reasoning: role === "reasoning" && cls != null && cheapClasses.has(cls),
+      cheap_on_reasoning: isReasoningTier(role) && cls != null && cheapClasses.has(cls),
       design_without_reasoning:
         cls != null && reasoningClasses.has(cls) && reasoningCalls === 0 && calls > 0,
     }
@@ -581,7 +581,7 @@ function buildReport(
     (r) =>
       modeOf(r) === "enforce" &&
       r.source === "baseline" &&
-      modelRole(`${r.selected_route?.providerID}/${r.selected_route?.modelID}`) === "reasoning",
+      isReasoningTier(modelRole(`${r.selected_route?.providerID}/${r.selected_route?.modelID}`)),
   ).length
   const proposals = new Map(
     records

@@ -69,8 +69,15 @@ export const primaryAgents = new Set([
   "coordinator",
   "plan",
   "linear-planner",
+  "deep-architect",
 ])
-const roleRank: Record<ModelRole, number> = { bulk: 0, light: 1, execution: 2, reasoning: 3 }
+const roleRank: Record<ModelRole, number> = {
+  bulk: 0,
+  light: 1,
+  execution: 2,
+  reasoning: 3,
+  deep: 4,
+}
 export const roleCost = (agent: string) => roleRank[agentRoles[agent] ?? "execution"] ?? 1
 
 /**

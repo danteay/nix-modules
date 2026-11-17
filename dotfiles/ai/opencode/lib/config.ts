@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { type Route, routeFor } from "./lifecycle"
-import { agentRoles } from "./routing"
+import { agentRoles, isReasoningTier } from "./routing"
 
 /**
  * Baseline configuration, resolved on every incoming turn rather than once at plugin load.
@@ -18,7 +18,7 @@ import { agentRoles } from "./routing"
  *   2. `DESVIO_BASELINE_AGENT` — kept for isolated smoke/benchmark runs without a file
  *   3. `build`
  *
- * A reasoning-model baseline (coordinator, plan) is rejected unless the file sets
+ * A reasoning-tier baseline (coordinator, plan, deep-architect) is rejected unless the file sets
  * `allow_reasoning_baseline: true` or `DESVIO_ALLOW_REASONING_BASELINE=1`, because every
  * ordinary free-text turn goes to the baseline and Opus is reserved for bounded decisions.
  */
@@ -86,7 +86,7 @@ export function resolveBaseline(env: NodeJS.ProcessEnv = process.env): BaselineR
   }
   const allowReasoning =
     config.allow_reasoning_baseline === true || env.DESVIO_ALLOW_REASONING_BASELINE === "1"
-  if (agentRoles[agent] === "reasoning" && !allowReasoning) {
+  if (isReasoningTier(agentRoles[agent]) && !allowReasoning) {
     resolution.rejected = { agent, source }
     return resolution
   }
