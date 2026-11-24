@@ -16,7 +16,11 @@
 
   nixpkgs.hostPlatform = "aarch64-darwin";
 
-  nix.settings.trusted-users = [ "root" "danteay" ];
+  # Let Determinate Nix manage the Nix installation instead of nix-darwin, which
+  # otherwise conflicts with Determinate's own daemon. This also disables the
+  # nix-darwin `nix.*` options (e.g. `nix.settings`), so Nix config belongs in
+  # Determinate's /etc/nix/nix.conf (+ nix.custom.conf).
+  nix.enable = false;
 
   homebrew = {
     enable = true;
