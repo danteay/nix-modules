@@ -34,7 +34,7 @@
     , ...
   }:
     let
-      system = builtins.currentSystem;
+      system = "aarch64-darwin";
 
       pkgs = nixpkgs.legacyPackages.${system}.extend (final: prev: {
         # go = unstable-pkgs.legacyPackages.${system}.go;

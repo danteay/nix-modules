@@ -14,7 +14,11 @@
         profile=$(whoami)
       fi
 
-      home-manager switch -b backup --impure --flake $HOME_MANAGER_HOME#$profile
+      nix --extra-experimental-features "nix-command flakes" \
+        run home-manager/master -- switch \
+        --flake $HOME_MANAGER_HOME#$profile \
+        --impure \
+        -b backup
     '')
 
     (writeShellScriptBin "hnews" ''
