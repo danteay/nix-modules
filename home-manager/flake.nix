@@ -3,8 +3,8 @@
 
   inputs = {
     # Specify the source of Home Manager and Nixpkgs.
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
-    unstable-pkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.2605";
+    unstable-pkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.2605";
 
     # Use the latest version of Home Manager
     home-manager.url = "github:nix-community/home-manager/release-26.05";
