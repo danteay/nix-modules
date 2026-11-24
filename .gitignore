@@ -29,3 +29,5 @@ dotfiles/ai/opencode/reports/
 dotfiles/ai/opencode/plans/
 
 node_modules/
+
+flake-hub-token.txt
